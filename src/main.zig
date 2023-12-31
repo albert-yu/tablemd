@@ -24,5 +24,6 @@ test "simple test" {
     const input = "hello Teg!";
     const matches = try regex.eval(allocator, input);
     defer allocator.free(matches);
-    try std.testing.expect(matches.len == 2);
+    const expected: usize = 2;
+    try std.testing.expectEqual(expected, matches.len);
 }
