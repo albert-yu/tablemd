@@ -23,6 +23,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.linkLibC();
     exe.addIncludePath(.{
         .path = "src/lib",
     });
@@ -65,6 +66,7 @@ pub fn build(b: *std.Build) void {
     unit_tests.addIncludePath(.{
         .path = "src/lib",
     });
+    unit_tests.linkLibC();
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
