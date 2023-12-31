@@ -9,7 +9,7 @@ pub const Match = struct {
 };
 
 pub const Regex = struct {
-    slice: []align(@alignOf(u8)) u8,
+    slice: []align(REGEX_T_ALIGNOF) u8,
     regex: *re.regex_t,
     const Self = @This();
     pub fn new(allocator: std.mem.Allocator, expr: []const u8) !Self {
@@ -71,7 +71,7 @@ pub const Regex = struct {
                 break;
             }
         }
-        var as_slice = matches_list.toOwnedSlice();
+        var as_slice = try matches_list.toOwnedSlice();
         return as_slice;
     }
 };
