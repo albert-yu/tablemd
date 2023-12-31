@@ -24,7 +24,9 @@ pub fn main() !void {
 
     for (matches, 0..) |m, i| {
         const start_offset = m.rm_so;
-        if (start_offset == -1) break;
+        if (start_offset == -1) {
+            break;
+        }
 
         const end_offset = m.rm_eo;
 
