@@ -10,7 +10,7 @@ pub fn main() !void {
 
     var slice = try allocator.alignedAlloc(u8, REGEX_T_ALIGNOF, REGEX_T_SIZEOF);
     const regex = @as(*re.regex_t, @ptrCast(slice.ptr));
-    defer allocator.free(@as([*]u8, @ptrCast(regex))[0..REGEX_T_SIZEOF]);
+    defer allocator.free(slice);
     if (re.regcomp(regex, "hello ?([[:alpha:]]*)", re.REG_EXTENDED | re.REG_ICASE) != 0) {
         print("Invalid Regular Expression", .{});
         return;
