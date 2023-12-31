@@ -10,6 +10,7 @@ brew install wasmtime
 Build and run.
 
 ```sh
+cd core
 zig build -Dtarget=wasm32-wasi
 wasmtime zig-out/bin/spreadsheet.wasm
 ```

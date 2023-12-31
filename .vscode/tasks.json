@@ -5,7 +5,12 @@
             "label": "build",
             "command": "zig",
             "args": [
-                "build"
+                "build",
+                "--build-file",
+                "core/build.zig"
+            ],
+            "problemMatcher": [
+                "$zig"
             ]
         }
     ]
