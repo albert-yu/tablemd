@@ -24,7 +24,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.addIncludePath(.{
-        .path = "lib",
+        .path = "src/lib",
     });
 
     // This declares intent for the executable to be installed into the

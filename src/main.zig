@@ -1,24 +1,36 @@
 const std = @import("std");
+const re = @cImport(@cInclude("regez.h"));
+const REGEX_T_ALIGNOF = re.sizeof_regex_t;
+const REGEX_T_SIZEOF = re.alignof_regex_t;
+const print = std.debug.print;
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    var slice = try allocator.alignedAlloc(u8, REGEX_T_ALIGNOF, REGEX_T_SIZEOF);
+    const regex = @as(*re.regex_t, @ptrCast(slice.ptr));
+    defer allocator.free(@as([*]u8, @ptrCast(regex))[0..REGEX_T_SIZEOF]);
+    if (re.regcomp(regex, "hello ?([[:alpha:]]*)", re.REG_EXTENDED | re.REG_ICASE) != 0) {
+        print("Invalid Regular Expression", .{});
+        return;
+    }
+    defer re.regfree(regex); // IMPORTANT!!
+    const input = "hello Teg!";
+    var matches: [5]re.regmatch_t = undefined;
+    if (re.regexec(regex, input, matches.len, &matches, 0) != 0) {
+        // TODO: no match
+    }
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    for (matches, 0..) |m, i| {
+        const start_offset = m.rm_so;
+        if (start_offset == -1) break;
 
-    try bw.flush(); // don't forget to flush!
+        const end_offset = m.rm_eo;
+
+        const match = input[@as(usize, @intCast(start_offset))..@as(usize, @intCast(end_offset))];
+        print("matches[{d}] = {s}\n", .{ i, match });
+    }
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
+test "simple test" {}
