@@ -4,7 +4,9 @@ const REGEX_T_ALIGNOF = re.sizeof_regex_t;
 const REGEX_T_SIZEOF = re.alignof_regex_t;
 const print = std.debug.print;
 
-pub fn main() !void {
+pub fn main() !void {}
+
+test "simple test" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
@@ -32,5 +34,3 @@ pub fn main() !void {
         print("matches[{d}] = {s}\n", .{ i, match });
     }
 }
-
-test "simple test" {}
