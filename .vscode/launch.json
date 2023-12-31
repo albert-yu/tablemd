@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug exe",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/zig-out/bin/spreadsheet",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
