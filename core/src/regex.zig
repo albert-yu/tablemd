@@ -8,6 +8,7 @@ pub const Match = struct {
     end: usize,
 };
 
+/// Wrapper around `regex.h`
 pub const Regex = struct {
     slice: []align(REGEX_T_ALIGNOF) u8,
     regex: *re.regex_t,
@@ -93,3 +94,14 @@ pub const Regex = struct {
         return as_slice;
     }
 };
+
+test "basic regex test" {
+    const allocator = std.testing.allocator;
+    const regex = try Regex.new(allocator, "hello ?([[:alpha:]]*)");
+    defer regex.destroy(allocator);
+    const input = "hello Teg!";
+    const matches = try regex.eval(allocator, input);
+    defer allocator.free(matches);
+    const expected: usize = 2;
+    try std.testing.expectEqual(expected, matches.len);
+}

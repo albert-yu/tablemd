@@ -16,14 +16,3 @@ pub fn main() !void {
         print("matches[{d}] = {s}\n", .{ i, match });
     }
 }
-
-test "simple test" {
-    const allocator = std.testing.allocator;
-    const regex = try re.Regex.new(allocator, "hello ?([[:alpha:]]*)");
-    defer regex.destroy(allocator);
-    const input = "hello Teg!";
-    const matches = try regex.eval(allocator, input);
-    defer allocator.free(matches);
-    const expected: usize = 2;
-    try std.testing.expectEqual(expected, matches.len);
-}
