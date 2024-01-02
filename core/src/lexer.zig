@@ -1,4 +1,7 @@
-const Token = enum {
+const std = @import("std");
+const re = @import("regex.zig");
+
+const TokenType = enum {
     whitespace,
     unknown,
     l_paren,
@@ -39,29 +42,110 @@ const Token = enum {
     eof,
 };
 
+const PATTERNS = [_][]const u8{
+    // equals (=) comparison operator
+    "=",
+    // !=, <=, >= comparison operators
+    "[!<>]=",
+};
+
+fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
+    comptime {
+        var length: usize = 0;
+        for (strings) |s| {
+            length += s.len;
+            length += sep.len;
+        }
+
+        var result: [length]u8 = undefined;
+        var cursor: usize = 0;
+        for (strings, 0..) |s, i| {
+            std.mem.copy(u8, result[cursor..][0..s.len], s);
+            cursor += s.len;
+            if (i < strings.len - 1) {
+                std.mem.copy(u8, result[cursor..][0..sep.len], sep);
+                cursor += sep.len;
+            }
+        }
+
+        return result[0..];
+    }
+}
+
+const REGEX_TOKEN = joinStrings(&PATTERNS, "|");
+
+const Token = struct {
+    type: TokenType,
+    start: usize,
+    end: usize,
+};
+
+const token_lookup = std.ComptimeStringMap(TokenType, .{
+    .{ "(", .l_paren },
+    .{ "[", .l_bracket },
+    .{ "{", .l_brace },
+    .{ ")", .r_paren },
+    .{ "]", .r_bracket },
+    .{ "}", .r_brace },
+    .{ "=", .eq },
+    .{ "!=", .neq },
+    .{ "<", .lt },
+    .{ ">", .gt },
+    .{ "<=", .lte },
+    .{ ">=", .gte },
+});
+
 pub const Tokenizer = struct {
-    input: []u8,
+    input: []const u8,
     index: u64,
+    regex: re.Regex,
     const Self = @This();
-    pub fn init(s: []u8) void {
-        Self.input = s;
-        Self.index = 0;
+
+    pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
+        const regex = try re.Regex.new(allocator, REGEX_TOKEN);
+        return Self{
+            .input = s,
+            .index = 0,
+            .regex = regex,
+        };
     }
 
-    pub fn next() !Token {
-        if (Self.index >= Self.input.len) {
-            return Token.eof;
-        }
-        const c = Self.input[Self.index];
-        const token = switch (c) {
-            '(' => Token.l_paren,
-            '[' => Token.l_bracket,
-            '{' => Token.l_brace,
-            ')' => Token.r_paren,
-            ']' => Token.r_bracket,
-        };
+    pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
+        self.regex.destroy(allocator);
+    }
 
-        Self.index += 1;
-        return token;
+    pub fn next(self: *Self) !Token {
+        if (self.index >= self.input.len) {
+            return Token{
+                .type = TokenType.eof,
+                .start = self.index,
+                .end = self.index,
+            };
+        }
+        const str = self.input[self.index..];
+        const maybe_match = self.regex.findFirst(str);
+        if (maybe_match) |match| {
+            const c = str[match.start..match.end];
+            const token = token_lookup.get(c) orelse TokenType.unknown;
+            self.index += match.end + 1;
+            return Token{
+                .type = token,
+                .start = match.start,
+                .end = match.end,
+            };
+        }
+        return Token{
+            .type = TokenType.eof,
+            .start = self.index,
+            .end = self.index,
+        };
     }
 };
+
+test "lexer test" {
+    const allocator = std.testing.allocator;
+    var tokenizer = try Tokenizer.new(allocator, "=");
+    defer tokenizer.destroy(allocator);
+    const token = try tokenizer.next();
+    try std.testing.expectEqual(token.type, TokenType.eq);
+}

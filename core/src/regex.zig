@@ -32,6 +32,24 @@ pub const Regex = struct {
         allocator.free(self.slice);
     }
 
+    pub fn findFirst(self: Self, input: []const u8) ?Match {
+        var matches: [1]re.regmatch_t = undefined;
+        var code = re.regexec(self.regex, input.ptr, matches.len, &matches, 0);
+        var has_matches = code == 0;
+        if (!has_matches) {
+            return null;
+        }
+        const start = matches[0].rm_so;
+        if (start == -1) {
+            return null;
+        }
+        const end = matches[0].rm_eo;
+        return Match{
+            .start = @as(usize, @intCast(start)),
+            .end = @as(usize, @intCast(end)),
+        };
+    }
+
     /// caller must free returned slice
     pub fn eval(self: Self, allocator: std.mem.Allocator, input: []const u8) ![]Match {
         var matches_list = std.ArrayList(Match).init(allocator);
