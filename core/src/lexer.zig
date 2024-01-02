@@ -47,6 +47,8 @@ const PATTERNS = [_][]const u8{
     "=",
     // !=, <=, >= comparison operators
     "[!<>]=",
+    "false",
+    "true",
 };
 
 fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
@@ -72,7 +74,7 @@ fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     }
 }
 
-const REGEX_TOKEN = joinStrings(&PATTERNS, "|");
+const BASIC_TOKEN_REGEX = joinStrings(&PATTERNS, "|");
 
 const Token = struct {
     type: TokenType,
@@ -102,7 +104,7 @@ pub const Tokenizer = struct {
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
-        const regex = try re.Regex.new(allocator, REGEX_TOKEN);
+        const regex = try re.Regex.new(allocator, BASIC_TOKEN_REGEX);
         return Self{
             .input = s,
             .index = 0,
@@ -127,7 +129,7 @@ pub const Tokenizer = struct {
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
             const token = token_lookup.get(c) orelse TokenType.unknown;
-            self.index += match.end + 1;
+            self.index += match.end;
             return Token{
                 .type = token,
                 .start = match.start,
