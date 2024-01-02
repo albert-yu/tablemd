@@ -79,7 +79,7 @@ pub fn build(b: *std.Build) void {
     regex_tests.addIncludePath(.{
         .path = "src/lib",
     });
-    lexer_tests.linkLibC();
+    regex_tests.linkLibC();
 
     const run_regex_tests = b.addRunArtifact(lexer_tests);
 
