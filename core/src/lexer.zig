@@ -42,13 +42,14 @@ const TokenType = enum {
     eof,
 };
 
+// longer patterns first
 const PATTERNS = [_][]const u8{
-    // equals (=) comparison operator
-    "=",
-    // !=, <=, >= comparison operators
-    "[!<>]=",
     "false",
     "true",
+    // !=, <=, >= comparison operators
+    "[!<>]=",
+    // equals (=) comparison operator
+    "=",
 };
 
 fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
@@ -95,6 +96,8 @@ const token_lookup = std.ComptimeStringMap(TokenType, .{
     .{ ">", .gt },
     .{ "<=", .lte },
     .{ ">=", .gte },
+    .{ "false", .false },
+    .{ "true", .true },
 });
 
 pub const Tokenizer = struct {
@@ -132,8 +135,9 @@ pub const Tokenizer = struct {
             self.index += match.end;
             return Token{
                 .type = token,
-                .start = match.start,
-                .end = match.end,
+                // need to adjust for initial offset
+                .start = self.index + match.start,
+                .end = self.index + match.end,
             };
         }
         return Token{
@@ -146,8 +150,12 @@ pub const Tokenizer = struct {
 
 test "lexer test" {
     const allocator = std.testing.allocator;
-    var tokenizer = try Tokenizer.new(allocator, "=");
+    var tokenizer = try Tokenizer.new(allocator, "false=true");
     defer tokenizer.destroy(allocator);
-    const token = try tokenizer.next();
-    try std.testing.expectEqual(token.type, TokenType.eq);
+    var token = try tokenizer.next();
+    try std.testing.expectEqual(TokenType.false, token.type);
+    token = try tokenizer.next();
+    try std.testing.expectEqual(TokenType.eq, token.type);
+    token = try tokenizer.next();
+    try std.testing.expectEqual(TokenType.true, token.type);
 }
