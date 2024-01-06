@@ -37,7 +37,7 @@ const TokenType = enum {
     // comment,
     // unterminated_block_comment,
     function_call,
-    unquoted_sheet_ref,
+    // unquoted_sheet_ref,
     str_literal,
     // unterminated_str_literal,
     num_literal,
@@ -222,19 +222,23 @@ pub const Tokenizer = struct {
         const maybe_match = self.regex.findFirst(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
-            const tokenType = token_lookup.get(c) orelse TokenType.unknown;
-            const start = self.index + match.start;
-            const end = self.index + match.end;
-            self.index += match.end;
-            return Token{
-                .type = tokenType,
-                // need to adjust for initial offset
-                .start = start,
-                .end = end,
-            };
+            const tokenType = token_lookup.get(c);
+            if (tokenType) |tok| {
+                const start = self.index + match.start;
+                const end = self.index + match.end;
+                self.index += match.end;
+                return Token{
+                    .type = tok,
+                    // need to adjust for initial offset
+                    .start = start,
+                    .end = end,
+                };
+            }
+            // TODO: try regexps one by one
         }
+        // TODO: figure out whether to return error or just this
         return Token{
-            .type = TokenType.eof,
+            .type = TokenType.unknown,
             .start = self.index,
             .end = self.index,
         };
@@ -243,10 +247,10 @@ pub const Tokenizer = struct {
 
 test "lexer test" {
     const allocator = std.testing.allocator;
-    var tokenizer = try Tokenizer.new(allocator, "false=TRUE");
+    var tokenizer = try Tokenizer.new(allocator, "A3=TRUE");
     defer tokenizer.destroy(allocator);
     var token = try tokenizer.next();
-    try std.testing.expectEqual(TokenType.false, token.type);
+    try std.testing.expectEqual(TokenType.cell_ref, token.type);
     token = try tokenizer.next();
     try std.testing.expectEqual(TokenType.eq, token.type);
     token = try tokenizer.next();
