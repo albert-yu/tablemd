@@ -77,25 +77,26 @@ const KEYWORDS = [_][]const u8{
 };
 
 fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
-    // Calculate total length first
-    comptime var totalLength: usize = 0;
-    inline for (arrays) |array| {
-        totalLength += array.len;
-    }
-
-    // Allocate space for the merged array
-    var merged: [totalLength][]const u8 = undefined;
-
-    // Merge arrays
-    comptime var index: usize = 0;
-    inline for (arrays) |array| {
-        for (array) |str| {
-            merged[index] = str;
-            index += 1;
+    comptime {
+        // Calculate total length first
+        var totalLength: usize = 0;
+        for (arrays) |array| {
+            totalLength += array.len;
         }
-    }
 
-    return merged[0..];
+        // Allocate space for the merged array
+        var merged: [totalLength][]const u8 = undefined;
+
+        // Merge arrays
+        var index: usize = 0;
+        for (arrays) |array| {
+            for (array) |str| {
+                merged[index] = str;
+                index += 1;
+            }
+        }
+        return merged[0..];
+    }
 }
 
 const PATTERNS = comptimeMergeStringArrays([_][]const []const u8{ &FUNCTIONS, &OPERATORS, &KEYWORDS });
