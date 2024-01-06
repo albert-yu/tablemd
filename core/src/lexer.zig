@@ -150,12 +150,14 @@ pub const Tokenizer = struct {
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
             const tokenType = token_lookup.get(c) orelse TokenType.unknown;
+            const start = self.index + match.start;
+            const end = self.index + match.end;
             self.index += match.end;
             return Token{
                 .type = tokenType,
                 // need to adjust for initial offset
-                .start = self.index + match.start,
-                .end = self.index + match.end,
+                .start = start,
+                .end = end,
             };
         }
         return Token{
