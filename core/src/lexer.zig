@@ -113,7 +113,9 @@ const token_lookup = std.ComptimeStringMap(TokenType, .{
     .{ "@", .ref_op },
     .{ "%", .percent },
     .{ "false", .false },
+    .{ "FALSE", .false }, // of course, doesn't handle fAlSe or similar
     .{ "true", .true },
+    .{ "TRUE", .true },
 });
 
 pub const Tokenizer = struct {
@@ -147,10 +149,10 @@ pub const Tokenizer = struct {
         const maybe_match = self.regex.findFirst(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
-            const token = token_lookup.get(c) orelse TokenType.unknown;
+            const tokenType = token_lookup.get(c) orelse TokenType.unknown;
             self.index += match.end;
             return Token{
-                .type = token,
+                .type = tokenType,
                 // need to adjust for initial offset
                 .start = self.index + match.start,
                 .end = self.index + match.end,
@@ -166,7 +168,7 @@ pub const Tokenizer = struct {
 
 test "lexer test" {
     const allocator = std.testing.allocator;
-    var tokenizer = try Tokenizer.new(allocator, "false=true");
+    var tokenizer = try Tokenizer.new(allocator, "false=TRUE");
     defer tokenizer.destroy(allocator);
     var token = try tokenizer.next();
     try std.testing.expectEqual(TokenType.false, token.type);
