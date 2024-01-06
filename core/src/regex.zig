@@ -95,7 +95,7 @@ pub const Regex = struct {
     }
 };
 
-test "basic regex test" {
+test "regex test" {
     const allocator = std.testing.allocator;
     const regex = try Regex.new(allocator, "hello ?([[:alpha:]]*)");
     defer regex.destroy(allocator);
@@ -104,4 +104,14 @@ test "basic regex test" {
     defer allocator.free(matches);
     const expected: usize = 2;
     try std.testing.expectEqual(expected, matches.len);
+
+    const regex2 = try Regex.new(allocator, "\\$?[a-zA-Z]{1,2}\\$?\\d+");
+    defer regex2.destroy(allocator);
+    const input2 = "A3";
+    const matches2 = try regex2.eval(allocator, input2);
+    defer allocator.free(matches2);
+    const expected2: usize = 1;
+    try std.testing.expectEqual(expected2, matches2.len);
+    const expectedMatch2: []const u8 = "A3";
+    try std.testing.expectEqual(expectedMatch2, input2[matches2[0].start..matches2[0].end]);
 }
