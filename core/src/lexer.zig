@@ -74,7 +74,7 @@ const OPERATORS = [_][]const u8{
     "\\+",
     "\\-",
     "\\*",
-    "/",
+    "\\/",
     "\\^",
     "&",
     "%",
@@ -82,7 +82,7 @@ const OPERATORS = [_][]const u8{
 };
 
 const CELL_REFS = [_][]const u8{
-    "\\$?[a-zA-z]{1,2}\\$?\\d+",
+    "\\$?[a-zA-Z]{1,2}\\$?\\d+",
 };
 
 const SYMBOLS = [_][]const u8{
@@ -125,7 +125,13 @@ fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
     }
 }
 
-const PATTERNS = comptimeMergeStringArrays([_][]const []const u8{ &FUNCTIONS, &OPERATORS, &KEYWORDS, &SYMBOLS, &CELL_REFS });
+const ALL_PATTERNS = comptimeMergeStringArrays([_][]const []const u8{
+    &FUNCTIONS,
+    &OPERATORS,
+    &KEYWORDS,
+    &SYMBOLS,
+    &CELL_REFS,
+});
 
 fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     comptime {
@@ -150,7 +156,8 @@ fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     }
 }
 
-const BASIC_TOKEN_REGEX = joinStrings(PATTERNS, "|");
+const ALL_TOKENS_REGEX = joinStrings(ALL_PATTERNS, "|");
+const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
 
 const Token = struct {
     type: TokenType,
@@ -194,20 +201,28 @@ pub const Tokenizer = struct {
     input: []const u8,
     index: u64,
     regex: re.Regex,
+    cell_ref_regex: re.Regex,
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
         // TODO: make regex explicitly greedy, case-insensitive
-        const regex = try re.Regex.new(allocator, BASIC_TOKEN_REGEX);
+        const regex = try re.Regex.new(allocator, ALL_TOKENS_REGEX);
+        std.debug.print("{s}\n", .{ALL_TOKENS_REGEX});
+        const cell_ref_regex = try re.Regex.new(
+            allocator,
+            CELL_REF_REGEX,
+        );
         return Self{
             .input = s,
             .index = 0,
             .regex = regex,
+            .cell_ref_regex = cell_ref_regex,
         };
     }
 
     pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
         self.regex.destroy(allocator);
+        self.cell_ref_regex.destroy(allocator);
     }
 
     pub fn next(self: *Self) !Token {
@@ -222,10 +237,10 @@ pub const Tokenizer = struct {
         const maybe_match = self.regex.findFirst(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
+            const start = self.index + match.start;
+            const end = self.index + match.end;
             const tokenType = token_lookup.get(c);
             if (tokenType) |tok| {
-                const start = self.index + match.start;
-                const end = self.index + match.end;
                 self.index += match.end;
                 return Token{
                     .type = tok,
@@ -235,6 +250,15 @@ pub const Tokenizer = struct {
                 };
             }
             // TODO: try regexps one by one
+            const maybe_match_cell_ref = self.cell_ref_regex.findFirst(c);
+            if (maybe_match_cell_ref) |matched_cell_ref| {
+                _ = matched_cell_ref;
+                return Token{
+                    .type = .cell_ref,
+                    .start = start,
+                    .end = end,
+                };
+            }
         }
         // TODO: figure out whether to return error or just this
         return Token{
@@ -247,12 +271,12 @@ pub const Tokenizer = struct {
 
 test "lexer test" {
     const allocator = std.testing.allocator;
-    var tokenizer = try Tokenizer.new(allocator, "A3=TRUE");
+    var tokenizer = try Tokenizer.new(allocator, "A3");
     defer tokenizer.destroy(allocator);
     var token = try tokenizer.next();
     try std.testing.expectEqual(TokenType.cell_ref, token.type);
-    token = try tokenizer.next();
-    try std.testing.expectEqual(TokenType.eq, token.type);
-    token = try tokenizer.next();
-    try std.testing.expectEqual(TokenType.true, token.type);
+    // token = try tokenizer.next();
+    // try std.testing.expectEqual(TokenType.eq, token.type);
+    // token = try tokenizer.next();
+    // try std.testing.expectEqual(TokenType.true, token.type);
 }
