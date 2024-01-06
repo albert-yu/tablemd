@@ -31,15 +31,15 @@ const TokenType = enum {
     ref_op,
     cell_range_op,
     sheet_ref_op,
-    ellipsis,
+    // ellipsis,
     false,
     true,
-    comment,
-    unterminated_block_comment,
+    // comment,
+    // unterminated_block_comment,
     function_call,
     unquoted_sheet_ref,
     str_literal,
-    unterminated_str_literal,
+    // unterminated_str_literal,
     num_literal,
     cell_ref,
     eof,
@@ -65,10 +65,36 @@ const FUNCTIONS = [_][]const u8{
 };
 
 const OPERATORS = [_][]const u8{
-    // !=, <=, >= comparison operators
-    "[!<>]=",
-    // equals (=) comparison operator
+    ">=",
+    "<=",
+    "<",
+    ">",
+    "<>",
     "=",
+    "\\+",
+    "\\-",
+    "\\*",
+    "/",
+    "\\^",
+    "&",
+    "%",
+    "#",
+};
+
+const CELL_REFS = [_][]const u8{
+    "(\\$?[a-zA-z]{1,2}\\$?\\d)",
+};
+
+const SYMBOLS = [_][]const u8{
+    "\\(",
+    "\\)",
+    "\\{",
+    "\\}",
+    "\\[",
+    "\\]",
+    "\\,",
+    ";",
+    "\"",
 };
 
 const KEYWORDS = [_][]const u8{
@@ -99,7 +125,7 @@ fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
     }
 }
 
-const PATTERNS = comptimeMergeStringArrays([_][]const []const u8{ &FUNCTIONS, &OPERATORS, &KEYWORDS });
+const PATTERNS = comptimeMergeStringArrays([_][]const []const u8{ &FUNCTIONS, &OPERATORS, &KEYWORDS, &SYMBOLS, &CELL_REFS });
 
 fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     comptime {
