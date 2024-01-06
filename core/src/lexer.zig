@@ -45,15 +45,60 @@ const TokenType = enum {
     eof,
 };
 
-// longer patterns first
-const PATTERNS = [_][]const u8{
-    "false",
-    "true",
+/// Incomplete list of Excel functions
+/// Source: https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188
+const FUNCTIONS = [_][]const u8{
+    "ABS",
+    "AND",
+    "AVERAGE",
+    "AVERAGEIF",
+    "BASE",
+    "OR",
+    "PRODUCT",
+    "SORT",
+    "SORTBY",
+    "SQRT",
+    "SQRTPI",
+    "SUM",
+    "SUMIF",
+    "XOR",
+};
+
+const OPERATORS = [_][]const u8{
     // !=, <=, >= comparison operators
     "[!<>]=",
     // equals (=) comparison operator
     "=",
 };
+
+const KEYWORDS = [_][]const u8{
+    "false",
+    "true",
+};
+
+fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
+    // Calculate total length first
+    comptime var totalLength: usize = 0;
+    inline for (arrays) |array| {
+        totalLength += array.len;
+    }
+
+    // Allocate space for the merged array
+    var merged: [totalLength][]const u8 = undefined;
+
+    // Merge arrays
+    comptime var index: usize = 0;
+    inline for (arrays) |array| {
+        for (array) |str| {
+            merged[index] = str;
+            index += 1;
+        }
+    }
+
+    return merged[0..];
+}
+
+const PATTERNS = comptimeMergeStringArrays([_][]const []const u8{ &FUNCTIONS, &OPERATORS, &KEYWORDS });
 
 fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     comptime {
@@ -78,7 +123,7 @@ fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     }
 }
 
-const BASIC_TOKEN_REGEX = joinStrings(&PATTERNS, "|");
+const BASIC_TOKEN_REGEX = joinStrings(PATTERNS, "|");
 
 const Token = struct {
     type: TokenType,
@@ -125,6 +170,7 @@ pub const Tokenizer = struct {
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
+        // TODO: make regex explicitly greedy, case-insensitive
         const regex = try re.Regex.new(allocator, BASIC_TOKEN_REGEX);
         return Self{
             .input = s,
