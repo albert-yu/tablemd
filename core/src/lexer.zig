@@ -29,8 +29,8 @@ const TokenType = enum {
     space,
     pound,
     ref_op,
-    cell_range_op,
-    sheet_ref_op,
+    // cell_range_op,
+    // sheet_ref_op,
     // ellipsis,
     false,
     true,
@@ -125,6 +125,8 @@ const OPERATORS = [_][]const u8{
     "&",
     "%",
     "#",
+    ":",
+    "@",
 };
 
 const CELL_REFS = [_][]const u8{
@@ -346,6 +348,26 @@ pub const Tokenizer = struct {
     }
 };
 
+const ExpectedToken = struct {
+    str: []const u8,
+    type: TokenType,
+};
+
+fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
+    var tokenizer = try Tokenizer.new(allocator, input);
+    defer tokenizer.destroy(allocator);
+
+    var token = try tokenizer.next();
+    var i: usize = 0;
+    while (token.type != TokenType.eof) {
+        const expected_token = expected[i];
+        try std.testing.expectEqualStrings(expected_token.str, input[token.start..token.end]);
+        try std.testing.expectEqual(expected_token.type, token.type);
+        i += 1;
+        token = try tokenizer.next();
+    }
+}
+
 test "lexer basic test" {
     const allocator = std.testing.allocator;
 
@@ -409,9 +431,30 @@ test "lexer basic test" {
     try std.testing.expectEqual(TokenType.num_literal, token.type);
 
     const func_call = "SUM(B1:B40)";
-    var tokenizer_func = try Tokenizer.new(allocator, func_call);
-    defer tokenizer_func.destroy(allocator);
-
-    token = try tokenizer_func.next();
-    try std.testing.expectEqualStrings("SUM", func_call[token.start..token.end]);
+    try testTokenizerInput(allocator, func_call, &[_]ExpectedToken{
+        .{
+            .type = TokenType.function_call,
+            .str = "SUM",
+        },
+        .{
+            .type = TokenType.l_paren,
+            .str = "(",
+        },
+        .{
+            .type = TokenType.cell_ref,
+            .str = "B1",
+        },
+        .{
+            .type = TokenType.range_op,
+            .str = ":",
+        },
+        .{
+            .type = TokenType.cell_ref,
+            .str = "B40",
+        },
+        .{
+            .type = TokenType.r_paren,
+            .str = ")",
+        },
+    });
 }
