@@ -207,7 +207,7 @@ pub const Tokenizer = struct {
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
         // TODO: make regex explicitly greedy, case-insensitive
         const regex = try re.Regex.new(allocator, ALL_TOKENS_REGEX);
-        std.debug.print("{s}\n", .{ALL_TOKENS_REGEX});
+        // std.debug.print("{s}\n", .{ALL_TOKENS_REGEX});
         const cell_ref_regex = try re.Regex.new(
             allocator,
             CELL_REF_REGEX,
