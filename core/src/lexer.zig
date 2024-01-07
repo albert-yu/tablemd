@@ -45,6 +45,52 @@ const TokenType = enum {
     eof,
 };
 
+fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
+    comptime {
+        var length: usize = 0;
+        for (strings) |s| {
+            length += s.len;
+            length += sep.len;
+        }
+
+        var result: [length]u8 = undefined;
+        var cursor: usize = 0;
+        for (strings, 0..) |s, i| {
+            std.mem.copy(u8, result[cursor..][0..s.len], s);
+            cursor += s.len;
+            if (i < strings.len - 1) {
+                std.mem.copy(u8, result[cursor..][0..sep.len], sep);
+                cursor += sep.len;
+            }
+        }
+
+        return result[0..];
+    }
+}
+
+fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
+    comptime {
+        // Calculate total length first
+        var totalLength: usize = 0;
+        for (arrays) |array| {
+            totalLength += array.len;
+        }
+
+        // Allocate space for the merged array
+        var merged: [totalLength][]const u8 = undefined;
+
+        // Merge arrays
+        var index: usize = 0;
+        for (arrays) |array| {
+            for (array) |str| {
+                merged[index] = str;
+                index += 1;
+            }
+        }
+        return merged[0..];
+    }
+}
+
 /// Incomplete list of Excel functions
 /// Source: https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188
 const FUNCTIONS = [_][]const u8{
@@ -102,29 +148,6 @@ const KEYWORDS = [_][]const u8{
     "true",
 };
 
-fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
-    comptime {
-        // Calculate total length first
-        var totalLength: usize = 0;
-        for (arrays) |array| {
-            totalLength += array.len;
-        }
-
-        // Allocate space for the merged array
-        var merged: [totalLength][]const u8 = undefined;
-
-        // Merge arrays
-        var index: usize = 0;
-        for (arrays) |array| {
-            for (array) |str| {
-                merged[index] = str;
-                index += 1;
-            }
-        }
-        return merged[0..];
-    }
-}
-
 const ALL_PATTERNS = comptimeMergeStringArrays([_][]const []const u8{
     &FUNCTIONS,
     &OPERATORS,
@@ -132,29 +155,6 @@ const ALL_PATTERNS = comptimeMergeStringArrays([_][]const []const u8{
     &SYMBOLS,
     &CELL_REFS,
 });
-
-fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
-    comptime {
-        var length: usize = 0;
-        for (strings) |s| {
-            length += s.len;
-            length += sep.len;
-        }
-
-        var result: [length]u8 = undefined;
-        var cursor: usize = 0;
-        for (strings, 0..) |s, i| {
-            std.mem.copy(u8, result[cursor..][0..s.len], s);
-            cursor += s.len;
-            if (i < strings.len - 1) {
-                std.mem.copy(u8, result[cursor..][0..sep.len], sep);
-                cursor += sep.len;
-            }
-        }
-
-        return result[0..];
-    }
-}
 
 const ALL_TOKENS_REGEX = joinStrings(ALL_PATTERNS, "|");
 const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
