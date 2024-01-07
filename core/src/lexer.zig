@@ -485,4 +485,32 @@ test "lexer basic test" {
             .str = ")",
         },
     });
+
+    const func_call_args = "PRODUCT($R$4,$R$5)";
+    try testTokenizerInput(allocator, func_call_args, &[_]ExpectedToken{
+        .{
+            .type = .function_call,
+            .str = "PRODUCT",
+        },
+        .{
+            .type = .l_paren,
+            .str = "(",
+        },
+        .{
+            .type = .cell_ref,
+            .str = "$R$4",
+        },
+        .{
+            .type = .arg_sep,
+            .str = ",",
+        },
+        .{
+            .type = .cell_ref,
+            .str = "$R$5",
+        },
+        .{
+            .type = .r_paren,
+            .str = ")",
+        },
+    });
 }
