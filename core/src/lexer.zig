@@ -133,6 +133,8 @@ const FUNCTIONS = [_][]const u8{
     "XOR",
 };
 
+/// TODO: read all this carefully:
+/// https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
 const OPERATORS = [_][]const u8{
     ">=",
     "<=",
