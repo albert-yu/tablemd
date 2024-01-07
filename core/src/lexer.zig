@@ -216,7 +216,7 @@ const token_lookup = std.ComptimeStringMap(TokenType, .{
 pub const Tokenizer = struct {
     input: []const u8,
     index: u64,
-    regex: re.Regex,
+    regex_all_tokens: re.Regex,
     cell_ref_regex: re.Regex,
     num_literal_regex: re.Regex,
     str_literal_regex: re.Regex,
@@ -238,11 +238,11 @@ pub const Tokenizer = struct {
             allocator,
             STR_LITERALS_REGEX,
         );
-        return Self{ .input = s, .index = 0, .regex = regex, .cell_ref_regex = cell_ref_regex, .num_literal_regex = num_literal_regex, .str_literal_regex = str_literal_regex };
+        return Self{ .input = s, .index = 0, .regex_all_tokens = regex, .cell_ref_regex = cell_ref_regex, .num_literal_regex = num_literal_regex, .str_literal_regex = str_literal_regex };
     }
 
     pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
-        self.regex.destroy(allocator);
+        self.regex_all_tokens.destroy(allocator);
         self.cell_ref_regex.destroy(allocator);
         self.num_literal_regex.destroy(allocator);
         self.str_literal_regex.destroy(allocator);
@@ -257,7 +257,7 @@ pub const Tokenizer = struct {
             };
         }
         const str = self.input[self.index..];
-        const maybe_match = self.regex.findFirst(str);
+        const maybe_match = self.regex_all_tokens.findFirst(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
             const start = self.index + match.start;
