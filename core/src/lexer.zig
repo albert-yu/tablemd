@@ -257,15 +257,15 @@ pub const Tokenizer = struct {
             };
         }
         const str = self.input[self.index..];
-        const maybe_match = self.regex_all_tokens.findFirst(str);
+        const maybe_match = self.regex_all_tokens.findMustStartFromBeginning(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
             const start = self.index + match.start;
             const end = self.index + match.end;
             // mutate AFTER reading start and end
             self.index += match.end;
-            const tokenType = token_lookup.get(c);
-            if (tokenType) |tok| {
+            const token_type = token_lookup.get(c);
+            if (token_type) |tok| {
                 return Token{
                     .type = tok,
                     // need to adjust for initial offset
@@ -274,7 +274,7 @@ pub const Tokenizer = struct {
                 };
             }
             // try regexps one by one
-            const maybe_match_cell_ref = self.regex_cell_ref.findFirst(c);
+            const maybe_match_cell_ref = self.regex_cell_ref.findMustStartFromBeginning(c);
             if (maybe_match_cell_ref) |matched_cell_ref| {
                 _ = matched_cell_ref;
                 return Token{
@@ -283,11 +283,20 @@ pub const Tokenizer = struct {
                     .end = end,
                 };
             }
-            const maybe_num_lit = self.regex_num_lit.findFirst(c);
+            const maybe_num_lit = self.regex_num_lit.findMustStartFromBeginning(c);
             if (maybe_num_lit) |num_lit| {
                 _ = num_lit;
                 return Token{
                     .type = .num_literal,
+                    .start = start,
+                    .end = end,
+                };
+            }
+            const maybe_str_lit = self.regex_str_lit.findMustStartFromBeginning(c);
+            if (maybe_str_lit) |str_lit| {
+                _ = str_lit;
+                return Token{
+                    .type = .str_literal,
                     .start = start,
                     .end = end,
                 };
@@ -330,4 +339,12 @@ test "lexer test" {
     token = try tokenizer_basic_arith.next();
     try std.testing.expectEqualStrings("5", basic_arith[token.start..token.end]);
     try std.testing.expectEqual(TokenType.num_literal, token.type);
+
+    const str_literal = "'=SUM(A4:A5)";
+    var tokenizer_str_literal = try Tokenizer.new(allocator, str_literal);
+    defer tokenizer_str_literal.destroy(allocator);
+
+    token = try tokenizer_str_literal.next();
+    try std.testing.expectEqualStrings("'=SUM(A4:A5)", str_literal[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.str_literal, token.type);
 }

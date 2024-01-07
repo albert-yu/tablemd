@@ -54,6 +54,17 @@ pub const Regex = struct {
         };
     }
 
+    /// Finds a match that must start from the beginning
+    pub fn findMustStartFromBeginning(self: Self, input: []const u8) ?Match {
+        const match = self.findFirst(input);
+        if (match) |found| {
+            if (found.start == 0) {
+                return found;
+            }
+        }
+        return null;
+    }
+
     /// caller must free returned slice
     pub fn eval(self: Self, allocator: std.mem.Allocator, input: []const u8) ![]Match {
         var matches_list = std.ArrayList(Match).init(allocator);
