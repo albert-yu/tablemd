@@ -59,7 +59,7 @@ const TokenType = enum {
     /// TRUE (case-insensitive)
     true,
     /// FOO(...)
-    function_call,
+    func_call,
     str_literal,
     num_literal,
     /// A4, B12, Z99
@@ -371,7 +371,7 @@ pub const Tokenizer = struct {
             if (match_func_call) |fc| {
                 _ = fc;
                 return Token{
-                    .type = .function_call,
+                    .type = .func_call,
                     .start = start,
                     .end = end,
                 };
@@ -471,7 +471,7 @@ test "lexer basic test" {
     const func_call = "SUM(B1:B40)";
     try testTokenizerInput(allocator, func_call, &[_]ExpectedToken{
         .{
-            .type = .function_call,
+            .type = .func_call,
             .str = "SUM",
         },
         .{
@@ -499,7 +499,7 @@ test "lexer basic test" {
     const func_call_args = "PRODUCT($R$4,$R$5)";
     try testTokenizerInput(allocator, func_call_args, &[_]ExpectedToken{
         .{
-            .type = .function_call,
+            .type = .func_call,
             .str = "PRODUCT",
         },
         .{
@@ -530,7 +530,7 @@ test "bit more complicated" {
     const nested_func_calls = "SUM((100+4)*20,SUMIF(A1:A20))";
     try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
         .{
-            .type = .function_call,
+            .type = .func_call,
             .str = "SUM",
         },
         .{
@@ -570,7 +570,7 @@ test "bit more complicated" {
             .str = ",",
         },
         .{
-            .type = .function_call,
+            .type = .func_call,
             .str = "SUMIF",
         },
         .{
@@ -602,7 +602,7 @@ test "bit more complicated" {
     const str_lit_inside_func = "LENB(\"howdy\")";
     try testTokenizerInput(allocator, str_lit_inside_func, &[_]ExpectedToken{
         .{
-            .type = .function_call,
+            .type = .func_call,
             .str = "LENB",
         },
         .{
