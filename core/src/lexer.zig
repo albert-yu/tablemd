@@ -155,6 +155,11 @@ const STR_LITERALS = [_][]const u8{
     "'.*",
 };
 
+const WHITESPACE = [_][]const u8{
+    // TODO: consider [[:space:]]
+    "[ ]+",
+};
+
 const KEYWORDS = [_][]const u8{
     "false",
     "true",
@@ -168,12 +173,14 @@ const ALL_PATTERNS = comptimeMergeStringArrays([_][]const []const u8{
     &CELL_REFS,
     &NUM_LITERALS,
     &STR_LITERALS,
+    &WHITESPACE,
 });
 
 const ALL_TOKENS_REGEX = joinStrings(ALL_PATTERNS, "|");
 const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
 const NUM_LITERALS_REGEX = joinStrings(&NUM_LITERALS, "|");
 const STR_LITERALS_REGEX = joinStrings(&STR_LITERALS, "|");
+const WHITESPACE_REGEX = joinStrings(&WHITESPACE, "|");
 
 const Token = struct {
     type: TokenType,
@@ -203,7 +210,6 @@ const token_lookup = std.ComptimeStringMap(TokenType, .{
     .{ "<>", .neq },
     .{ "&", .concat },
     .{ ":", .range_op },
-    .{ " ", .space },
     .{ "#", .pound },
     .{ "@", .ref_op },
     .{ "%", .percent },
@@ -220,6 +226,7 @@ pub const Tokenizer = struct {
     regex_cell_ref: re.Regex,
     regex_num_lit: re.Regex,
     regex_str_lit: re.Regex,
+    regex_whitespace: re.Regex,
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
@@ -238,7 +245,16 @@ pub const Tokenizer = struct {
             allocator,
             STR_LITERALS_REGEX,
         );
-        return Self{ .input = s, .index = 0, .regex_all_tokens = regex, .regex_cell_ref = cell_ref_regex, .regex_num_lit = num_literal_regex, .regex_str_lit = str_literal_regex };
+        const whitespace_regex = try re.Regex.new(allocator, WHITESPACE_REGEX);
+        return Self{
+            .input = s,
+            .index = 0,
+            .regex_all_tokens = regex,
+            .regex_cell_ref = cell_ref_regex,
+            .regex_num_lit = num_literal_regex,
+            .regex_str_lit = str_literal_regex,
+            .regex_whitespace = whitespace_regex,
+        };
     }
 
     pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
@@ -246,6 +262,7 @@ pub const Tokenizer = struct {
         self.regex_cell_ref.destroy(allocator);
         self.regex_num_lit.destroy(allocator);
         self.regex_str_lit.destroy(allocator);
+        self.regex_whitespace.destroy(allocator);
     }
 
     pub fn next(self: *Self) !Token {
@@ -306,7 +323,7 @@ pub const Tokenizer = struct {
     }
 };
 
-test "lexer test" {
+test "lexer basic test" {
     const allocator = std.testing.allocator;
 
     const basic_cell_ref = "$A3=TRUE";
@@ -347,4 +364,24 @@ test "lexer test" {
     token = try tokenizer_str_literal.next();
     try std.testing.expectEqualStrings("'=SUM(A4:A5)", str_literal[token.start..token.end]);
     try std.testing.expectEqual(TokenType.str_literal, token.type);
+
+    const with_whitespace = "$ZQ$8989 -   100";
+    var tokenizer_whitespace = try Tokenizer.new(allocator, with_whitespace);
+    defer tokenizer_whitespace.destroy(allocator);
+
+    token = try tokenizer_whitespace.next();
+    try std.testing.expectEqualStrings("$ZQ$8989", with_whitespace[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.cell_ref, token.type);
+    token = try tokenizer_whitespace.next();
+    try std.testing.expectEqualStrings(" ", with_whitespace[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.space, token.type);
+    token = try tokenizer_whitespace.next();
+    try std.testing.expectEqualStrings("-", with_whitespace[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.minus, token.type);
+    token = try tokenizer_whitespace.next();
+    try std.testing.expectEqualStrings("   ", with_whitespace[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.space, token.type);
+    token = try tokenizer_whitespace.next();
+    try std.testing.expectEqualStrings("100", with_whitespace[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.num_literal, token.type);
 }
