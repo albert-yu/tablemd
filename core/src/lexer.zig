@@ -82,7 +82,7 @@ const OPERATORS = [_][]const u8{
 };
 
 const CELL_REFS = [_][]const u8{
-    "\\$?[a-zA-Z]{1,2}\\$?\\d+",
+    "\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
 };
 
 const SYMBOLS = [_][]const u8{

@@ -108,7 +108,7 @@ test "regex test" {
     const expected: usize = 2;
     try std.testing.expectEqual(expected, matches.len);
 
-    const pattern2 = "\\$?[a-zA-Z]{1,2}\\$?\\d+";
+    const pattern2 = "\\$?[a-zA-Z]{1,2}\\$?[0-9]+";
     std.debug.print("pattern 2: {s}\n", .{pattern2});
     const regex2 = try Regex.new(allocator, pattern2);
     defer regex2.destroy(allocator);
