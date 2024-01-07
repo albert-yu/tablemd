@@ -28,7 +28,7 @@ pub const Regex = struct {
         };
     }
 
-    pub fn destroy(self: Self, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
         re.regfree(self.regex);
         allocator.free(self.slice);
     }
@@ -113,7 +113,7 @@ pub const Regex = struct {
 test "regex test" {
     const allocator = std.testing.allocator;
     const regex = try Regex.new(allocator, "hello ?([[:alpha:]]*)");
-    defer regex.destroy(allocator);
+    defer regex.deinit(allocator);
     const input = "hello Teg!";
     const matches = try regex.eval(allocator, input);
     defer allocator.free(matches);
@@ -122,7 +122,7 @@ test "regex test" {
 
     const pattern2 = "\\$?[a-zA-Z]{1,2}\\$?[0-9]+";
     const regex2 = try Regex.new(allocator, pattern2);
-    defer regex2.destroy(allocator);
+    defer regex2.deinit(allocator);
     const input2 = "A3";
     const expected_match_2: []const u8 = "A3";
     const matches2 = regex2.findFirst(input2);

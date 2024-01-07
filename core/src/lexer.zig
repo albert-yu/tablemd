@@ -296,13 +296,13 @@ pub const Tokenizer = struct {
         };
     }
 
-    pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
-        self.regex_all_tokens.destroy(allocator);
-        self.regex_cell_ref.destroy(allocator);
-        self.regex_num_lit.destroy(allocator);
-        self.regex_str_lit.destroy(allocator);
-        self.regex_whitespace.destroy(allocator);
-        self.regex_func.destroy(allocator);
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        self.regex_all_tokens.deinit(allocator);
+        self.regex_cell_ref.deinit(allocator);
+        self.regex_num_lit.deinit(allocator);
+        self.regex_str_lit.deinit(allocator);
+        self.regex_whitespace.deinit(allocator);
+        self.regex_func.deinit(allocator);
     }
 
     pub fn next(self: *Self) !Token {
@@ -388,7 +388,7 @@ const ExpectedToken = struct {
 
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
     var tokenizer = try Tokenizer.new(allocator, input);
-    defer tokenizer.destroy(allocator);
+    defer tokenizer.deinit(allocator);
 
     var token = try tokenizer.next();
     var i: usize = 0;
