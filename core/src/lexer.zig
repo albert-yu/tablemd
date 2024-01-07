@@ -514,3 +514,78 @@ test "lexer basic test" {
         },
     });
 }
+
+test "bit more complicated" {
+    const allocator = std.testing.allocator;
+    const nested_func_calls = "SUM((100+4)*20,SUMIF(A1:A20))";
+    try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
+        .{
+            .type = .function_call,
+            .str = "SUM",
+        },
+        .{
+            .type = .l_paren,
+            .str = "(",
+        },
+        .{
+            .type = .l_paren,
+            .str = "(",
+        },
+        .{
+            .type = .num_literal,
+            .str = "100",
+        },
+        .{
+            .type = .plus,
+            .str = "+",
+        },
+        .{
+            .type = .num_literal,
+            .str = "4",
+        },
+        .{
+            .type = .r_paren,
+            .str = ")",
+        },
+        .{
+            .type = .mult,
+            .str = "*",
+        },
+        .{
+            .type = .num_literal,
+            .str = "20",
+        },
+        .{
+            .type = .arg_sep,
+            .str = ",",
+        },
+        .{
+            .type = .function_call,
+            .str = "SUMIF",
+        },
+        .{
+            .type = .l_paren,
+            .str = "(",
+        },
+        .{
+            .type = .cell_ref,
+            .str = "A1",
+        },
+        .{
+            .type = .range_op,
+            .str = ":",
+        },
+        .{
+            .type = .cell_ref,
+            .str = "A20",
+        },
+        .{
+            .type = .r_paren,
+            .str = ")",
+        },
+        .{
+            .type = .r_paren,
+            .str = ")",
+        },
+    });
+}
