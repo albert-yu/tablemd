@@ -23,12 +23,39 @@ pub const CellExpr = struct {
         return empty_expr;
     }
 
+    /// Deeply deinits all descendents
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
             var c = child;
             c.deinit(allocator);
         }
         self.children.deinit(allocator);
+    }
+
+    /// caller must free
+    pub fn toSexpr(self: Self, allocator: std.mem.Allocator) ![]const u8 {
+        var arr = try std.ArrayListUnmanaged(u8).initCapacity(allocator, self.content_str.len + 2);
+        defer arr.deinit(allocator);
+
+        const has_children = self.children.items.len > 0;
+        if (has_children) {
+            try arr.append(allocator, '(');
+        }
+        for (self.content_str) |char| {
+            try arr.append(allocator, char);
+        }
+        for (self.children.items) |child| {
+            try arr.append(allocator, ' ');
+            const sexpr = try child.toSexpr(allocator);
+            defer allocator.free(sexpr);
+            for (sexpr) |char| {
+                try arr.append(allocator, char);
+            }
+        }
+        if (has_children) {
+            try arr.append(allocator, ')');
+        }
+        return arr.toOwnedSlice(allocator);
     }
 
     pub fn addChild(self: *Self, allocator: std.mem.Allocator, child: Self) !void {
@@ -49,6 +76,20 @@ pub const CellExpr = struct {
         return root;
     }
 };
+
+test "print debug" {
+    const allocator = std.testing.allocator;
+    var expr = try CellExpr.new(allocator, "+", .plus);
+    defer expr.deinit(allocator);
+    var left = try CellExpr.new(allocator, "5", .num_literal);
+    var right = try CellExpr.new(allocator, "4", .num_literal);
+    try expr.addChild(allocator, left);
+    try expr.addChild(allocator, right);
+
+    const sexpr = try expr.toSexpr(allocator);
+    defer allocator.free(sexpr);
+    try std.testing.expectEqualStrings("(+ 5 4)", sexpr);
+}
 
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
