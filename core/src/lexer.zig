@@ -267,20 +267,34 @@ pub const Tokenizer = struct {
 
 test "lexer test" {
     const allocator = std.testing.allocator;
-    const expr_1 = "$A3=TRUE";
-    var tokenizer = try Tokenizer.new(allocator, expr_1);
-    defer tokenizer.destroy(allocator);
 
-    var token = try tokenizer.next();
-    const str_1 = expr_1[token.start..token.end];
+    const basic_cell_ref = "$A3=TRUE";
+    var tokenizer_basic_cell_ref = try Tokenizer.new(allocator, basic_cell_ref);
+    defer tokenizer_basic_cell_ref.destroy(allocator);
+    var token = try tokenizer_basic_cell_ref.next();
+    const str_1 = basic_cell_ref[token.start..token.end];
     try std.testing.expectEqualStrings("$A3", str_1);
     try std.testing.expectEqual(TokenType.cell_ref, token.type);
-    token = try tokenizer.next();
-    const str_2 = expr_1[token.start..token.end];
+    token = try tokenizer_basic_cell_ref.next();
+    const str_2 = basic_cell_ref[token.start..token.end];
     try std.testing.expectEqualStrings("=", str_2);
     try std.testing.expectEqual(TokenType.eq, token.type);
-    token = try tokenizer.next();
-    const str_3 = expr_1[token.start..token.end];
+    token = try tokenizer_basic_cell_ref.next();
+    const str_3 = basic_cell_ref[token.start..token.end];
     try std.testing.expectEqualStrings("TRUE", str_3);
     try std.testing.expectEqual(TokenType.true, token.type);
+
+    const basic_arith = "4+5";
+    var tokenizer_basic_arith = try Tokenizer.new(allocator, basic_arith);
+    defer tokenizer_basic_arith.destroy(allocator);
+
+    token = try tokenizer_basic_arith.next();
+    try std.testing.expectEqualStrings("4", basic_arith[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.num_literal, token.type);
+    token = try tokenizer_basic_cell_ref.next();
+    try std.testing.expectEqualStrings("+", basic_arith[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.plus, token.type);
+    token = try tokenizer_basic_cell_ref.next();
+    try std.testing.expectEqualStrings("5", basic_arith[token.start..token.end]);
+    try std.testing.expectEqual(TokenType.num_literal, token.type);
 }
