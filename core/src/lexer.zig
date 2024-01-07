@@ -162,9 +162,8 @@ const OPERATORS = [_][]const u8{
     "@",
 };
 
-/// TODO: support Sheet + Cell ref
 const CELL_REFS = [_][]const u8{
-    "\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
+    "(([a-zA-Z0-9]+|'.+')!)?\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
 };
 
 const SYMBOLS = [_][]const u8{
@@ -418,6 +417,37 @@ test "lexer basic test" {
         .{
             .str = "TRUE",
             .type = .true,
+        },
+    });
+
+    const sheet_cell_ref = "Sheet1!F5=2";
+    try testTokenizerInput(allocator, sheet_cell_ref, &[_]ExpectedToken{
+        .{
+            .str = "Sheet1!F5",
+            .type = .cell_ref,
+        },
+        .{
+            .str = "=",
+            .type = .eq,
+        },
+        .{
+            .str = "2",
+            .type = .num_literal,
+        },
+    });
+    const sheet_cell_ref_2 = "'Name with spaces'!F5=2";
+    try testTokenizerInput(allocator, sheet_cell_ref_2, &[_]ExpectedToken{
+        .{
+            .str = "'Name with spaces'!F5",
+            .type = .cell_ref,
+        },
+        .{
+            .str = "=",
+            .type = .eq,
+        },
+        .{
+            .str = "2",
+            .type = .num_literal,
         },
     });
 
