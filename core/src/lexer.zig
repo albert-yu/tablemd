@@ -372,88 +372,93 @@ test "lexer basic test" {
     const allocator = std.testing.allocator;
 
     const basic_cell_ref = "$A3=TRUE";
-    var tokenizer_basic_cell_ref = try Tokenizer.new(allocator, basic_cell_ref);
-    defer tokenizer_basic_cell_ref.destroy(allocator);
-
-    var token = try tokenizer_basic_cell_ref.next();
-    const str_1 = basic_cell_ref[token.start..token.end];
-    try std.testing.expectEqualStrings("$A3", str_1);
-    try std.testing.expectEqual(TokenType.cell_ref, token.type);
-    token = try tokenizer_basic_cell_ref.next();
-    const str_2 = basic_cell_ref[token.start..token.end];
-    try std.testing.expectEqualStrings("=", str_2);
-    try std.testing.expectEqual(TokenType.eq, token.type);
-    token = try tokenizer_basic_cell_ref.next();
-    const str_3 = basic_cell_ref[token.start..token.end];
-    try std.testing.expectEqualStrings("TRUE", str_3);
-    try std.testing.expectEqual(TokenType.true, token.type);
+    try testTokenizerInput(allocator, basic_cell_ref, &[_]ExpectedToken{
+        .{
+            .str = "$A3",
+            .type = .cell_ref,
+        },
+        .{
+            .str = "=",
+            .type = .eq,
+        },
+        .{
+            .str = "TRUE",
+            .type = .true,
+        },
+    });
 
     const basic_arith = "4+5";
-    var tokenizer_basic_arith = try Tokenizer.new(allocator, basic_arith);
-    defer tokenizer_basic_arith.destroy(allocator);
-
-    token = try tokenizer_basic_arith.next();
-    try std.testing.expectEqualStrings("4", basic_arith[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.num_literal, token.type);
-    token = try tokenizer_basic_arith.next();
-    try std.testing.expectEqualStrings("+", basic_arith[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.plus, token.type);
-    token = try tokenizer_basic_arith.next();
-    try std.testing.expectEqualStrings("5", basic_arith[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.num_literal, token.type);
+    try testTokenizerInput(allocator, basic_arith, &[_]ExpectedToken{
+        .{
+            .str = "4",
+            .type = .num_literal,
+        },
+        .{
+            .str = "+",
+            .type = .plus,
+        },
+        .{
+            .str = "5",
+            .type = .num_literal,
+        },
+    });
 
     const str_literal = "'=SUM(A4:A5)";
-    var tokenizer_str_literal = try Tokenizer.new(allocator, str_literal);
-    defer tokenizer_str_literal.destroy(allocator);
-
-    token = try tokenizer_str_literal.next();
-    try std.testing.expectEqualStrings("'=SUM(A4:A5)", str_literal[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.str_literal, token.type);
+    try testTokenizerInput(allocator, str_literal, &[_]ExpectedToken{
+        .{
+            .str = "'=SUM(A4:A5)",
+            .type = .str_literal,
+        },
+    });
 
     const with_whitespace = "$ZQ$8989 -   100";
-    var tokenizer_whitespace = try Tokenizer.new(allocator, with_whitespace);
-    defer tokenizer_whitespace.destroy(allocator);
-
-    token = try tokenizer_whitespace.next();
-    try std.testing.expectEqualStrings("$ZQ$8989", with_whitespace[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.cell_ref, token.type);
-    token = try tokenizer_whitespace.next();
-    try std.testing.expectEqualStrings(" ", with_whitespace[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.space, token.type);
-    token = try tokenizer_whitespace.next();
-    try std.testing.expectEqualStrings("-", with_whitespace[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.minus, token.type);
-    token = try tokenizer_whitespace.next();
-    try std.testing.expectEqualStrings("   ", with_whitespace[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.space, token.type);
-    token = try tokenizer_whitespace.next();
-    try std.testing.expectEqualStrings("100", with_whitespace[token.start..token.end]);
-    try std.testing.expectEqual(TokenType.num_literal, token.type);
+    try testTokenizerInput(allocator, with_whitespace, &[_]ExpectedToken{
+        .{
+            .type = .cell_ref,
+            .str = "$ZQ$8989",
+        },
+        .{
+            .type = .space,
+            .str = " ",
+        },
+        .{
+            .type = .minus,
+            .str = "-",
+        },
+        .{
+            .type = .space,
+            .str = "   ",
+        },
+        .{
+            .type = .num_literal,
+            .str = "100",
+        },
+    });
 
     const func_call = "SUM(B1:B40)";
     try testTokenizerInput(allocator, func_call, &[_]ExpectedToken{
         .{
-            .type = TokenType.function_call,
+            .type = .function_call,
             .str = "SUM",
         },
         .{
-            .type = TokenType.l_paren,
+            .type = .l_paren,
             .str = "(",
         },
         .{
-            .type = TokenType.cell_ref,
+            .type = .cell_ref,
             .str = "B1",
         },
         .{
-            .type = TokenType.range_op,
+            .type = .range_op,
             .str = ":",
         },
         .{
-            .type = TokenType.cell_ref,
+            .type = .cell_ref,
             .str = "B40",
         },
         .{
-            .type = TokenType.r_paren,
+            .type = .r_paren,
             .str = ")",
         },
     });
