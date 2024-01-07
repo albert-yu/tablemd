@@ -1,5 +1,16 @@
 const std = @import("std");
 
+fn addUnitTest(b: *std.Build, options: std.Build.TestOptions) *std.Build.Step.Run {
+    const unit_test = b.addTest(options);
+    unit_test.addIncludePath(.{
+        .path = "src/lib",
+    });
+    unit_test.linkLibC();
+
+    const run_unit_tests = b.addRunArtifact(unit_test);
+    return run_unit_tests;
+}
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -56,32 +67,17 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
-    const lexer_tests = b.addTest(.{
+    const run_lexer_tests = addUnitTest(b, .{
         .root_source_file = .{ .path = "src/lexer.zig" },
         .target = target,
         .optimize = optimize,
     });
-    lexer_tests.addIncludePath(.{
-        .path = "src/lib",
-    });
-    lexer_tests.linkLibC();
 
-    const run_lexer_tests = b.addRunArtifact(lexer_tests);
-
-    // not sure if adding another test like this is idiomatic
-    const regex_tests = b.addTest(.{
+    const run_regex_tests = addUnitTest(b, .{
         .root_source_file = .{ .path = "src/regex.zig" },
         .target = target,
         .optimize = optimize,
     });
-    regex_tests.addIncludePath(.{
-        .path = "src/lib",
-    });
-    regex_tests.linkLibC();
-
-    const run_regex_tests = b.addRunArtifact(lexer_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
