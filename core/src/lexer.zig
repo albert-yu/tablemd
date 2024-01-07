@@ -217,9 +217,9 @@ pub const Tokenizer = struct {
     input: []const u8,
     index: u64,
     regex_all_tokens: re.Regex,
-    cell_ref_regex: re.Regex,
-    num_literal_regex: re.Regex,
-    str_literal_regex: re.Regex,
+    regex_cell_ref: re.Regex,
+    regex_num_lit: re.Regex,
+    regex_str_lit: re.Regex,
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
@@ -238,14 +238,14 @@ pub const Tokenizer = struct {
             allocator,
             STR_LITERALS_REGEX,
         );
-        return Self{ .input = s, .index = 0, .regex_all_tokens = regex, .cell_ref_regex = cell_ref_regex, .num_literal_regex = num_literal_regex, .str_literal_regex = str_literal_regex };
+        return Self{ .input = s, .index = 0, .regex_all_tokens = regex, .regex_cell_ref = cell_ref_regex, .regex_num_lit = num_literal_regex, .regex_str_lit = str_literal_regex };
     }
 
     pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
         self.regex_all_tokens.destroy(allocator);
-        self.cell_ref_regex.destroy(allocator);
-        self.num_literal_regex.destroy(allocator);
-        self.str_literal_regex.destroy(allocator);
+        self.regex_cell_ref.destroy(allocator);
+        self.regex_num_lit.destroy(allocator);
+        self.regex_str_lit.destroy(allocator);
     }
 
     pub fn next(self: *Self) !Token {
@@ -274,7 +274,7 @@ pub const Tokenizer = struct {
                 };
             }
             // try regexps one by one
-            const maybe_match_cell_ref = self.cell_ref_regex.findFirst(c);
+            const maybe_match_cell_ref = self.regex_cell_ref.findFirst(c);
             if (maybe_match_cell_ref) |matched_cell_ref| {
                 _ = matched_cell_ref;
                 return Token{
@@ -283,7 +283,7 @@ pub const Tokenizer = struct {
                     .end = end,
                 };
             }
-            const maybe_num_lit = self.num_literal_regex.findFirst(c);
+            const maybe_num_lit = self.regex_num_lit.findFirst(c);
             if (maybe_num_lit) |num_lit| {
                 _ = num_lit;
                 return Token{
