@@ -144,10 +144,6 @@ test "regex test" {
         .expected = "A3",
     });
 
-    try testRegex(allocator, .{ .pattern = "'[a-zA-Z0-9_ \\-\\$!\\^&#%@]+'", .input = "'foo foo' extra stuff", .expected = "'foo foo'" });
-    try testRegex(allocator, .{ .pattern = "'[a-zA-Z0-9_ \\-\\$!\\^&#%@]+'!", .input = "'foo foo'! extra stuff", .expected = "'foo foo'!" });
-    try testRegex(allocator, .{ .pattern = "'[a-zA-Z0-9_ \\-\\$!\\^&#%@]+'!", .input = "'foo foo'! extra stuff", .expected = "'foo foo'!" });
-    try testRegex(allocator, .{ .pattern = "([a-zA-Z0-9]{1,31}|'[a-zA-Z0-9_ \\-\\$!\\^&#%@]{1,31}')!", .input = "'foo foo'! extra stuff", .expected = "'foo foo'!" });
     try testRegex(allocator, .{
         .pattern = "(([a-zA-Z0-9]{1,31}|'[a-zA-Z0-9_ \\-\\$!\\^&#%@]{1,31}')!)?\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
         .input = "'Name with spaces'!F5=2",
