@@ -277,6 +277,7 @@ pub const Tokenizer = struct {
         const maybe_match = self.regex_all_tokens.findMustStartFromBeginning(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
+            // need to adjust for initial offset
             const start = self.index + match.start;
             const end = self.index + match.end;
             // mutate AFTER reading start and end
@@ -285,7 +286,6 @@ pub const Tokenizer = struct {
             if (token_type) |tok| {
                 return Token{
                     .type = tok,
-                    // need to adjust for initial offset
                     .start = start,
                     .end = end,
                 };
