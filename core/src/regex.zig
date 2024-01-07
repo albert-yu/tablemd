@@ -38,6 +38,9 @@ pub const Regex = struct {
         var code = re.regexec(self.regex, input.ptr, matches.len, &matches, 0);
         var has_matches = code == 0;
         if (!has_matches) {
+            var errbuf: [512]u8 = undefined;
+            _ = re.regerror(code, self.regex, &errbuf, 512);
+            std.debug.print("err: {s}\n", .{errbuf});
             return null;
         }
         const start = matches[0].rm_so;
