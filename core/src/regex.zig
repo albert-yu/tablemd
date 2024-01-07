@@ -110,6 +110,24 @@ pub const Regex = struct {
     }
 };
 
+const TestCase = struct {
+    pattern: []const u8,
+    input: []const u8,
+    expected: []const u8,
+};
+
+fn testRegex(allocator: std.mem.Allocator, test_case: TestCase) !void {
+    const reg = try Regex.new(allocator, test_case.pattern);
+    defer reg.deinit(allocator);
+    const matches2 = reg.findFirst(test_case.input);
+    if (matches2) |match| {
+        try std.testing.expectEqualStrings(test_case.expected, test_case.input[match.start..match.end]);
+    } else {
+        // this means that no match was found, which is unexpected
+        try std.testing.expect(false);
+    }
+}
+
 test "regex test" {
     const allocator = std.testing.allocator;
     const regex = try Regex.new(allocator, "hello ?([[:alpha:]]*)");
@@ -120,16 +138,9 @@ test "regex test" {
     const expected: usize = 2;
     try std.testing.expectEqual(expected, matches.len);
 
-    const pattern2 = "\\$?[a-zA-Z]{1,2}\\$?[0-9]+";
-    const regex2 = try Regex.new(allocator, pattern2);
-    defer regex2.deinit(allocator);
-    const input2 = "A3";
-    const expected_match_2: []const u8 = "A3";
-    const matches2 = regex2.findFirst(input2);
-    if (matches2) |match| {
-        try std.testing.expectEqualStrings(expected_match_2, input2[match.start..match.end]);
-    } else {
-        // this means that no match was found, which is unexpected
-        try std.testing.expect(false);
-    }
+    try testRegex(allocator, .{
+        .pattern = "\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
+        .input = "A3",
+        .expected = "A3",
+    });
 }
