@@ -2,7 +2,7 @@ const std = @import("std");
 const re = @import("regex.zig");
 
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
-const TokenType = enum {
+pub const TokenType = enum {
     unknown,
     /// +
     plus,
@@ -218,7 +218,7 @@ const STR_LITERALS_REGEX = joinStrings(&STR_LITERALS, "|");
 const WHITESPACE_REGEX = joinStrings(&WHITESPACE, "|");
 const FUNCTION_REGEX = joinStrings(&FUNCTIONS, "|");
 
-const Token = struct {
+pub const Token = struct {
     type: TokenType,
     start: usize,
     end: usize,
