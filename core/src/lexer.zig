@@ -163,7 +163,8 @@ const OPERATORS = [_][]const u8{
 };
 
 const CELL_REFS = [_][]const u8{
-    "(([a-zA-Z0-9]+|'.+')!)?\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
+    // not allowed in sheet name: [ ] * / \ ? :
+    "(([a-zA-Z0-9]+|'[a-zA-Z0-9_ \\-\\$!\\^&#%@]+')!)?\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
 };
 
 const SYMBOLS = [_][]const u8{
