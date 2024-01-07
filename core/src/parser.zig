@@ -18,9 +18,15 @@ pub const CellExpr = struct {
         };
     }
 
+    pub fn empty(allocator: std.mem.Allocator) !Self {
+        var empty_expr = try Self.new(allocator, "", .unknown);
+        return empty_expr;
+    }
+
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
-            child.deinit(allocator);
+            var c = child;
+            c.deinit(allocator);
         }
         self.children.deinit(allocator);
     }
@@ -35,10 +41,12 @@ pub const CellExpr = struct {
         defer tokenizer.deinit(allocator);
 
         var token = try tokenizer.next();
+        var root = try Self.empty(allocator);
         while (token.type != .eof) {
             // TODO: handle nested
             token = try tokenizer.next();
         }
+        return root;
     }
 };
 
@@ -46,5 +54,5 @@ test "parse simple expressions" {
     const allocator = std.testing.allocator;
     var parsed = try CellExpr.parse(allocator, "5+4");
     defer parsed.deinit(allocator);
-    std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
+    try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
 }
