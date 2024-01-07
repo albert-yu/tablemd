@@ -181,6 +181,7 @@ const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
 const NUM_LITERALS_REGEX = joinStrings(&NUM_LITERALS, "|");
 const STR_LITERALS_REGEX = joinStrings(&STR_LITERALS, "|");
 const WHITESPACE_REGEX = joinStrings(&WHITESPACE, "|");
+const FUNCTION_REGEX = joinStrings(&FUNCTIONS, "|");
 
 const Token = struct {
     type: TokenType,
@@ -227,6 +228,7 @@ pub const Tokenizer = struct {
     regex_num_lit: re.Regex,
     regex_str_lit: re.Regex,
     regex_whitespace: re.Regex,
+    regex_func: re.Regex,
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
@@ -246,6 +248,7 @@ pub const Tokenizer = struct {
             STR_LITERALS_REGEX,
         );
         const whitespace_regex = try re.Regex.new(allocator, WHITESPACE_REGEX);
+        const func_regex = try re.Regex.new(allocator, FUNCTION_REGEX);
         return Self{
             .input = s,
             .index = 0,
@@ -254,6 +257,7 @@ pub const Tokenizer = struct {
             .regex_num_lit = num_literal_regex,
             .regex_str_lit = str_literal_regex,
             .regex_whitespace = whitespace_regex,
+            .regex_func = func_regex,
         };
     }
 
@@ -263,6 +267,7 @@ pub const Tokenizer = struct {
         self.regex_num_lit.destroy(allocator);
         self.regex_str_lit.destroy(allocator);
         self.regex_whitespace.destroy(allocator);
+        self.regex_func.destroy(allocator);
     }
 
     pub fn next(self: *Self) !Token {
@@ -327,6 +332,15 @@ pub const Tokenizer = struct {
                     .end = end,
                 };
             }
+            // const match_func_call = self.regex_func.findMustStartFromBeginning(c);
+            // if (match_func_call) |fc| {
+            //     _ = fc;
+            //     return Token{
+            //         .type = .function_call,
+            //         .start = start,
+            //         .end = end,
+            //     };
+            // }
         }
         return error.UnexpectedCharacter;
     }
