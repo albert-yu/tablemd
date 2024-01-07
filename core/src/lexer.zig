@@ -4,44 +4,67 @@ const re = @import("regex.zig");
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
 const TokenType = enum {
     unknown,
+    /// +
     plus,
+    /// -
     minus,
+    /// *
     mult,
+    /// /
     div,
+    /// %
     percent,
+    /// ^
     pow,
+    /// (
     l_paren,
+    /// [
     l_bracket,
+    /// {
     l_brace,
+    /// )
     r_paren,
+    /// ]
     r_bracket,
+    /// }
     r_brace,
+    /// ,
     arg_sep,
+    /// ;
     row_sep,
+    /// =
     eq,
+    /// <
     lt,
+    /// >
     gt,
+    /// <=
     lte,
+    /// >=
     gte,
+    /// <>
     neq,
+    /// &
     concat,
+    /// :
     range_op,
+    /// " " (without quotes, duh)
     space,
+    /// #
     pound,
+    /// @
     ref_op,
-    // cell_range_op,
-    // sheet_ref_op,
-    // ellipsis,
+    /// FALSE (case-insensitive)
     false,
+    /// TRUE (case-insensitive)
     true,
-    // comment,
-    // unterminated_block_comment,
+    /// FOO(...)
     function_call,
-    // unquoted_sheet_ref,
     str_literal,
-    // unterminated_str_literal,
     num_literal,
+    /// A4, B12, Z99
     cell_ref,
+    /// end of input
     eof,
 };
 
