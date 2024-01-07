@@ -68,7 +68,7 @@ fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
     }
 }
 
-fn comptimeMergeStringArrays(comptime arrays: anytype) []const []const u8 {
+fn concatStringArrays(comptime arrays: anytype) []const []const u8 {
     comptime {
         // Calculate total length first
         var totalLength: usize = 0;
@@ -167,7 +167,7 @@ const KEYWORDS = [_][]const u8{
     "true",
 };
 
-const ALL_PATTERNS = comptimeMergeStringArrays([_][]const []const u8{
+const ALL_PATTERNS = concatStringArrays([_][]const []const u8{
     &FUNCTIONS,
     &OPERATORS,
     &KEYWORDS,
