@@ -318,6 +318,15 @@ pub const Tokenizer = struct {
                     .end = end,
                 };
             }
+            const maybe_whitespace = self.regex_whitespace.findMustStartFromBeginning(c);
+            if (maybe_whitespace) |ws| {
+                _ = ws;
+                return Token{
+                    .type = .space,
+                    .start = start,
+                    .end = end,
+                };
+            }
         }
         return error.UnexpectedCharacter;
     }
