@@ -598,4 +598,24 @@ test "bit more complicated" {
             .str = ")",
         },
     });
+
+    const str_lit_inside_func = "LENB(\"howdy\")";
+    try testTokenizerInput(allocator, str_lit_inside_func, &[_]ExpectedToken{
+        .{
+            .type = .function_call,
+            .str = "LENB",
+        },
+        .{
+            .type = .l_paren,
+            .str = "(",
+        },
+        .{
+            .type = .str_literal,
+            .str = "\"howdy\"",
+        },
+        .{
+            .type = .r_paren,
+            .str = ")",
+        },
+    });
 }
