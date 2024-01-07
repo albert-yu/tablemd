@@ -239,9 +239,10 @@ pub const Tokenizer = struct {
             const c = str[match.start..match.end];
             const start = self.index + match.start;
             const end = self.index + match.end;
+            // mutate AFTER reading start and end
+            self.index += match.end;
             const tokenType = token_lookup.get(c);
             if (tokenType) |tok| {
-                self.index += match.end;
                 return Token{
                     .type = tok,
                     // need to adjust for initial offset
