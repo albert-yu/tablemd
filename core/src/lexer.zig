@@ -180,7 +180,7 @@ const SYMBOLS = [_][]const u8{
 
 const NUM_LITERALS = [_][]const u8{
     // number
-    "[0-9]+",
+    "[0-9]*\\.?[0-9]+",
 };
 
 const STR_LITERALS = [_][]const u8{
@@ -527,7 +527,7 @@ test "lexer basic test" {
 
 test "bit more complicated" {
     const allocator = std.testing.allocator;
-    const nested_func_calls = "SUM((100+4)*20,SUMIF(A1:A20))";
+    const nested_func_calls = "SUM((100+.4)*20,SUMIF(A1:A20))";
     try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
         .{
             .type = .func_call,
@@ -551,7 +551,7 @@ test "bit more complicated" {
         },
         .{
             .type = .num_literal,
-            .str = "4",
+            .str = ".4",
         },
         .{
             .type = .r_paren,
