@@ -382,7 +382,7 @@ fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected:
 
     var token = try tokenizer.next();
     var i: usize = 0;
-    while (token.type != TokenType.eof) {
+    while (token.type != .eof) {
         const expected_token = expected[i];
         try std.testing.expectEqualStrings(expected_token.str, input[token.start..token.end]);
         try std.testing.expectEqual(expected_token.type, token.type);
