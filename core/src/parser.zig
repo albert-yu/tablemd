@@ -1,6 +1,30 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
 
+const NodeType = enum {
+    unknown,
+    /// or, a leaf
+    literal,
+    unary,
+    binary,
+    variadic,
+    grouping,
+};
+
+/// Not exhaustive, some are context-dependent (e.g. space, minus),
+/// which are returned as unknown
+fn getNodeType(token_type: lexer.TokenType) NodeType {
+    var node_type: NodeType = undefined;
+    node_type = switch (token_type) {
+        .str_literal, .num_literal, .false, .true, .cell_ref => .literal,
+        .ref_op, .pound, .percent => .unary,
+        .plus, .mult, .div, .pow, .eq, .lt, .gt, .lte, .gte, .neq, .concat, .range_op => .binary,
+        .func_call => .variadic,
+        else => .unknown,
+    };
+    return node_type;
+}
+
 /// Node on tree
 pub const CellExpr = struct {
     token_type: lexer.TokenType,
@@ -70,7 +94,21 @@ pub const CellExpr = struct {
         var token = try tokenizer.next();
         var root = try Self.empty(allocator);
         while (token.type != .eof) {
-            // TODO: handle nested
+            const node_type = getNodeType(token.type);
+            const str = s[token.start..token.end];
+            switch (node_type) {
+                .literal => {
+                    var child = try Self.new(allocator, str, token.type);
+                    try root.addChild(allocator, child);
+                },
+                .unary, .binary, .variadic => {
+                    root.content_str = str;
+                    root.token_type = token.type;
+                },
+                else => {
+                    // TODO: handle nested and actually everything
+                },
+            }
             token = try tokenizer.next();
         }
         return root;
@@ -96,4 +134,8 @@ test "parse simple expressions" {
     var parsed = try CellExpr.parse(allocator, "5+4");
     defer parsed.deinit(allocator);
     try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
+    const left = parsed.children.items[0];
+    try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
+    const right = parsed.children.items[1];
+    try std.testing.expectEqualStrings("4", right.content_str);
 }
