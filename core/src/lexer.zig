@@ -271,12 +271,12 @@ pub const Tokenizer = struct {
 
 test "lexer test" {
     const allocator = std.testing.allocator;
-    var tokenizer = try Tokenizer.new(allocator, "A3");
+    var tokenizer = try Tokenizer.new(allocator, "A3=TRUE");
     defer tokenizer.destroy(allocator);
     var token = try tokenizer.next();
     try std.testing.expectEqual(TokenType.cell_ref, token.type);
-    // token = try tokenizer.next();
-    // try std.testing.expectEqual(TokenType.eq, token.type);
-    // token = try tokenizer.next();
-    // try std.testing.expectEqual(TokenType.true, token.type);
+    token = try tokenizer.next();
+    try std.testing.expectEqual(TokenType.eq, token.type);
+    token = try tokenizer.next();
+    try std.testing.expectEqual(TokenType.true, token.type);
 }
