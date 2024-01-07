@@ -143,6 +143,18 @@ const SYMBOLS = [_][]const u8{
     "\"",
 };
 
+const NUM_LITERALS = [_][]const u8{
+    // number
+    "[0-9]+",
+};
+
+const STR_LITERALS = [_][]const u8{
+    // string enclosed in double quotes
+    "\".*\"",
+    // string with leading single quote
+    "'.*",
+};
+
 const KEYWORDS = [_][]const u8{
     "false",
     "true",
@@ -154,10 +166,14 @@ const ALL_PATTERNS = comptimeMergeStringArrays([_][]const []const u8{
     &KEYWORDS,
     &SYMBOLS,
     &CELL_REFS,
+    &NUM_LITERALS,
+    &STR_LITERALS,
 });
 
 const ALL_TOKENS_REGEX = joinStrings(ALL_PATTERNS, "|");
 const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
+const NUM_LITERALS_REGEX = joinStrings(&NUM_LITERALS, "|");
+const STR_LITERALS_REGEX = joinStrings(&STR_LITERALS, "|");
 
 const Token = struct {
     type: TokenType,
@@ -202,6 +218,8 @@ pub const Tokenizer = struct {
     index: u64,
     regex: re.Regex,
     cell_ref_regex: re.Regex,
+    num_literal_regex: re.Regex,
+    str_literal_regex: re.Regex,
     const Self = @This();
 
     pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
@@ -212,17 +230,22 @@ pub const Tokenizer = struct {
             allocator,
             CELL_REF_REGEX,
         );
-        return Self{
-            .input = s,
-            .index = 0,
-            .regex = regex,
-            .cell_ref_regex = cell_ref_regex,
-        };
+        const num_literal_regex = try re.Regex.new(
+            allocator,
+            NUM_LITERALS_REGEX,
+        );
+        const str_literal_regex = try re.Regex.new(
+            allocator,
+            STR_LITERALS_REGEX,
+        );
+        return Self{ .input = s, .index = 0, .regex = regex, .cell_ref_regex = cell_ref_regex, .num_literal_regex = num_literal_regex, .str_literal_regex = str_literal_regex };
     }
 
     pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
         self.regex.destroy(allocator);
         self.cell_ref_regex.destroy(allocator);
+        self.num_literal_regex.destroy(allocator);
+        self.str_literal_regex.destroy(allocator);
     }
 
     pub fn next(self: *Self) !Token {
@@ -250,12 +273,21 @@ pub const Tokenizer = struct {
                     .end = end,
                 };
             }
-            // TODO: try regexps one by one
+            // try regexps one by one
             const maybe_match_cell_ref = self.cell_ref_regex.findFirst(c);
             if (maybe_match_cell_ref) |matched_cell_ref| {
                 _ = matched_cell_ref;
                 return Token{
                     .type = .cell_ref,
+                    .start = start,
+                    .end = end,
+                };
+            }
+            const maybe_num_lit = self.num_literal_regex.findFirst(c);
+            if (maybe_num_lit) |num_lit| {
+                _ = num_lit;
+                return Token{
+                    .type = .num_literal,
                     .start = start,
                     .end = end,
                 };
@@ -271,6 +303,7 @@ test "lexer test" {
     const basic_cell_ref = "$A3=TRUE";
     var tokenizer_basic_cell_ref = try Tokenizer.new(allocator, basic_cell_ref);
     defer tokenizer_basic_cell_ref.destroy(allocator);
+
     var token = try tokenizer_basic_cell_ref.next();
     const str_1 = basic_cell_ref[token.start..token.end];
     try std.testing.expectEqualStrings("$A3", str_1);
@@ -291,10 +324,10 @@ test "lexer test" {
     token = try tokenizer_basic_arith.next();
     try std.testing.expectEqualStrings("4", basic_arith[token.start..token.end]);
     try std.testing.expectEqual(TokenType.num_literal, token.type);
-    token = try tokenizer_basic_cell_ref.next();
+    token = try tokenizer_basic_arith.next();
     try std.testing.expectEqualStrings("+", basic_arith[token.start..token.end]);
     try std.testing.expectEqual(TokenType.plus, token.type);
-    token = try tokenizer_basic_cell_ref.next();
+    token = try tokenizer_basic_arith.next();
     try std.testing.expectEqualStrings("5", basic_arith[token.start..token.end]);
     try std.testing.expectEqual(TokenType.num_literal, token.type);
 }
