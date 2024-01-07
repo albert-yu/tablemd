@@ -33,16 +33,6 @@ pub const CellExpr = struct {
 
     const Self = @This();
 
-    // pub fn new(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType) !Self {
-    //     var children = try allocator.create(std.ArrayListUnmanaged(*Self));
-    //     children.* = try std.ArrayListUnmanaged(*Self).initCapacity(allocator, 2);
-    //     return Self{
-    //         .token_type = token_type,
-    //         .content_str = content_str,
-    //         .children = children,
-    //     };
-    // }
-
     /// Heap allocation
     pub fn create(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType) !*Self {
         var result = try allocator.create(Self);
@@ -69,20 +59,6 @@ pub const CellExpr = struct {
         allocator.destroy(self.children);
         allocator.destroy(self);
     }
-
-    // pub fn empty(allocator: std.mem.Allocator) !Self {
-    //     var empty_expr = try Self.new(allocator, "", .unknown);
-    //     return empty_expr;
-    // }
-
-    // /// Deeply deinits all descendents
-    // pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-    //     for (self.children.items) |child| {
-    //         var c = child;
-    //         c.deinit(allocator);
-    //     }
-    //     self.children.deinit(allocator);
-    // }
 
     /// caller must free
     pub fn toSexpr(self: Self, allocator: std.mem.Allocator) ![]const u8 {
