@@ -105,13 +105,17 @@ test "regex test" {
     const expected: usize = 2;
     try std.testing.expectEqual(expected, matches.len);
 
-    const regex2 = try Regex.new(allocator, "\\$?[a-zA-Z]{1,2}\\$?\\d+");
+    const pattern2 = "\\$?[a-zA-Z]{1,2}\\$?\\d+";
+    std.debug.print("pattern 2: {s}\n", .{pattern2});
+    const regex2 = try Regex.new(allocator, pattern2);
     defer regex2.destroy(allocator);
     const input2 = "A3";
-    const matches2 = try regex2.eval(allocator, input2);
-    defer allocator.free(matches2);
-    const expected2: usize = 1;
-    try std.testing.expectEqual(expected2, matches2.len);
-    const expectedMatch2: []const u8 = "A3";
-    try std.testing.expectEqual(expectedMatch2, input2[matches2[0].start..matches2[0].end]);
+    const expected_match_2: []const u8 = "A3";
+    const matches2 = regex2.findFirst(input2);
+    if (matches2) |match| {
+        try std.testing.expectEqualStrings(expected_match_2, input2[match.start..match.end]);
+    } else {
+        // this means that no match was found, which is unexpected
+        try std.testing.expect(false);
+    }
 }
