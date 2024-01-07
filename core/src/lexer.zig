@@ -332,15 +332,15 @@ pub const Tokenizer = struct {
                     .end = end,
                 };
             }
-            // const match_func_call = self.regex_func.findMustStartFromBeginning(c);
-            // if (match_func_call) |fc| {
-            //     _ = fc;
-            //     return Token{
-            //         .type = .function_call,
-            //         .start = start,
-            //         .end = end,
-            //     };
-            // }
+            const match_func_call = self.regex_func.findMustStartFromBeginning(c);
+            if (match_func_call) |fc| {
+                _ = fc;
+                return Token{
+                    .type = .function_call,
+                    .start = start,
+                    .end = end,
+                };
+            }
         }
         return error.UnexpectedCharacter;
     }
@@ -407,4 +407,11 @@ test "lexer basic test" {
     token = try tokenizer_whitespace.next();
     try std.testing.expectEqualStrings("100", with_whitespace[token.start..token.end]);
     try std.testing.expectEqual(TokenType.num_literal, token.type);
+
+    const func_call = "SUM(B1:B40)";
+    var tokenizer_func = try Tokenizer.new(allocator, func_call);
+    defer tokenizer_func.destroy(allocator);
+
+    token = try tokenizer_func.next();
+    try std.testing.expectEqualStrings("SUM", func_call[token.start..token.end]);
 }
