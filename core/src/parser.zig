@@ -29,36 +29,64 @@ fn getNodeType(token_type: lexer.TokenType) NodeType {
 pub const CellExpr = struct {
     token_type: lexer.TokenType,
     content_str: []const u8,
-    children: std.ArrayListUnmanaged(Self),
+    children: *std.ArrayListUnmanaged(*Self),
 
     const Self = @This();
 
-    pub fn new(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType) !Self {
-        var children = try std.ArrayListUnmanaged(Self).initCapacity(allocator, 2);
-        return Self{
+    // pub fn new(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType) !Self {
+    //     var children = try allocator.create(std.ArrayListUnmanaged(*Self));
+    //     children.* = try std.ArrayListUnmanaged(*Self).initCapacity(allocator, 2);
+    //     return Self{
+    //         .token_type = token_type,
+    //         .content_str = content_str,
+    //         .children = children,
+    //     };
+    // }
+
+    /// Heap allocation
+    pub fn create(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType) !*Self {
+        var result = try allocator.create(Self);
+        var children = try allocator.create(std.ArrayListUnmanaged(*Self));
+        children.* = try std.ArrayListUnmanaged(*Self).initCapacity(allocator, 2);
+        result.* = Self{
+            .children = children,
             .token_type = token_type,
             .content_str = content_str,
-            .children = children,
         };
+        return result;
     }
 
-    pub fn empty(allocator: std.mem.Allocator) !Self {
-        var empty_expr = try Self.new(allocator, "", .unknown);
-        return empty_expr;
+    pub fn create_empty(allocator: std.mem.Allocator) !*Self {
+        return try Self.create(allocator, "", .unknown);
     }
 
-    /// Deeply deinits all descendents
-    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    /// Also calls destroy on self and descendents
+    pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
-            var c = child;
-            c.deinit(allocator);
+            child.destroy(allocator);
         }
         self.children.deinit(allocator);
+        allocator.destroy(self.children);
+        allocator.destroy(self);
     }
+
+    // pub fn empty(allocator: std.mem.Allocator) !Self {
+    //     var empty_expr = try Self.new(allocator, "", .unknown);
+    //     return empty_expr;
+    // }
+
+    // /// Deeply deinits all descendents
+    // pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+    //     for (self.children.items) |child| {
+    //         var c = child;
+    //         c.deinit(allocator);
+    //     }
+    //     self.children.deinit(allocator);
+    // }
 
     /// caller must free
     pub fn toSexpr(self: Self, allocator: std.mem.Allocator) ![]const u8 {
-        var arr = try std.ArrayListUnmanaged(u8).initCapacity(allocator, self.content_str.len + 2);
+        var arr = try std.ArrayListUnmanaged(u8).initCapacity(allocator, self.content_str.len);
         defer arr.deinit(allocator);
 
         const has_children = self.children.items.len > 0;
@@ -82,23 +110,23 @@ pub const CellExpr = struct {
         return arr.toOwnedSlice(allocator);
     }
 
-    pub fn addChild(self: *Self, allocator: std.mem.Allocator, child: Self) !void {
+    pub fn addChild(self: *Self, allocator: std.mem.Allocator, child: *Self) !void {
         try self.children.append(allocator, child);
     }
 
     /// Parses string into Expression tree
-    pub fn parse(allocator: std.mem.Allocator, s: []const u8) !Self {
+    pub fn parse(allocator: std.mem.Allocator, s: []const u8) !*Self {
         var tokenizer = try lexer.Tokenizer.new(allocator, s);
         defer tokenizer.deinit(allocator);
 
         var token = try tokenizer.next();
-        var root = try Self.empty(allocator);
+        var root = try Self.create_empty(allocator);
         while (token.type != .eof) {
             const node_type = getNodeType(token.type);
             const str = s[token.start..token.end];
             switch (node_type) {
                 .literal => {
-                    var child = try Self.new(allocator, str, token.type);
+                    var child = try Self.create(allocator, str, token.type);
                     try root.addChild(allocator, child);
                 },
                 .unary, .binary, .variadic => {
@@ -117,22 +145,22 @@ pub const CellExpr = struct {
 
 test "print debug" {
     const allocator = std.testing.allocator;
-    var expr = try CellExpr.new(allocator, "+", .plus);
-    defer expr.deinit(allocator);
-    var left = try CellExpr.new(allocator, "5", .num_literal);
-    var right = try CellExpr.new(allocator, "4", .num_literal);
+    var expr = try CellExpr.create(allocator, "+", .plus);
+    defer expr.destroy(allocator);
+    var left = try CellExpr.create(allocator, "5", .num_literal);
+    var right = try CellExpr.create(allocator, "4", .num_literal);
     try expr.addChild(allocator, left);
     try expr.addChild(allocator, right);
 
     const sexpr = try expr.toSexpr(allocator);
-    defer allocator.free(sexpr);
     try std.testing.expectEqualStrings("(+ 5 4)", sexpr);
+    defer allocator.free(sexpr);
 }
 
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
     var parsed = try CellExpr.parse(allocator, "5+4");
-    defer parsed.deinit(allocator);
+    defer parsed.destroy(allocator);
     try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
     const left = parsed.children.items[0];
     try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
