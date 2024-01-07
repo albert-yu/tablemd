@@ -260,12 +260,7 @@ pub const Tokenizer = struct {
                 };
             }
         }
-        // TODO: figure out whether to return error or just this
-        return Token{
-            .type = TokenType.unknown,
-            .start = self.index,
-            .end = self.index,
-        };
+        return error.UnexpectedCharacter;
     }
 };
 
