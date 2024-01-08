@@ -23,7 +23,8 @@ const ExprType = enum {
 /// Returns slice, does not allocate memory
 fn parseStringLiteral(s: []const u8) []const u8 {
     if (s[0] == '"') {
-        return s[1..(s.len - 1)];
+        const end = s.len - 1;
+        return s[1..end];
     }
     // only other possibility, starts with single quote
     return s[0..];
@@ -103,8 +104,32 @@ pub const CellExpr = struct {
         if (has_children) {
             try arr.append(allocator, '(');
         }
-        for (self.content_str) |char| {
-            try arr.append(allocator, char);
+        switch (self.value) {
+            .boolean => {
+                const s = if (self.value.boolean) "TRUE" else "FALSE";
+                for (s) |char| {
+                    try arr.append(allocator, char);
+                }
+            },
+            .string => {
+                const s = self.value.string;
+                for (s) |char| {
+                    try arr.append(allocator, char);
+                }
+            },
+            .float => {
+                const s = try std.fmt.allocPrint(allocator, "{d}", .{self.value.float});
+                defer allocator.free(s);
+                for (s) |char| {
+                    try arr.append(allocator, char);
+                }
+            },
+            else => {
+                const s = self.content_str;
+                for (s) |char| {
+                    try arr.append(allocator, char);
+                }
+            },
         }
         for (self.children.items) |child| {
             try arr.append(allocator, ' ');
@@ -163,6 +188,7 @@ fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
     var parsed = try CellExpr.parse(allocator, test_case.input);
     defer parsed.destroy(allocator);
     const sexpr = try parsed.toSexpr(allocator);
+    std.debug.print("sexpr: {s}\n", .{sexpr});
     defer allocator.free(sexpr);
 
     try std.testing.expectEqualStrings(test_case.expected_str, sexpr);
