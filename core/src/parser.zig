@@ -157,18 +157,33 @@ pub const CellExpr = struct {
 
         var token = try tokenizer.next();
         var root = try Self.create_empty(allocator);
+        var curr_node_type = getExprType(token.type);
+        var has_children = false;
+
+        var i: usize = 0;
         while (token.type != .eof) {
-            const node_type = getExprType(token.type);
+            i += 1;
+            curr_node_type = getExprType(token.type);
             const str = s[token.start..token.end];
-            switch (node_type) {
+            switch (curr_node_type) {
                 .literal => {
                     var val = try parseTokenValue(token);
-                    var child = try Self.create(allocator, str, token.type, val);
-                    try root.addChild(allocator, child);
+                    if (has_children) {
+                        var child = try Self.create(allocator, str, token.type, val);
+                        try root.addChild(allocator, child);
+                    } else {
+                        root.value = val;
+                        root.content_str = str;
+                        root.token_type = token.type;
+                    }
                 },
                 .unary, .binary, .variadic => {
-                    root.content_str = str;
-                    root.token_type = token.type;
+                    var new_root = try Self.create(allocator, str, token.type, .{ .none = undefined });
+                    // swap root with this new node
+                    var child = root;
+                    try new_root.addChild(allocator, child);
+                    root = new_root;
+                    has_children = true;
                 },
                 else => {
                     // TODO: handle nested and actually everything
@@ -224,5 +239,5 @@ test "parse simple expressions" {
     try std.testing.expectEqual(expected, parsed_right);
 
     try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
-    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "(a string)" });
+    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
 }
