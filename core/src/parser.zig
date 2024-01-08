@@ -1,7 +1,14 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
 
-const NodeType = enum {
+const Value = union(enum) {
+    none: void,
+    boolean: bool,
+    float: f64,
+    string: []const u8,
+};
+
+const ExprType = enum {
     unknown,
     /// or, a leaf
     literal,
@@ -13,28 +20,29 @@ const NodeType = enum {
 
 /// Not exhaustive, some are context-dependent (e.g. space, minus),
 /// which are returned as unknown
-fn getNodeType(token_type: lexer.TokenType) NodeType {
-    var node_type: NodeType = undefined;
-    node_type = switch (token_type) {
+fn getExprType(token_type: lexer.TokenType) ExprType {
+    var expr_type: ExprType = undefined;
+    expr_type = switch (token_type) {
         .str_literal, .num_literal, .false, .true, .cell_ref => .literal,
         .ref_op, .pound, .percent => .unary,
         .plus, .mult, .div, .pow, .eq, .lt, .gt, .lte, .gte, .neq, .concat, .range_op => .binary,
         .func_call => .variadic,
         else => .unknown,
     };
-    return node_type;
+    return expr_type;
 }
 
 /// Node on tree
 pub const CellExpr = struct {
     token_type: lexer.TokenType,
     content_str: []const u8,
+    value: Value,
     children: *std.ArrayListUnmanaged(*Self),
 
     const Self = @This();
 
     /// Heap allocation
-    pub fn create(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType) !*Self {
+    pub fn create(allocator: std.mem.Allocator, content_str: []const u8, token_type: lexer.TokenType, val: Value) !*Self {
         var result = try allocator.create(Self);
         var children = try allocator.create(std.ArrayListUnmanaged(*Self));
         children.* = try std.ArrayListUnmanaged(*Self).initCapacity(allocator, 2);
@@ -42,12 +50,13 @@ pub const CellExpr = struct {
             .children = children,
             .token_type = token_type,
             .content_str = content_str,
+            .value = val,
         };
         return result;
     }
 
     pub fn create_empty(allocator: std.mem.Allocator) !*Self {
-        return try Self.create(allocator, "", .unknown);
+        return try Self.create(allocator, "", .unknown, .{ .none = undefined });
     }
 
     /// Also calls destroy on self and descendents
@@ -98,11 +107,11 @@ pub const CellExpr = struct {
         var token = try tokenizer.next();
         var root = try Self.create_empty(allocator);
         while (token.type != .eof) {
-            const node_type = getNodeType(token.type);
+            const node_type = getExprType(token.type);
             const str = s[token.start..token.end];
             switch (node_type) {
                 .literal => {
-                    var child = try Self.create(allocator, str, token.type);
+                    var child = try Self.create(allocator, str, token.type, .{ .none = undefined });
                     try root.addChild(allocator, child);
                 },
                 .unary, .binary, .variadic => {
@@ -121,10 +130,10 @@ pub const CellExpr = struct {
 
 test "print debug" {
     const allocator = std.testing.allocator;
-    var expr = try CellExpr.create(allocator, "+", .plus);
+    var expr = try CellExpr.create(allocator, "+", .plus, .{ .none = undefined });
     defer expr.destroy(allocator);
-    var left = try CellExpr.create(allocator, "5", .num_literal);
-    var right = try CellExpr.create(allocator, "4", .num_literal);
+    var left = try CellExpr.create(allocator, "5", .num_literal, .{ .float = 5 });
+    var right = try CellExpr.create(allocator, "4", .num_literal, .{ .float = 4 });
     try expr.addChild(allocator, left);
     try expr.addChild(allocator, right);
 
