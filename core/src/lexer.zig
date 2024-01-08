@@ -187,8 +187,8 @@ const NUM_LITERALS = [_][]const u8{
 const STR_LITERALS = [_][]const u8{
     // string enclosed in double quotes
     "\".*\"",
-    // string with leading single quote
-    "'.*",
+    // string with leading single quote and without closing
+    "'[^']*",
 };
 
 const WHITESPACE = [_][]const u8{
