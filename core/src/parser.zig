@@ -24,7 +24,8 @@ const ExprType = enum {
 fn parseStringLiteral(s: []const u8) []const u8 {
     if (s[0] == '"') {
         const end = s.len - 1;
-        return s[1..end];
+        const cleaned = s[1..end];
+        return cleaned;
     }
     // only other possibility, starts with single quote
     return s[0..];
@@ -223,6 +224,6 @@ test "parse simple expressions" {
     const expected: float_t = 4;
     try std.testing.expectEqual(expected, parsed_right);
 
-    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
+    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "(a string)" });
     try testParse(allocator, .{ .input = "\"2^0.0\"", .expected_str = "(^ 2 0.0)" });
 }
