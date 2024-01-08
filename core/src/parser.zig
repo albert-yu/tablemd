@@ -154,6 +154,20 @@ pub const CellExpr = struct {
     }
 };
 
+const ParserTestCase = struct {
+    input: []const u8,
+    expected_str: []const u8,
+};
+
+fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
+    var parsed = try CellExpr.parse(allocator, test_case.input);
+    defer parsed.destroy(allocator);
+    const sexpr = try parsed.toSexpr(allocator);
+    defer allocator.free(sexpr);
+
+    try std.testing.expectEqualStrings(test_case.expected_str, sexpr);
+}
+
 test "print debug" {
     const allocator = std.testing.allocator;
     var expr = try CellExpr.create(allocator, "+", .plus, .{ .none = undefined });
@@ -182,4 +196,7 @@ test "parse simple expressions" {
     };
     const expected: float_t = 4;
     try std.testing.expectEqual(expected, parsed_right);
+
+    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
+    try testParse(allocator, .{ .input = "\"2^0.0\"", .expected_str = "(^ 2 0.0)" });
 }
