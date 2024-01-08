@@ -223,6 +223,8 @@ pub const Token = struct {
     type: TokenType,
     start: usize,
     end: usize,
+    /// slice ref to original string
+    str: []const u8,
 };
 
 const token_lookup = std.ComptimeStringMap(TokenType, .{
@@ -312,6 +314,7 @@ pub const Tokenizer = struct {
                 .type = TokenType.eof,
                 .start = self.index,
                 .end = self.index,
+                .str = "",
             };
         }
         const str = self.input[self.index..];
@@ -329,6 +332,7 @@ pub const Tokenizer = struct {
                     .type = tok,
                     .start = start,
                     .end = end,
+                    .str = c,
                 };
             }
             // try regexps one by one
@@ -339,6 +343,7 @@ pub const Tokenizer = struct {
                     .type = .cell_ref,
                     .start = start,
                     .end = end,
+                    .str = c,
                 };
             }
             const maybe_num_lit = self.regex_num_lit.matchStart(c);
@@ -348,6 +353,7 @@ pub const Tokenizer = struct {
                     .type = .num_literal,
                     .start = start,
                     .end = end,
+                    .str = c,
                 };
             }
             const maybe_str_lit = self.regex_str_lit.matchStart(c);
@@ -357,6 +363,7 @@ pub const Tokenizer = struct {
                     .type = .str_literal,
                     .start = start,
                     .end = end,
+                    .str = c,
                 };
             }
             const maybe_whitespace = self.regex_whitespace.matchStart(c);
@@ -366,6 +373,7 @@ pub const Tokenizer = struct {
                     .type = .space,
                     .start = start,
                     .end = end,
+                    .str = c,
                 };
             }
             const match_func_call = self.regex_func.matchStart(c);
@@ -375,6 +383,7 @@ pub const Tokenizer = struct {
                     .type = .func_call,
                     .start = start,
                     .end = end,
+                    .str = c,
                 };
             }
         }
