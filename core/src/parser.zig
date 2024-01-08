@@ -133,7 +133,11 @@ pub const CellExpr = struct {
             },
         }
         for (self.children.items) |child| {
-            try arr.append(allocator, ' ');
+            if (arr.items.len > 1) {
+                // if there's at least one more character
+                // after the opening parenthesis
+                try arr.append(allocator, ' ');
+            }
             const sexpr = try child.toSexpr(allocator);
             defer allocator.free(sexpr);
             for (sexpr) |char| {
