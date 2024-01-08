@@ -1,10 +1,12 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
 
+const float_t = f64;
+
 const Value = union(enum) {
     none: void,
     boolean: bool,
-    float: f64,
+    float: float_t,
     string: []const u8,
 };
 
@@ -17,6 +19,29 @@ const ExprType = enum {
     variadic,
     grouping,
 };
+
+/// Returns slice, does not allocate memory
+fn parseStringLiteral(s: []const u8) []const u8 {
+    if (s[0] == '"') {
+        return s[1..(s.len - 1)];
+    }
+    // only other possibility, starts with single quote
+    return s[0..];
+}
+
+fn parseTokenValue(token: lexer.Token) !Value {
+    var val: Value = undefined;
+    val = switch (token.type) {
+        .str_literal => .{
+            .string = parseStringLiteral(token.str),
+        },
+        .num_literal => .{ .float = try std.fmt.parseFloat(float_t, token.str) },
+        .false => .{ .boolean = false },
+        .true => .{ .boolean = true },
+        else => .{ .none = undefined },
+    };
+    return val;
+}
 
 /// Not exhaustive, some are context-dependent (e.g. space, minus),
 /// which are returned as unknown
@@ -111,7 +136,8 @@ pub const CellExpr = struct {
             const str = s[token.start..token.end];
             switch (node_type) {
                 .literal => {
-                    var child = try Self.create(allocator, str, token.type, .{ .none = undefined });
+                    var val = try parseTokenValue(token);
+                    var child = try Self.create(allocator, str, token.type, val);
                     try root.addChild(allocator, child);
                 },
                 .unary, .binary, .variadic => {
@@ -150,5 +176,10 @@ test "parse simple expressions" {
     const left = parsed.children.items[0];
     try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
     const right = parsed.children.items[1];
-    try std.testing.expectEqualStrings("4", right.content_str);
+    var parsed_right = switch (right.value) {
+        .float => right.value.float,
+        else => -1,
+    };
+    const expected: float_t = 4;
+    try std.testing.expectEqual(expected, parsed_right);
 }

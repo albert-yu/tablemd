@@ -223,7 +223,7 @@ pub const Token = struct {
     type: TokenType,
     start: usize,
     end: usize,
-    /// slice ref to original string
+    /// matched string
     str: []const u8,
 };
 
