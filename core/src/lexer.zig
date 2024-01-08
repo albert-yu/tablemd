@@ -318,12 +318,11 @@ pub const Tokenizer = struct {
         const maybe_match = self.regex_all_tokens.matchStart(str);
         if (maybe_match) |match| {
             const c = str[match.start..match.end];
-            const initial_index = self.index;
-            // mutate AFTER read
-            self.index += match.end;
             // need to adjust for initial offset
-            const start = initial_index + match.start;
-            const end = initial_index + match.end;
+            const start = self.index + match.start;
+            const end = self.index + match.end;
+            // mutate AFTER reading start and end
+            self.index += match.end;
             const token_type = token_lookup.get(c);
             if (token_type) |tok| {
                 return Token{
@@ -334,11 +333,12 @@ pub const Tokenizer = struct {
             }
             // try regexps one by one
             const maybe_match_cell_ref = self.regex_cell_ref.matchStart(c);
-            if (maybe_match_cell_ref) |m| {
+            if (maybe_match_cell_ref) |matched_cell_ref| {
+                _ = matched_cell_ref;
                 return Token{
                     .type = .cell_ref,
-                    .start = initial_index + m.start,
-                    .end = initial_index + m.end,
+                    .start = start,
+                    .end = end,
                 };
             }
             const maybe_num_lit = self.regex_num_lit.matchStart(c);
@@ -395,8 +395,8 @@ fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected:
     var i: usize = 0;
     while (token.type != .eof) {
         const expected_token = expected[i];
-        try std.testing.expectEqual(expected_token.type, token.type);
         try std.testing.expectEqualStrings(expected_token.str, input[token.start..token.end]);
+        try std.testing.expectEqual(expected_token.type, token.type);
         i += 1;
         token = try tokenizer.next();
     }
