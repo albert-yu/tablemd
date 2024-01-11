@@ -1,5 +1,16 @@
 const std = @import("std");
-const re = @import("regex.zig");
+
+const float_t = f64;
+const int_t = i64;
+
+const Literal = union(enum) {
+    /// or, not applicable (e.g. operators)
+    none: void,
+    boolean: bool,
+    integer: int_t,
+    float: float_t,
+    string: []const u8,
+};
 
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
 pub const TokenType = enum {
@@ -103,11 +114,11 @@ fn concatStringArrays(comptime arrays: anytype) []const []const u8 {
         var merged: [totalLength][]const u8 = undefined;
 
         // Merge arrays
-        var index: usize = 0;
+        var tick: usize = 0;
         for (arrays) |array| {
             for (array) |str| {
-                merged[index] = str;
-                index += 1;
+                merged[tick] = str;
+                tick += 1;
             }
         }
         return merged[0..];
@@ -122,7 +133,7 @@ const FUNCTIONS = [_][]const u8{
     "AVERAGE",
     "AVERAGEIF",
     "BASE",
-    "INDEX",
+    "tick",
     "LEN",
     "LENB",
     "MAP",
@@ -224,7 +235,24 @@ pub const Token = struct {
     start: usize,
     end: usize,
     /// matched string
-    str: []const u8,
+    lexeme: []const u8,
+    literal: Literal,
+
+    const Self = @This();
+
+    /// Frees any memory that this token may have taken up.
+    ///
+    /// Currently, only strings take up extra memory.
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        switch (self.literal) {
+            .string => {
+                allocator.free(self.literal.string);
+            },
+            else => {
+                // no-op
+            },
+        }
+    }
 };
 
 const token_lookup = std.ComptimeStringMap(TokenType, .{
@@ -258,135 +286,85 @@ const token_lookup = std.ComptimeStringMap(TokenType, .{
     .{ "TRUE", .true },
 });
 
+fn getSingleCharToken(c: u8) ?TokenType {
+    const tok = switch (c) {
+        '+' => .plus,
+        '=' => .eq,
+        '-' => .minus,
+        '*' => .mult,
+        '^' => .pow,
+        '/' => .div,
+        '(' => .l_paren,
+        '[' => .l_bracket,
+        '{' => .l_brace,
+        ')' => .r_paren,
+        ']' => .r_bracket,
+        '}' => .r_brace,
+        ',' => .arg_sep,
+        ';' => .row_sep,
+        '&' => .concat,
+        ':' => .range_op,
+        '%' => .percent,
+        '#' => .pound,
+        '@' => .ref_op,
+        else => undefined,
+    };
+    return tok;
+}
+
 pub const Tokenizer = struct {
     input: []const u8,
-    index: u64,
-    regex_all_tokens: re.Regex,
-    regex_cell_ref: re.Regex,
-    regex_num_lit: re.Regex,
-    regex_str_lit: re.Regex,
-    regex_whitespace: re.Regex,
-    regex_func: re.Regex,
+    tick: usize,
     const Self = @This();
 
-    pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
-        // TODO: make regex explicitly greedy, case-insensitive
-        const regex = try re.Regex.new(allocator, ALL_TOKENS_REGEX);
-        // std.debug.print("{s}\n", .{ALL_TOKENS_REGEX});
-        const cell_ref_regex = try re.Regex.new(
-            allocator,
-            CELL_REF_REGEX,
-        );
-        const num_literal_regex = try re.Regex.new(
-            allocator,
-            NUM_LITERALS_REGEX,
-        );
-        const str_literal_regex = try re.Regex.new(
-            allocator,
-            STR_LITERALS_REGEX,
-        );
-        const whitespace_regex = try re.Regex.new(allocator, WHITESPACE_REGEX);
-        const func_regex = try re.Regex.new(allocator, FUNCTION_REGEX);
+    pub fn new(s: []const u8) Self {
         return Self{
             .input = s,
-            .index = 0,
-            .regex_all_tokens = regex,
-            .regex_cell_ref = cell_ref_regex,
-            .regex_num_lit = num_literal_regex,
-            .regex_str_lit = str_literal_regex,
-            .regex_whitespace = whitespace_regex,
-            .regex_func = func_regex,
+            .tick = 0,
         };
     }
 
-    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-        self.regex_all_tokens.deinit(allocator);
-        self.regex_cell_ref.deinit(allocator);
-        self.regex_num_lit.deinit(allocator);
-        self.regex_str_lit.deinit(allocator);
-        self.regex_whitespace.deinit(allocator);
-        self.regex_func.deinit(allocator);
-    }
-
-    pub fn next(self: *Self) !Token {
-        if (self.index >= self.input.len) {
+    /// need to call token.deinit()
+    pub fn next(self: *Self, allocator: std.mem.Allocator) !Token {
+        _ = allocator;
+        if (self.tick >= self.input.len) {
             return Token{
                 .type = TokenType.eof,
-                .start = self.index,
-                .end = self.index,
-                .str = "",
+                .start = self.tick,
+                .end = self.tick,
+                .lexeme = "",
+                .literal = .{
+                    .none = undefined,
+                },
             };
         }
-        const str = self.input[self.index..];
-        const maybe_match = self.regex_all_tokens.matchStart(str);
-        if (maybe_match) |match| {
-            const c = str[match.start..match.end];
-            // need to adjust for initial offset
-            const start = self.index + match.start;
-            const end = self.index + match.end;
-            // mutate AFTER reading start and end
-            self.index += match.end;
-            const token_type = token_lookup.get(c);
-            if (token_type) |tok| {
-                return Token{
-                    .type = tok,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
-            // try regexps one by one
-            const maybe_match_cell_ref = self.regex_cell_ref.matchStart(c);
-            if (maybe_match_cell_ref) |matched_cell_ref| {
-                _ = matched_cell_ref;
-                return Token{
-                    .type = .cell_ref,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
-            const maybe_num_lit = self.regex_num_lit.matchStart(c);
-            if (maybe_num_lit) |num_lit| {
-                _ = num_lit;
-                return Token{
-                    .type = .num_literal,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
-            const maybe_str_lit = self.regex_str_lit.matchStart(c);
-            if (maybe_str_lit) |str_lit| {
-                _ = str_lit;
-                return Token{
-                    .type = .str_literal,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
-            const maybe_whitespace = self.regex_whitespace.matchStart(c);
-            if (maybe_whitespace) |ws| {
-                _ = ws;
-                return Token{
-                    .type = .space,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
-            const match_func_call = self.regex_func.matchStart(c);
-            if (match_func_call) |fc| {
-                _ = fc;
-                return Token{
-                    .type = .func_call,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
+        const start = self.tick;
+        const c = self.input[self.tick];
+        _ = c;
+        self.tick += 1;
+        const maybe_tok = getSingleCharToken(u8);
+        if (maybe_tok) |tok_type| {
+            return Token{
+                .type = tok_type,
+                .start = start,
+                .end = start + 1,
+                .lexeme = "",
+                .literal = .{
+                    .none = void,
+                },
+            };
         }
+        var token = Token{
+            .type = TokenType.unknown,
+            .start = start,
+            .end = start + 1,
+            .lexeme = "",
+            .literal = .{
+                .none = void,
+            },
+        };
+        _ = token;
+
         return error.UnexpectedCharacter;
     }
 };
@@ -397,16 +375,15 @@ const ExpectedToken = struct {
 };
 
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
-    var tokenizer = try Tokenizer.new(allocator, input);
-    defer tokenizer.deinit(allocator);
-
-    var token = try tokenizer.next();
+    var tokenizer = Tokenizer.new(input);
+    var token = try tokenizer.next(allocator);
     var i: usize = 0;
     while (token.type != .eof) {
         const expected_token = expected[i];
         try std.testing.expectEqualStrings(expected_token.str, input[token.start..token.end]);
         try std.testing.expectEqual(expected_token.type, token.type);
         i += 1;
+        token.deinit(allocator);
         token = try tokenizer.next();
     }
 }
