@@ -312,6 +312,22 @@ fn getSingleCharToken(c: u8) ?TokenType {
     return tok;
 }
 
+fn getTwoCharToken(left: u8, right: u8) ?TokenType {
+    const tok = switch (left) {
+        '<' => switch (right) {
+            '=' => .lte,
+            '>' => .neq,
+            else => .lt,
+        },
+        '>' => switch (right) {
+            '=' => .gte,
+            else => .gt,
+        },
+        else => undefined,
+    };
+    return tok;
+}
+
 pub const Tokenizer = struct {
     input: []const u8,
     tick: usize,
@@ -322,6 +338,17 @@ pub const Tokenizer = struct {
             .input = s,
             .tick = 0,
         };
+    }
+
+    fn peek(self: *Self) u8 {
+        return self.input[self.tick];
+    }
+
+    /// Return current, then advance tick
+    fn advance(self: *Self) u8 {
+        const c = self.input[self.tick];
+        self.tick += 1;
+        return c;
     }
 
     /// need to call token.deinit()
@@ -339,21 +366,41 @@ pub const Tokenizer = struct {
             };
         }
         const start = self.tick;
-        const c = self.input[self.tick];
-        _ = c;
-        self.tick += 1;
-        const maybe_tok = getSingleCharToken(u8);
+        const c = self.advance();
+        const at_end = self.tick == self.input.len;
+        _ = at_end;
+        const maybe_tok = getSingleCharToken(c);
         if (maybe_tok) |tok_type| {
+            const end = start + 1;
             return Token{
                 .type = tok_type,
                 .start = start,
-                .end = start + 1,
-                .lexeme = "",
+                .end = end,
+                .lexeme = self.input[start..end],
                 .literal = .{
                     .none = void,
                 },
             };
         }
+
+        // two-character tokens
+        const left = c;
+        const right = self.peek();
+        const two_char_tok = getTwoCharToken(left, right);
+        if (two_char_tok) |tok_type| {
+            const end = start + 2;
+            self.tick += 1;
+            return Token{
+                .type = tok_type,
+                .start = start,
+                .end = end,
+                .lexeme = self.input[start..end],
+                .literal = .{
+                    .none = void,
+                },
+            };
+        }
+
         var token = Token{
             .type = TokenType.unknown,
             .start = start,
