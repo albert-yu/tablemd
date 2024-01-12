@@ -3,12 +3,7 @@ const lexer = @import("lexer.zig");
 
 const float_t = f64;
 
-const Value = union(enum) {
-    none: void,
-    boolean: bool,
-    float: float_t,
-    string: []const u8,
-};
+const Value = lexer.Literal;
 
 const ExprType = enum {
     unknown,
@@ -29,20 +24,6 @@ fn parseStringLiteral(s: []const u8) []const u8 {
     }
     // only other possibility, starts with single quote
     return s[0..];
-}
-
-fn parseTokenValue(token: lexer.Token) !Value {
-    var val: Value = undefined;
-    val = switch (token.type) {
-        .str_literal => .{
-            .string = parseStringLiteral(token.str),
-        },
-        .num_literal => .{ .float = try std.fmt.parseFloat(float_t, token.str) },
-        .false => .{ .boolean = false },
-        .true => .{ .boolean = true },
-        else => .{ .none = undefined },
-    };
-    return val;
 }
 
 /// Not exhaustive, some are context-dependent (e.g. space, minus),
@@ -93,6 +74,10 @@ pub const CellExpr = struct {
         }
         self.children.deinit(allocator);
         allocator.destroy(self.children);
+        switch (self.value) {
+            .string => allocator.free(self.value.string),
+            else => {},
+        }
         allocator.destroy(self);
     }
 
@@ -152,10 +137,9 @@ pub const CellExpr = struct {
 
     /// Parses string into Expression tree
     pub fn parse(allocator: std.mem.Allocator, s: []const u8) !*Self {
-        var tokenizer = try lexer.Tokenizer.new(allocator, s);
-        defer tokenizer.deinit(allocator);
+        var tokenizer = lexer.Tokenizer.new(s);
 
-        var token = try tokenizer.next();
+        var token = try tokenizer.next(allocator);
         var root = try Self.create_empty(allocator);
         var curr_node_type = getExprType(token.type);
         var has_children = false;
@@ -167,7 +151,7 @@ pub const CellExpr = struct {
             const str = s[token.start..token.end];
             switch (curr_node_type) {
                 .literal => {
-                    var val = try parseTokenValue(token);
+                    var val = token.literal;
                     if (has_children) {
                         var child = try Self.create(allocator, str, token.type, val);
                         try root.addChild(allocator, child);
@@ -189,7 +173,7 @@ pub const CellExpr = struct {
                     // TODO: handle nested and actually everything
                 },
             }
-            token = try tokenizer.next();
+            token = try tokenizer.next(allocator);
         }
         return root;
     }

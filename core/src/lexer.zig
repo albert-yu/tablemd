@@ -3,7 +3,7 @@ const std = @import("std");
 const float_t = f64;
 const int_t = i64;
 
-const Literal = union(enum) {
+pub const Literal = union(enum) {
     /// or, not applicable (e.g. operators)
     none: void,
     boolean: bool,
@@ -13,6 +13,8 @@ const Literal = union(enum) {
 };
 
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
+/// TODO: read all this carefully:
+/// https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
 pub const TokenType = enum {
     unknown,
     /// +
@@ -75,160 +77,36 @@ pub const TokenType = enum {
     num_literal,
     /// A4, B12, Z99
     cell_ref,
+    sheet_ref,
     /// end of input
     eof,
 };
 
-fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
-    comptime {
-        var length: usize = 0;
-        for (strings) |s| {
-            length += s.len;
-            length += sep.len;
-        }
-
-        var result: [length]u8 = undefined;
-        var cursor: usize = 0;
-        for (strings, 0..) |s, i| {
-            std.mem.copy(u8, result[cursor..][0..s.len], s);
-            cursor += s.len;
-            if (i < strings.len - 1) {
-                std.mem.copy(u8, result[cursor..][0..sep.len], sep);
-                cursor += sep.len;
+fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8) ![]const u8 {
+    var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, str.len);
+    var i: usize = 0;
+    while (i < str.len) {
+        const c = str[i];
+        const at_end = i == str.len - 1;
+        if (c == quote_char) {
+            if (at_end) {
+                return error.UnterminatedEscapeChar;
             }
-        }
-
-        return result[0..];
-    }
-}
-
-fn concatStringArrays(comptime arrays: anytype) []const []const u8 {
-    comptime {
-        // Calculate total length first
-        var totalLength: usize = 0;
-        for (arrays) |array| {
-            totalLength += array.len;
-        }
-
-        // Allocate space for the merged array
-        var merged: [totalLength][]const u8 = undefined;
-
-        // Merge arrays
-        var tick: usize = 0;
-        for (arrays) |array| {
-            for (array) |str| {
-                merged[tick] = str;
-                tick += 1;
+            i += 1;
+            const next = str[i];
+            if (next == quote_char) {
+                try octets.append(allocator, next);
+            } else {
+                return error.InvalidEscapeSequence;
             }
+        } else {
+            try octets.append(allocator, c);
         }
-        return merged[0..];
     }
+    const result = try octets.toOwnedSlice(allocator);
+    // deinit is unnecessary here
+    return result;
 }
-
-/// Incomplete list of Excel functions
-/// Source: https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188
-const FUNCTIONS = [_][]const u8{
-    "ABS",
-    "AND",
-    "AVERAGE",
-    "AVERAGEIF",
-    "BASE",
-    "tick",
-    "LEN",
-    "LENB",
-    "MAP",
-    "MATCH",
-    "NOT",
-    "OR",
-    "PRODUCT",
-    "RAND",
-    "SORT",
-    "SORTBY",
-    "SQRT",
-    "SQRTPI",
-    "SUM",
-    "SUMIF",
-    "VLOOKUP",
-    "XOR",
-};
-
-/// TODO: read all this carefully:
-/// https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
-const OPERATORS = [_][]const u8{
-    ">=",
-    "<=",
-    "<",
-    ">",
-    "<>",
-    "=",
-    "\\+",
-    "\\-",
-    "\\*",
-    "\\/",
-    "\\^",
-    "&",
-    "%",
-    "#",
-    ":",
-    "@",
-};
-
-const CELL_REFS = [_][]const u8{
-    // not allowed in sheet name: [ ] * / \ ? :
-    "(([a-zA-Z0-9]{1,31}|'[a-zA-Z0-9_ \\-\\$!\\^&#%@]{1,31}')!)?\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
-};
-
-const SYMBOLS = [_][]const u8{
-    "\\(",
-    "\\)",
-    "\\{",
-    "\\}",
-    "\\[",
-    "\\]",
-    "\\,",
-    ";",
-    "\"",
-};
-
-const NUM_LITERALS = [_][]const u8{
-    // number
-    "[0-9]*\\.?[0-9]+",
-};
-
-const STR_LITERALS = [_][]const u8{
-    // string enclosed in double quotes
-    "\".*\"",
-    // string with leading single quote and without closing
-    "'[^']*",
-};
-
-const WHITESPACE = [_][]const u8{
-    // TODO: consider [[:space:]]
-    "[ ]+",
-};
-
-const KEYWORDS = [_][]const u8{
-    "false",
-    "true",
-};
-
-const ALL_PATTERNS = concatStringArrays([_][]const []const u8{
-    &FUNCTIONS,
-    &OPERATORS,
-    &KEYWORDS,
-    &SYMBOLS,
-    &CELL_REFS,
-    &NUM_LITERALS,
-    &STR_LITERALS,
-    &WHITESPACE,
-});
-
-const ALL_TOKENS_REGEX = joinStrings(ALL_PATTERNS, "|");
-const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
-const NUM_LITERALS_REGEX = joinStrings(&NUM_LITERALS, "|");
-const STR_LITERALS_REGEX = joinStrings(&STR_LITERALS, "|");
-const WHITESPACE_REGEX = joinStrings(&WHITESPACE, "|");
-const FUNCTION_REGEX = joinStrings(&FUNCTIONS, "|");
 
 pub const Token = struct {
     type: TokenType,
@@ -242,7 +120,8 @@ pub const Token = struct {
 
     /// Frees any memory that this token may have taken up.
     ///
-    /// Currently, only strings take up extra memory.
+    /// Currently, only strings take up extra memory, but
+    /// caller can just call `deinit` unconditionally.
     pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
         switch (self.literal) {
             .string => {
@@ -287,7 +166,7 @@ const token_lookup = std.ComptimeStringMap(TokenType, .{
 });
 
 fn getSingleCharToken(c: u8) ?TokenType {
-    const tok = switch (c) {
+    return switch (c) {
         '+' => .plus,
         '=' => .eq,
         '-' => .minus,
@@ -309,11 +188,10 @@ fn getSingleCharToken(c: u8) ?TokenType {
         '@' => .ref_op,
         else => undefined,
     };
-    return tok;
 }
 
 fn getTwoCharToken(left: u8, right: u8) ?TokenType {
-    const tok = switch (left) {
+    return switch (left) {
         '<' => switch (right) {
             '=' => .lte,
             '>' => .neq,
@@ -325,7 +203,6 @@ fn getTwoCharToken(left: u8, right: u8) ?TokenType {
         },
         else => undefined,
     };
-    return tok;
 }
 
 pub const Tokenizer = struct {
@@ -344,6 +221,14 @@ pub const Tokenizer = struct {
         return self.input[self.tick];
     }
 
+    fn isEof(self: *Self) bool {
+        return self.tick >= self.input.len;
+    }
+
+    fn atEnd(self: *Self) bool {
+        return self.tick == self.input.len - 1;
+    }
+
     /// Return current, then advance tick
     fn advance(self: *Self) u8 {
         const c = self.input[self.tick];
@@ -353,22 +238,20 @@ pub const Tokenizer = struct {
 
     /// need to call token.deinit()
     pub fn next(self: *Self, allocator: std.mem.Allocator) !Token {
-        _ = allocator;
-        if (self.tick >= self.input.len) {
+        const start = self.tick;
+        if (self.isEof()) {
             return Token{
                 .type = TokenType.eof,
-                .start = self.tick,
-                .end = self.tick,
-                .lexeme = "",
+                .start = start,
+                .end = start,
+                .lexeme = self.input[start..start],
                 .literal = .{
                     .none = undefined,
                 },
             };
         }
-        const start = self.tick;
-        const c = self.advance();
-        const at_end = self.tick == self.input.len;
-        _ = at_end;
+
+        var c = self.advance();
         const maybe_tok = getSingleCharToken(c);
         if (maybe_tok) |tok_type| {
             const end = start + 1;
@@ -378,7 +261,7 @@ pub const Tokenizer = struct {
                 .end = end,
                 .lexeme = self.input[start..end],
                 .literal = .{
-                    .none = void,
+                    .none = undefined,
                 },
             };
         }
@@ -396,21 +279,93 @@ pub const Tokenizer = struct {
                 .end = end,
                 .lexeme = self.input[start..end],
                 .literal = .{
-                    .none = void,
+                    .none = undefined,
                 },
             };
         }
-
-        var token = Token{
-            .type = TokenType.unknown,
-            .start = start,
-            .end = start + 1,
-            .lexeme = "",
-            .literal = .{
-                .none = void,
-            },
-        };
-        _ = token;
+        if (c == '\'') {
+            // leading single quote (') can be either unterminated
+            // sheet name or string. Sheet name has closing quote
+            // (up to 31 characters long within).
+            const MAX_SHEET_NAME = 31;
+            var tok_type = TokenType.str_literal;
+            var lexeme_len: usize = 0;
+            while (lexeme_len <= MAX_SHEET_NAME and !self.isEof()) {
+                const char = self.advance();
+                if (char == '\'') {
+                    tok_type = TokenType.sheet_ref;
+                    break;
+                }
+                lexeme_len += 1;
+            }
+            if (tok_type == .sheet_ref) {
+                // allocate memory for new string
+                const end = start + lexeme_len;
+                const lexeme = self.input[start..end];
+                // TODO: subroutine for extracting string
+                // handling escape characters
+                return Token{
+                    .type = tok_type,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .none = undefined,
+                    },
+                };
+            }
+            // keep going till end
+            while (!self.isEof()) {
+                _ = self.advance();
+                lexeme_len += 1;
+            }
+            const end = start + lexeme_len;
+            const lexeme = self.input[start..end];
+            // start at 1 to skip the single quote
+            const str_lit = try interpretString(allocator, lexeme[1..], '\'');
+            return Token{
+                .type = tok_type,
+                .start = start,
+                .end = end,
+                .lexeme = lexeme,
+                .literal = .{
+                    .string = str_lit,
+                },
+            };
+        }
+        if (c == '"') {
+            var lexeme_len: usize = 0;
+            var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
+            while (!self.isEof()) {
+                lexeme_len += 1;
+                c = self.advance();
+                if (c == '"') {
+                    const maybe_quote = self.peek();
+                    var end_of_string = true;
+                    if (maybe_quote == '"') {
+                        end_of_string = false;
+                        c = self.advance();
+                        lexeme_len += 1;
+                    }
+                    if (end_of_string) {
+                        break;
+                    }
+                }
+                try octets.append(allocator, c);
+            }
+            const literal = try octets.toOwnedSlice(allocator);
+            const end = start + lexeme_len;
+            return Token{
+                .type = .str_literal,
+                .start = start,
+                .end = end,
+                .lexeme = self.input[start..end],
+                .literal = .{
+                    .string = literal,
+                },
+            };
+        }
+        // TODO: literals, function calls, operators
 
         return error.UnexpectedCharacter;
     }
