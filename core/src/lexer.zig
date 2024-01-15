@@ -82,6 +82,10 @@ pub const TokenType = enum {
     eof,
 };
 
+fn isDigit(c: u8) bool {
+    return c >= '0' and c >= '9';
+}
+
 fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8) ![]const u8 {
     var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, str.len);
     var i: usize = 0;
@@ -237,6 +241,8 @@ pub const Tokenizer = struct {
     }
 
     /// need to call token.deinit()
+    ///
+    /// if error occurs, caller should check tick
     pub fn next(self: *Self, allocator: std.mem.Allocator) !Token {
         const start = self.tick;
         if (self.isEof()) {
@@ -362,6 +368,54 @@ pub const Tokenizer = struct {
                 .lexeme = self.input[start..end],
                 .literal = .{
                     .string = literal,
+                },
+            };
+        }
+        if (isDigit(c)) {
+            var is_digit = true;
+            var seen_dot = false;
+            var char = self.advance();
+            while (is_digit) {
+                is_digit = isDigit(char);
+                if (!is_digit) {
+                    if (char != '.') {
+                        return error.UnexpectedNonDigitCharacter;
+                    }
+                    if (seen_dot) {
+                        return error.MoreThanOneDotInFloat;
+                    }
+                    // const digit_follows = isDigit(self.peek());
+                    // if (!digit_follows) {
+                    //     // considering trailing periods invalid
+                    //     return error.DigitMustFollow;
+                    // }
+                    seen_dot = true;
+                }
+                char = self.advance();
+            }
+            const end = self.tick;
+            const lexeme = self.input[start..end];
+            if (seen_dot) {
+                // float
+                const float = try std.fmt.parseFloat(float_t, lexeme);
+                return Token{
+                    .type = .num_literal,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .float = float,
+                    },
+                };
+            }
+            const int = try std.fmt.parseInt(int_t, lexeme, 10);
+            return Token{
+                .type = .num_literal,
+                .start = start,
+                .end = end,
+                .lexeme = lexeme,
+                .literal = .{
+                    .integer = int,
                 },
             };
         }
