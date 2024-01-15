@@ -386,7 +386,7 @@ fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected:
         try std.testing.expectEqual(expected_token.type, token.type);
         i += 1;
         token.deinit(allocator);
-        token = try tokenizer.next();
+        token = try tokenizer.next(allocator);
     }
 }
 
