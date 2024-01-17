@@ -668,7 +668,7 @@ test "lexer basic test" {
     try testTokenizerInput(allocator, with_whitespace, &[_]ExpectedToken{
         .{
             .type = .cell_ref,
-            .str = "$ZQ$8989",
+            .str = "$Z$Q8989",
         },
         .{
             .type = .space,
