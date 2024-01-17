@@ -571,7 +571,11 @@ test "lexer basic test" {
     const sheet_cell_ref = "Sheet1!F5=2";
     try testTokenizerInput(allocator, sheet_cell_ref, &[_]ExpectedToken{
         .{
-            .str = "Sheet1!F5",
+            .str = "Sheet1!",
+            .type = .sheet_ref,
+        },
+        .{
+            .str = "F5",
             .type = .cell_ref,
         },
         .{
@@ -586,7 +590,11 @@ test "lexer basic test" {
     const sheet_cell_ref_2 = "'Name with spaces'!F5=2";
     try testTokenizerInput(allocator, sheet_cell_ref_2, &[_]ExpectedToken{
         .{
-            .str = "'Name with spaces'!F5",
+            .str = "'Name with spaces'!",
+            .type = .sheet_ref,
+        },
+        .{
+            .str = "F5",
             .type = .cell_ref,
         },
         .{
