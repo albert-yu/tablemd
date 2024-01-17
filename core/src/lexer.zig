@@ -499,10 +499,13 @@ pub const Tokenizer = struct {
         if (isAlphaUpper(c) or c == '$') {
             const peeked3 = self.peek3();
             var col_ref: [2]u8 = .{ 0, 0 };
-            var i: usize = 0;
+            var count_alpha: usize = if (c == '$') 0 else 1;
+            if (count_alpha == 1) {
+                col_ref[0] = c;
+            }
             var ticks_to_advance: usize = 0;
             for (peeked3) |char| {
-                if (i == 2 or ticks_to_advance == 3) {
+                if (count_alpha == 2 or ticks_to_advance == 3) {
                     break;
                 }
                 if (!isAlphaUpper(char) and char != '$') {
@@ -510,12 +513,12 @@ pub const Tokenizer = struct {
                 }
                 ticks_to_advance += 1;
                 if (isAlphaUpper(char)) {
-                    col_ref[i] = char;
-                    i += 1;
+                    count_alpha += 1;
+                    col_ref[count_alpha - 1] = char;
                 }
             }
-            if (i == 1 or i == 2) {
-                var col_index: usize = switch (i) {
+            if (count_alpha == 1 or count_alpha == 2) {
+                var col_index: usize = switch (count_alpha) {
                     1 => getAlphaOffset(col_ref[0]),
 
                     2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
