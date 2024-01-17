@@ -3,6 +3,10 @@ const std = @import("std");
 const float_t = f64;
 const int_t = i64;
 
+/// Cell reference for indexing
+pub const CellRef = struct { row: usize, col: usize };
+
+/// Tagged union of possible literal values
 pub const Literal = union(enum) {
     /// or, not applicable (e.g. operators)
     none: void,
@@ -10,6 +14,9 @@ pub const Literal = union(enum) {
     integer: int_t,
     float: float_t,
     string: []const u8,
+    /// like string, except it's a slice (no mem alloc)
+    keyword: []const u8,
+    cell_ref: CellRef,
 };
 
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
@@ -84,6 +91,22 @@ pub const TokenType = enum {
 
 fn isDigit(c: u8) bool {
     return c >= '0' and c >= '9';
+}
+
+inline fn isAlphaLower(c: u8) bool {
+    return 'a' <= c and c <= 'z';
+}
+
+inline fn isAlphaUpper(c: u8) bool {
+    return 'A' <= c and c <= 'Z';
+}
+
+fn isAlpha(c: u8) bool {
+    return isAlphaUpper(c) or isAlphaLower(c);
+}
+
+fn isAlphaNumeric(c: u8) bool {
+    return isDigit(c) or isAlpha(c);
 }
 
 fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8) ![]const u8 {
@@ -298,8 +321,11 @@ pub const Tokenizer = struct {
             var lexeme_len: usize = 0;
             while (lexeme_len <= MAX_SHEET_NAME and !self.isEof()) {
                 const char = self.advance();
-                if (char == '\'') {
+                const next_char = self.peek();
+                if (char == '\'' and next_char == '!') {
+                    _ = self.advance();
                     tok_type = TokenType.sheet_ref;
+                    lexeme_len += 2; // closing quote + bang
                     break;
                 }
                 lexeme_len += 1;
@@ -384,11 +410,6 @@ pub const Tokenizer = struct {
                     if (seen_dot) {
                         return error.MoreThanOneDotInFloat;
                     }
-                    // const digit_follows = isDigit(self.peek());
-                    // if (!digit_follows) {
-                    //     // considering trailing periods invalid
-                    //     return error.DigitMustFollow;
-                    // }
                     seen_dot = true;
                 }
                 char = self.advance();
@@ -419,7 +440,72 @@ pub const Tokenizer = struct {
                 },
             };
         }
-        // TODO: literals, function calls, operators
+
+        // alpha-numeric keywords
+
+        // isAlpha is sufficient
+        // since isDigit cannot be true here
+        if (isAlpha(c)) {
+            var char = c;
+            while (isAlphaNumeric(char)) {
+                char = self.advance();
+            }
+            // no longer alphanumeric, so backtrack by 1
+            const end = self.tick - 1;
+            const lexeme = self.input[start..end];
+            if (char == '(') {
+                return Token{
+                    .type = .func_call,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        // ignore opening parenthesis
+                        .keyword = lexeme,
+                    },
+                };
+            }
+            // true, false literals
+            if (std.mem.eql(u8, "TRUE", lexeme) or std.mem.eql(u8, "true", lexeme)) {
+                return Token{
+                    .type = .true,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .keyword = lexeme,
+                    },
+                };
+            }
+            if (std.mem.eql(u8, "FALSE", lexeme) or std.mem.eql(u8, "false", lexeme)) {
+                return Token{
+                    .type = .false,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .keyword = lexeme,
+                    },
+                };
+            }
+            // cell refs
+            // kinda complicated, but not sure how to implement otherwise
+            // if (isDigit(char) and (lexeme.len == 1 or lexeme.len == 2)) {
+            //     // only allow capital alpha
+            //     if (lexeme.len == 1) {
+            //         if (isAlphaUpper(lexeme[0])) {
+            //             return Token{
+            //                 .type = .cell_ref,
+            //                 .start = start,
+            //                 .end = end,
+            //                 .lexeme = lexeme,
+            //             };
+            //         }
+            //     }
+            // }
+        }
+
+        // TODO: cell refs, bool literals, function calls
 
         return error.UnexpectedCharacter;
     }
