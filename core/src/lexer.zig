@@ -432,6 +432,55 @@ pub const Tokenizer = struct {
             };
         }
 
+        // alpha-numeric keywords
+        const save_tick = self.tick; // reset back to here
+        // isAlpha is sufficient
+        // since isDigit cannot be true here
+        if (isAlpha(c)) {
+            var char = c;
+            while (isAlphaNumeric(char) and !self.isEof()) {
+                char = self.advance();
+            }
+            // no longer alphanumeric
+            const end = self.tick;
+            const lexeme = self.input[start..end];
+            if (char == '(') {
+                return Token{
+                    .type = .func_call,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .keyword = lexeme,
+                    },
+                };
+            }
+            // true, false literals
+            if (std.mem.eql(u8, "TRUE", lexeme) or std.mem.eql(u8, "true", lexeme)) {
+                return Token{
+                    .type = .true,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .boolean = true,
+                    },
+                };
+            }
+            if (std.mem.eql(u8, "FALSE", lexeme) or std.mem.eql(u8, "false", lexeme)) {
+                return Token{
+                    .type = .false,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .boolean = false,
+                    },
+                };
+            }
+        }
+        self.tick = save_tick;
+
         // cell refs
         const peeked4 = self.peek4();
         var col_ref: [2]u8 = .{ 0, 0 };
@@ -486,53 +535,6 @@ pub const Tokenizer = struct {
             };
         }
 
-        // alpha-numeric keywords
-
-        // isAlpha is sufficient
-        // since isDigit cannot be true here
-        if (isAlpha(c)) {
-            var char = c;
-            while (isAlphaNumeric(char) and !self.isEof()) {
-                char = self.advance();
-            }
-            // no longer alphanumeric, so backtrack by 1
-            const end = self.tick - 1;
-            const lexeme = self.input[start..end];
-            if (char == '(') {
-                return Token{
-                    .type = .func_call,
-                    .start = start,
-                    .end = end,
-                    .lexeme = lexeme,
-                    .literal = .{
-                        .keyword = lexeme,
-                    },
-                };
-            }
-            // true, false literals
-            if (std.mem.eql(u8, "TRUE", lexeme) or std.mem.eql(u8, "true", lexeme)) {
-                return Token{
-                    .type = .true,
-                    .start = start,
-                    .end = end,
-                    .lexeme = lexeme,
-                    .literal = .{
-                        .boolean = true,
-                    },
-                };
-            }
-            if (std.mem.eql(u8, "FALSE", lexeme) or std.mem.eql(u8, "false", lexeme)) {
-                return Token{
-                    .type = .false,
-                    .start = start,
-                    .end = end,
-                    .lexeme = lexeme,
-                    .literal = .{
-                        .boolean = false,
-                    },
-                };
-            }
-        }
         // catch-all
         return error.UnexpectedCharacter;
     }
