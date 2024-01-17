@@ -287,21 +287,23 @@ pub const Tokenizer = struct {
         }
 
         // two-character tokens
-        const left = c;
-        const right = self.peek();
-        const two_char_tok = getTwoCharToken(left, right);
-        if (two_char_tok) |tok_type| {
-            const end = start + 2;
-            self.tick += 1;
-            return Token{
-                .type = tok_type,
-                .start = start,
-                .end = end,
-                .lexeme = self.input[start..end],
-                .literal = .{
-                    .none = undefined,
-                },
-            };
+        if (!self.atEnd()) {
+            const left = c;
+            const right = self.peek();
+            const two_char_tok = getTwoCharToken(left, right);
+            if (two_char_tok) |tok_type| {
+                const end = start + 2;
+                self.tick += 1;
+                return Token{
+                    .type = tok_type,
+                    .start = start,
+                    .end = end,
+                    .lexeme = self.input[start..end],
+                    .literal = .{
+                        .none = undefined,
+                    },
+                };
+            }
         }
         if (c == '\'') {
             // leading single quote (') can be either unterminated
