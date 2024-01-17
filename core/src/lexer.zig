@@ -438,6 +438,9 @@ pub const Tokenizer = struct {
         var i: usize = 0;
         var ticks_to_advance: usize = 0;
         for (peeked4) |char| {
+            if (i == 2 or ticks_to_advance == 4) {
+                break;
+            }
             if (!isAlphaUpper(char) and char != '$') {
                 break;
             }
@@ -458,15 +461,16 @@ pub const Tokenizer = struct {
             self.tick += ticks_to_advance;
             const digit_start = self.tick;
             var char = self.advance();
-            var peeked = self.peek();
-            while (isDigit(peeked) and !self.isEof()) {
-                char = self.advance();
-                peeked = self.peek();
+            if (!self.isEof()) {
+                var peeked = self.peek();
+                while (isDigit(peeked) and !self.atEnd()) {
+                    char = self.advance();
+                    peeked = self.peek();
+                }
             }
             const end = self.tick;
             const lexeme = self.input[start..end];
             const row_str = self.input[digit_start..end];
-            std.debug.print("row_str: {s}\n", .{row_str});
             const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
             return Token{
                 .type = .cell_ref,
