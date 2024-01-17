@@ -453,8 +453,20 @@ pub const Tokenizer = struct {
                     .end = end,
                     .lexeme = lexeme,
                     .literal = .{
-                        .keyword = lexeme,
+                        .keyword = lexeme[0..(lexeme.len - 1)],
                     },
+                };
+            }
+            if (char == '!') {
+                const value = try allocator.alloc(u8, lexeme.len);
+                // TODO: handle escape characters if any
+                std.mem.copy(u8, value, lexeme[0..(lexeme.len - 1)]);
+                return Token{
+                    .type = .sheet_ref,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{ .string = value },
                 };
             }
             // true, false literals
