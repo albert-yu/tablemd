@@ -90,7 +90,7 @@ pub const TokenType = enum {
 };
 
 fn isDigit(c: u8) bool {
-    return c >= '0' and c >= '9';
+    return '0' <= c and c <= '9';
 }
 
 inline fn isAlphaLower(c: u8) bool {
@@ -485,7 +485,6 @@ pub const Tokenizer = struct {
         if (isAlpha(c)) {
             var char = c;
             while (isAlphaNumeric(char) and !self.isEof()) {
-                std.debug.print("{c}", .{char});
                 char = self.advance();
             }
             // no longer alphanumeric, so backtrack by 1
