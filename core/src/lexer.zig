@@ -161,36 +161,19 @@ pub const Token = struct {
     }
 };
 
-const token_lookup = std.ComptimeStringMap(TokenType, .{
-    .{ "+", .plus },
-    .{ "-", .minus },
-    .{ "*", .mult },
-    .{ "/", .div },
-    .{ "^", .pow },
-    .{ "(", .l_paren },
-    .{ "[", .l_bracket },
-    .{ "{", .l_brace },
-    .{ ")", .r_paren },
-    .{ "]", .r_bracket },
-    .{ "}", .r_brace },
-    .{ ",", .arg_sep },
-    .{ ";", .row_sep },
-    .{ "=", .eq },
-    .{ "<", .lt },
-    .{ ">", .gt },
-    .{ "<=", .lte },
-    .{ ">=", .gte },
-    .{ "<>", .neq },
-    .{ "&", .concat },
-    .{ ":", .range_op },
-    .{ "#", .pound },
-    .{ "@", .ref_op },
-    .{ "%", .percent },
-    .{ "false", .false },
-    .{ "FALSE", .false }, // of course, doesn't handle fAlSe or similar
-    .{ "true", .true },
-    .{ "TRUE", .true },
-});
+fn getAlphaOffset(letter: u8) usize {
+    return @intCast(letter - 'A');
+}
+
+const ALPHABET_SIZE = 'Z' - 'A';
+
+/// Computes the offset assuming a long array like:
+/// A, B, C, ... Z, AA, AB, ... ZY, ZZ
+fn getDoubleAlphaOffset(left: u8, right: u8) usize {
+    const offset_left = getAlphaOffset(left);
+    const offset_right = getAlphaOffset(right);
+    return ALPHABET_SIZE + ALPHABET_SIZE * offset_left + offset_right;
+}
 
 fn getSingleCharToken(c: u8) ?TokenType {
     return switch (c) {
@@ -246,6 +229,13 @@ pub const Tokenizer = struct {
 
     fn peek(self: *Self) u8 {
         return self.input[self.tick];
+    }
+
+    /// peeks the next 4 characters, used
+    /// for cell ref (alpha part), e.g.
+    /// `$AZ$`
+    fn peek4(self: *Self) []const u8 {
+        return self.input[self.tick..4];
     }
 
     fn isEof(self: *Self) bool {
@@ -441,13 +431,59 @@ pub const Tokenizer = struct {
             };
         }
 
+        // cell refs
+        const peeked4 = self.peek4();
+        var col_ref: [2]u8 = .{ 0, 0 };
+        var i: usize = 0;
+        var ticks_to_advance: usize = 0;
+        for (peeked4) |char| {
+            if (!isAlphaUpper(char) and char != '$') {
+                break;
+            }
+            ticks_to_advance += 1;
+            if (isAlphaUpper(char)) {
+                col_ref[i] = char;
+                i += 1;
+            }
+        }
+        if (i == 1 or i == 2) {
+            var col_index: usize = switch (i) {
+                1 => getAlphaOffset(col_ref[0]),
+
+                2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
+                else => unreachable,
+            };
+            // get row index
+            self.tick += ticks_to_advance;
+            const digit_start = self.tick;
+            var char = self.advance();
+            while (isDigit(char) and !self.isEof()) {
+                char = self.advance();
+            }
+            const end = self.tick;
+            const lexeme = self.input[start..end];
+            const row_number = try std.fmt.parseUnsigned(usize, self.input[digit_start..end], 10);
+            return Token{
+                .type = .cell_ref,
+                .start = start,
+                .end = end,
+                .lexeme = lexeme,
+                .literal = .{
+                    .cell_ref = .{
+                        .row = row_number - 1,
+                        .col = col_index,
+                    },
+                },
+            };
+        }
+
         // alpha-numeric keywords
 
         // isAlpha is sufficient
         // since isDigit cannot be true here
         if (isAlpha(c)) {
             var char = c;
-            while (isAlphaNumeric(char)) {
+            while (isAlphaNumeric(char) and !self.isEof()) {
                 char = self.advance();
             }
             // no longer alphanumeric, so backtrack by 1
@@ -473,7 +509,7 @@ pub const Tokenizer = struct {
                     .end = end,
                     .lexeme = lexeme,
                     .literal = .{
-                        .keyword = lexeme,
+                        .boolean = true,
                     },
                 };
             }
@@ -484,29 +520,12 @@ pub const Tokenizer = struct {
                     .end = end,
                     .lexeme = lexeme,
                     .literal = .{
-                        .keyword = lexeme,
+                        .boolean = false,
                     },
                 };
             }
-            // cell refs
-            // kinda complicated, but not sure how to implement otherwise
-            // if (isDigit(char) and (lexeme.len == 1 or lexeme.len == 2)) {
-            //     // only allow capital alpha
-            //     if (lexeme.len == 1) {
-            //         if (isAlphaUpper(lexeme[0])) {
-            //             return Token{
-            //                 .type = .cell_ref,
-            //                 .start = start,
-            //                 .end = end,
-            //                 .lexeme = lexeme,
-            //             };
-            //         }
-            //     }
-            // }
         }
-
-        // TODO: cell refs, bool literals, function calls
-
+        // catch-all
         return error.UnexpectedCharacter;
     }
 };
