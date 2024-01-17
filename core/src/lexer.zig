@@ -231,11 +231,11 @@ pub const Tokenizer = struct {
         return self.input[self.tick];
     }
 
-    /// peeks the next 4 characters, used
-    /// for cell ref (alpha part), e.g.
-    /// `$AZ$`
-    fn peek4(self: *Self) []const u8 {
-        var end = @min(self.input.len, self.tick + 4);
+    /// peeks the next 3 characters, used
+    /// for cell ref (column part), for a total
+    /// length of 4, e.g. `$AZ$`
+    fn peek3(self: *Self) []const u8 {
+        var end = @min(self.input.len, self.tick + 3);
         return self.input[self.tick..end];
     }
 
@@ -482,57 +482,59 @@ pub const Tokenizer = struct {
         self.tick = save_tick;
 
         // cell refs
-        const peeked4 = self.peek4();
-        var col_ref: [2]u8 = .{ 0, 0 };
-        var i: usize = 0;
-        var ticks_to_advance: usize = 0;
-        for (peeked4) |char| {
-            if (i == 2 or ticks_to_advance == 4) {
-                break;
-            }
-            if (!isAlphaUpper(char) and char != '$') {
-                break;
-            }
-            ticks_to_advance += 1;
-            if (isAlphaUpper(char)) {
-                col_ref[i] = char;
-                i += 1;
-            }
-        }
-        if (i == 1 or i == 2) {
-            var col_index: usize = switch (i) {
-                1 => getAlphaOffset(col_ref[0]),
-
-                2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
-                else => unreachable,
-            };
-            // get row index
-            self.tick += ticks_to_advance;
-            const digit_start = self.tick;
-            if (!self.atEnd()) {
-                var char = self.advance();
-                var peeked = self.peek();
-                while (isDigit(peeked) and !self.atEnd()) {
-                    char = self.advance();
-                    peeked = self.peek();
+        if (isAlphaUpper(c) or c == '$') {
+            const peeked3 = self.peek3();
+            var col_ref: [2]u8 = .{ 0, 0 };
+            var i: usize = 0;
+            var ticks_to_advance: usize = 0;
+            for (peeked3) |char| {
+                if (i == 2 or ticks_to_advance == 3) {
+                    break;
+                }
+                if (!isAlphaUpper(char) and char != '$') {
+                    break;
+                }
+                ticks_to_advance += 1;
+                if (isAlphaUpper(char)) {
+                    col_ref[i] = char;
+                    i += 1;
                 }
             }
-            const end = self.tick;
-            const lexeme = self.input[start..end];
-            const row_str = self.input[digit_start..end];
-            const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
-            return Token{
-                .type = .cell_ref,
-                .start = start,
-                .end = end,
-                .lexeme = lexeme,
-                .literal = .{
-                    .cell_ref = .{
-                        .row = row_number - 1,
-                        .col = col_index,
+            if (i == 1 or i == 2) {
+                var col_index: usize = switch (i) {
+                    1 => getAlphaOffset(col_ref[0]),
+
+                    2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
+                    else => unreachable,
+                };
+                // get row index
+                self.tick += ticks_to_advance;
+                const digit_start = self.tick;
+                if (!self.atEnd()) {
+                    var char = self.advance();
+                    var peeked = self.peek();
+                    while (isDigit(peeked) and !self.atEnd()) {
+                        char = self.advance();
+                        peeked = self.peek();
+                    }
+                }
+                const end = self.tick;
+                const lexeme = self.input[start..end];
+                const row_str = self.input[digit_start..end];
+                const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
+                return Token{
+                    .type = .cell_ref,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .cell_ref = .{
+                            .row = row_number - 1,
+                            .col = col_index,
+                        },
                     },
-                },
-            };
+                };
+            }
         }
 
         // catch-all
