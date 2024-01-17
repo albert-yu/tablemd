@@ -287,7 +287,7 @@ pub const Tokenizer = struct {
         }
 
         // two-character tokens
-        if (!self.atEnd()) {
+        if (!self.isEof()) {
             const left = c;
             const right = self.peek();
             const two_char_tok = getTwoCharToken(left, right);
@@ -394,7 +394,7 @@ pub const Tokenizer = struct {
         if (is_digit) {
             var seen_dot = false;
             var char = c;
-            while (is_digit) {
+            while (is_digit and !self.isEof()) {
                 char = self.advance();
                 is_digit = isDigit(char);
                 if (!is_digit) {
@@ -565,7 +565,7 @@ const ExpectedToken = struct {
 };
 
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
-    std.debug.print("\ntesting {s}\n", .{input});
+    std.debug.print("\nINPUT: {s}\n", .{input});
     var tokenizer = Tokenizer.new(input);
     var token = try tokenizer.next(allocator);
     var i: usize = 0;
