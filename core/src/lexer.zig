@@ -235,7 +235,8 @@ pub const Tokenizer = struct {
     /// for cell ref (alpha part), e.g.
     /// `$AZ$`
     fn peek4(self: *Self) []const u8 {
-        return self.input[self.tick..4];
+        var end = @min(self.input.len, self.tick + 4);
+        return self.input[self.tick..end];
     }
 
     fn isEof(self: *Self) bool {
@@ -484,6 +485,7 @@ pub const Tokenizer = struct {
         if (isAlpha(c)) {
             var char = c;
             while (isAlphaNumeric(char) and !self.isEof()) {
+                std.debug.print("{c}", .{char});
                 char = self.advance();
             }
             // no longer alphanumeric, so backtrack by 1
@@ -496,7 +498,6 @@ pub const Tokenizer = struct {
                     .end = end,
                     .lexeme = lexeme,
                     .literal = .{
-                        // ignore opening parenthesis
                         .keyword = lexeme,
                     },
                 };
@@ -647,7 +648,15 @@ test "lexer basic test" {
         },
         .{
             .type = .space,
-            .str = "   ",
+            .str = " ",
+        },
+        .{
+            .type = .space,
+            .str = " ",
+        },
+        .{
+            .type = .space,
+            .str = " ",
         },
         .{
             .type = .num_literal,
