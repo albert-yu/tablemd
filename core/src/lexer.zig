@@ -680,11 +680,7 @@ test "lexer basic test" {
     try testTokenizerInput(allocator, func_call, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "SUM",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "SUM(",
         },
         .{
             .type = .cell_ref,
@@ -708,11 +704,7 @@ test "lexer basic test" {
     try testTokenizerInput(allocator, func_call_args, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "PRODUCT",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "PRODUCT(",
         },
         .{
             .type = .cell_ref,
@@ -739,11 +731,7 @@ test "bit more complicated" {
     try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "SUM",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "SUM(",
         },
         .{
             .type = .l_paren,
@@ -779,11 +767,7 @@ test "bit more complicated" {
         },
         .{
             .type = .func_call,
-            .str = "SUMIF",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "SUMIF(",
         },
         .{
             .type = .cell_ref,
@@ -811,11 +795,7 @@ test "bit more complicated" {
     try testTokenizerInput(allocator, str_lit_inside_func, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "LENB",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "LENB(",
         },
         .{
             .type = .str_literal,
