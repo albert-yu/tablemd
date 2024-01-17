@@ -196,7 +196,7 @@ fn getSingleCharToken(c: u8) ?TokenType {
         '%' => .percent,
         '#' => .pound,
         '@' => .ref_op,
-        else => undefined,
+        else => null,
     };
 }
 
