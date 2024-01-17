@@ -388,11 +388,12 @@ pub const Tokenizer = struct {
                 },
             };
         }
-        if (isDigit(c)) {
-            var is_digit = true;
+        var is_digit = isDigit(c);
+        if (is_digit) {
             var seen_dot = false;
-            var char = self.advance();
+            var char = c;
             while (is_digit) {
+                char = self.advance();
                 is_digit = isDigit(char);
                 if (!is_digit) {
                     if (char != '.') {
@@ -403,7 +404,6 @@ pub const Tokenizer = struct {
                     }
                     seen_dot = true;
                 }
-                char = self.advance();
             }
             const end = self.tick;
             const lexeme = self.input[start..end];
@@ -461,9 +461,11 @@ pub const Tokenizer = struct {
             while (isDigit(char) and !self.isEof()) {
                 char = self.advance();
             }
-            const end = self.tick;
+            const end = self.tick - 1;
             const lexeme = self.input[start..end];
-            const row_number = try std.fmt.parseUnsigned(usize, self.input[digit_start..end], 10);
+            const row_str = self.input[digit_start..end];
+            std.debug.print("row_str: {s}\n", .{row_str});
+            const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
             return Token{
                 .type = .cell_ref,
                 .start = start,
@@ -536,6 +538,7 @@ const ExpectedToken = struct {
 };
 
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
+    std.debug.print("\ntesting {s}\n", .{input});
     var tokenizer = Tokenizer.new(input);
     var token = try tokenizer.next(allocator);
     var i: usize = 0;
