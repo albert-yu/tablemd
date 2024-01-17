@@ -311,7 +311,7 @@ pub const Tokenizer = struct {
             // (up to 31 characters long within).
             const MAX_SHEET_NAME = 31;
             var tok_type = TokenType.str_literal;
-            var lexeme_len: usize = 0;
+            var lexeme_len: usize = 1;
             while (lexeme_len <= MAX_SHEET_NAME and !self.isEof()) {
                 const char = self.advance();
                 const next_char = self.peek();
