@@ -129,6 +129,7 @@ fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8
         } else {
             try octets.append(allocator, c);
         }
+        i += 1;
     }
     const result = try octets.toOwnedSlice(allocator);
     // deinit is unnecessary here
@@ -312,15 +313,16 @@ pub const Tokenizer = struct {
             const MAX_SHEET_NAME = 31;
             var tok_type = TokenType.str_literal;
             var lexeme_len: usize = 1;
+            var char = c;
             while (lexeme_len <= MAX_SHEET_NAME and !self.isEof()) {
-                const char = self.advance();
                 const next_char = self.peek();
                 if (char == '\'' and next_char == '!') {
-                    _ = self.advance();
                     tok_type = TokenType.sheet_ref;
-                    lexeme_len += 2; // closing quote + bang
+                    _ = self.advance();
+                    lexeme_len += 1; // + bang
                     break;
                 }
+                char = self.advance();
                 lexeme_len += 1;
             }
             if (tok_type == .sheet_ref) {
