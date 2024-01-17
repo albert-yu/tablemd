@@ -458,10 +458,12 @@ pub const Tokenizer = struct {
             self.tick += ticks_to_advance;
             const digit_start = self.tick;
             var char = self.advance();
-            while (isDigit(char) and !self.isEof()) {
+            var peeked = self.peek();
+            while (isDigit(peeked) and !self.isEof()) {
                 char = self.advance();
+                peeked = self.peek();
             }
-            const end = self.tick - 1;
+            const end = self.tick;
             const lexeme = self.input[start..end];
             const row_str = self.input[digit_start..end];
             std.debug.print("row_str: {s}\n", .{row_str});
