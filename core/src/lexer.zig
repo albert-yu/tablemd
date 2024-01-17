@@ -460,8 +460,8 @@ pub const Tokenizer = struct {
             // get row index
             self.tick += ticks_to_advance;
             const digit_start = self.tick;
-            var char = self.advance();
-            if (!self.isEof()) {
+            if (!self.atEnd()) {
+                var char = self.advance();
                 var peeked = self.peek();
                 while (isDigit(peeked) and !self.atEnd()) {
                     char = self.advance();
