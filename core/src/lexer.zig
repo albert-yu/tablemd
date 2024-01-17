@@ -395,17 +395,18 @@ pub const Tokenizer = struct {
             var seen_dot = false;
             var char = c;
             while (is_digit and !self.isEof()) {
-                char = self.advance();
-                is_digit = isDigit(char);
+                const next_c = self.peek();
+                is_digit = isDigit(next_c);
                 if (!is_digit) {
-                    if (char != '.') {
-                        return error.UnexpectedNonDigitCharacter;
+                    if (next_c != '.') {
+                        break;
                     }
                     if (seen_dot) {
                         return error.MoreThanOneDotInFloat;
                     }
                     seen_dot = true;
                 }
+                char = self.advance();
             }
             const end = self.tick;
             const lexeme = self.input[start..end];
