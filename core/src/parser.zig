@@ -41,7 +41,7 @@ fn getExprType(token_type: lexer.TokenType) ExprType {
 }
 
 /// Node on tree
-pub const Expr = struct {
+pub const ExprOld = struct {
     token_type: lexer.TokenType,
     content_str: []const u8,
     value: Value,
@@ -185,7 +185,7 @@ const ParserTestCase = struct {
 };
 
 fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
-    var parsed = try Expr.parse(allocator, test_case.input);
+    var parsed = try ExprOld.parse(allocator, test_case.input);
     defer parsed.destroySelf(allocator);
     const sexpr = try parsed.toSexpr(allocator);
     defer allocator.free(sexpr);
@@ -195,10 +195,10 @@ fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
 
 test "print debug" {
     const allocator = std.testing.allocator;
-    var expr = try Expr.create(allocator, "+", .plus, .{ .none = undefined });
+    var expr = try ExprOld.create(allocator, "+", .plus, .{ .none = undefined });
     defer expr.destroySelf(allocator);
-    var left = try Expr.create(allocator, "5", .num_literal, .{ .float = 5 });
-    var right = try Expr.create(allocator, "4", .num_literal, .{ .float = 4 });
+    var left = try ExprOld.create(allocator, "5", .num_literal, .{ .float = 5 });
+    var right = try ExprOld.create(allocator, "4", .num_literal, .{ .float = 4 });
     try expr.addChild(allocator, left);
     try expr.addChild(allocator, right);
 
@@ -209,7 +209,7 @@ test "print debug" {
 
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
-    var parsed = try Expr.parse(allocator, "5+4");
+    var parsed = try ExprOld.parse(allocator, "5+4");
     defer parsed.destroySelf(allocator);
     try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
     const left = parsed.children.items[0];
