@@ -6,6 +6,8 @@ const int_t = lexer.int_t;
 
 const Value = lexer.Literal;
 
+const ExprLiteral = lexer.Literal;
+
 const ExprType = enum {
     unknown,
     /// or, a leaf
@@ -39,6 +41,53 @@ fn getExprType(token_type: lexer.TokenType) ExprType {
     };
     return expr_type;
 }
+
+const UnaryOp = enum {
+    ref_op,
+    pound,
+    percent,
+    neg,
+};
+
+const ExprUnary = struct {
+    operand: Expr,
+    op: UnaryOp,
+};
+
+const BinaryOp = enum {
+    plus,
+    minus,
+    mult,
+    div,
+    pow,
+    eq,
+    lt,
+    gt,
+    lte,
+    gte,
+    neq,
+    concat,
+    range_op,
+};
+
+const ExprBinary = struct {
+    left: Expr,
+    right: Expr,
+    op: BinaryOp,
+};
+
+const ExprVariadic = struct {
+    op: fn (...) anyopaque,
+    args: []const Expr,
+};
+
+pub const Expr = union(enum) {
+    unknown: void,
+    literal: ExprLiteral,
+    unary: ExprUnary,
+    binary: ExprBinary,
+    variadic: ExprVariadic,
+};
 
 /// Node on tree
 pub const ExprOld = struct {
