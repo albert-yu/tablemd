@@ -394,10 +394,10 @@ pub const Tokenizer = struct {
             };
         }
         var is_digit = isDigit(c);
-        if (is_digit) {
-            var seen_dot = false;
+        if (is_digit or c == '.') {
+            var seen_dot = c == '.';
             var char = c;
-            while (is_digit and !self.isEof()) {
+            while ((is_digit or char == '.') and !self.isEof()) {
                 const next_c = self.peek();
                 is_digit = isDigit(next_c);
                 if (!is_digit) {
