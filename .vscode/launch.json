@@ -18,6 +18,15 @@
       "program": "${workspaceFolder}/core/zig-out/bin/lexer-test",
       "args": [],
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug parser test",
+      "preLaunchTask": "build parser test",
+      "program": "${workspaceFolder}/core/zig-out/bin/parser-test",
+      "args": [],
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

@@ -16,6 +16,16 @@
         "core/src/lexer.zig"
       ],
       "problemMatcher": ["$zig"]
+    },
+    {
+      "label": "build parser test",
+      "command": "zig",
+      "args": [
+        "test",
+        "-femit-bin=core/zig-out/bin/parser-test",
+        "core/src/parser.zig"
+      ],
+      "problemMatcher": ["$zig"]
     }
   ]
 }
