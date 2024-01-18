@@ -273,7 +273,7 @@ pub const Tokenizer = struct {
             };
         }
 
-        var c = self.advance();
+        const c = self.advance();
         const maybe_tok = getSingleCharToken(c);
         if (maybe_tok) |tok_type| {
             const end = start + 1;
@@ -362,24 +362,26 @@ pub const Tokenizer = struct {
             };
         }
         if (c == '"') {
-            var lexeme_len: usize = 0;
+            var lexeme_len: usize = 1;
             var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
+            var char = c;
             while (!self.isEof()) {
-                lexeme_len += 1;
-                c = self.advance();
-                if (c == '"') {
+                char = self.advance();
+                if (char == '"') {
                     const maybe_quote = self.peek();
                     var end_of_string = true;
+                    lexeme_len += 1;
                     if (maybe_quote == '"') {
                         end_of_string = false;
-                        c = self.advance();
-                        lexeme_len += 1;
+                        char = self.advance();
                     }
                     if (end_of_string) {
+                        try octets.append(allocator, char);
                         break;
                     }
                 }
-                try octets.append(allocator, c);
+                try octets.append(allocator, char);
+                lexeme_len += 1;
             }
             const literal = try octets.toOwnedSlice(allocator);
             const end = start + lexeme_len;
