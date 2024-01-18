@@ -367,7 +367,7 @@ pub const Tokenizer = struct {
             var char = c;
             while (!self.isEof()) {
                 char = self.advance();
-                if (char == '"') {
+                if (char == '"' and !self.isEof()) {
                     const maybe_quote = self.peek();
                     var end_of_string = true;
                     lexeme_len += 1;
@@ -587,6 +587,15 @@ fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected:
     }
 }
 
+fn testTokenizerString(allocator: std.mem.Allocator, input: []const u8, expected_str: []const u8) !void {
+    var tokenizer = Tokenizer.new(input);
+    var token = try tokenizer.next(allocator);
+    defer token.deinit(allocator);
+    try std.testing.expectEqualStrings(expected_str, token.literal.string);
+    var expected_token_type = TokenType.str_literal;
+    try std.testing.expectEqual(expected_token_type, token.type);
+}
+
 test "lexer basic test" {
     const allocator = std.testing.allocator;
 
@@ -752,6 +761,8 @@ test "lexer basic test" {
 
 test "bit more complicated" {
     const allocator = std.testing.allocator;
+    const escaped_quotes = "\"\"\"\"";
+    try testTokenizerString(allocator, escaped_quotes, "\"\"");
     const nested_func_calls = "SUM((100+.4)*20,SUMIF(A1:A20))";
     try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
         .{
