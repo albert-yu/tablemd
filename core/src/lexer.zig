@@ -571,7 +571,6 @@ const ExpectedToken = struct {
 };
 
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
-    std.debug.print("\nINPUT: {s}\n", .{input});
     var tokenizer = Tokenizer.new(input);
     var i: usize = 0;
     while (true) {
