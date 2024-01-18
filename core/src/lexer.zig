@@ -364,24 +364,20 @@ pub const Tokenizer = struct {
         if (c == '"') {
             var lexeme_len: usize = 1;
             var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
-            var char = c;
+            var char = self.advance();
             while (!self.isEof()) {
-                char = self.advance();
-                if (char == '"' and !self.isEof()) {
-                    const maybe_quote = self.peek();
-                    var end_of_string = true;
-                    lexeme_len += 1;
-                    if (maybe_quote == '"') {
-                        end_of_string = false;
-                        char = self.advance();
-                    }
-                    if (end_of_string) {
-                        try octets.append(allocator, char);
-                        break;
-                    }
-                }
-                try octets.append(allocator, char);
                 lexeme_len += 1;
+                if (char == '"') {
+                    const peeked = self.peek();
+                    if (peeked == char) {
+                        // also double quote
+                        try octets.append(allocator, peeked);
+                        _ = self.advance();
+                    }
+                } else {
+                    try octets.append(allocator, char);
+                }
+                char = self.advance();
             }
             const literal = try octets.toOwnedSlice(allocator);
             const end = start + lexeme_len;
@@ -761,7 +757,7 @@ test "lexer basic test" {
 test "bit more complicated" {
     const allocator = std.testing.allocator;
     const escaped_quotes = "\"\"\"\"";
-    try testTokenizerString(allocator, escaped_quotes, "\"\"");
+    try testTokenizerString(allocator, escaped_quotes, "\"");
     const nested_func_calls = "SUM((100+.4)*20,SUMIF(A1:A20))";
     try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
         .{
