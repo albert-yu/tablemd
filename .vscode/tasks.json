@@ -1,17 +1,31 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "build",
-            "command": "zig",
-            "args": [
-                "build",
-                "--build-file",
-                "core/build.zig"
-            ],
-            "problemMatcher": [
-                "$zig"
-            ]
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "zig",
+      "args": ["build", "--build-file", "core/build.zig"],
+      "problemMatcher": ["$zig"]
+    },
+    {
+      "label": "build lexer test",
+      "command": "zig",
+      "args": [
+        "test",
+        "-femit-bin=core/zig-out/bin/lexer-test",
+        "core/src/lexer.zig"
+      ],
+      "problemMatcher": ["$zig"]
+    },
+    {
+      "label": "build parser test",
+      "command": "zig",
+      "args": [
+        "test",
+        "-femit-bin=core/zig-out/bin/parser-test",
+        "core/src/parser.zig"
+      ],
+      "problemMatcher": ["$zig"]
+    }
+  ]
 }

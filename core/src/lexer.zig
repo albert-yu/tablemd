@@ -1,7 +1,27 @@
 const std = @import("std");
-const re = @import("regex.zig");
+
+pub const float_t = f64;
+pub const int_t = i64;
+
+/// Cell reference for indexing
+pub const CellRef = struct { row: usize, col: usize };
+
+/// Tagged union of possible literal values
+pub const Literal = union(enum) {
+    /// or, not applicable (e.g. operators)
+    none: void,
+    boolean: bool,
+    integer: int_t,
+    float: float_t,
+    string: []const u8,
+    /// like string, except it's a slice (no mem alloc)
+    keyword: []const u8,
+    cell_ref: CellRef,
+};
 
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
+/// TODO: read all this carefully:
+/// https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
 pub const TokenType = enum {
     unknown,
     /// +
@@ -64,329 +84,479 @@ pub const TokenType = enum {
     num_literal,
     /// A4, B12, Z99
     cell_ref,
+    sheet_ref,
     /// end of input
     eof,
 };
 
-fn joinStrings(strings: []const []const u8, sep: []const u8) []const u8 {
-    comptime {
-        var length: usize = 0;
-        for (strings) |s| {
-            length += s.len;
-            length += sep.len;
-        }
-
-        var result: [length]u8 = undefined;
-        var cursor: usize = 0;
-        for (strings, 0..) |s, i| {
-            std.mem.copy(u8, result[cursor..][0..s.len], s);
-            cursor += s.len;
-            if (i < strings.len - 1) {
-                std.mem.copy(u8, result[cursor..][0..sep.len], sep);
-                cursor += sep.len;
-            }
-        }
-
-        return result[0..];
-    }
+fn isDigit(c: u8) bool {
+    return '0' <= c and c <= '9';
 }
 
-fn concatStringArrays(comptime arrays: anytype) []const []const u8 {
-    comptime {
-        // Calculate total length first
-        var totalLength: usize = 0;
-        for (arrays) |array| {
-            totalLength += array.len;
-        }
-
-        // Allocate space for the merged array
-        var merged: [totalLength][]const u8 = undefined;
-
-        // Merge arrays
-        var index: usize = 0;
-        for (arrays) |array| {
-            for (array) |str| {
-                merged[index] = str;
-                index += 1;
-            }
-        }
-        return merged[0..];
-    }
+inline fn isAlphaLower(c: u8) bool {
+    return 'a' <= c and c <= 'z';
 }
 
-/// Incomplete list of Excel functions
-/// Source: https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188
-const FUNCTIONS = [_][]const u8{
-    "ABS",
-    "AND",
-    "AVERAGE",
-    "AVERAGEIF",
-    "BASE",
-    "INDEX",
-    "LEN",
-    "LENB",
-    "MAP",
-    "MATCH",
-    "NOT",
-    "OR",
-    "PRODUCT",
-    "RAND",
-    "SORT",
-    "SORTBY",
-    "SQRT",
-    "SQRTPI",
-    "SUM",
-    "SUMIF",
-    "VLOOKUP",
-    "XOR",
-};
+inline fn isAlphaUpper(c: u8) bool {
+    return 'A' <= c and c <= 'Z';
+}
 
-/// TODO: read all this carefully:
-/// https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
-const OPERATORS = [_][]const u8{
-    ">=",
-    "<=",
-    "<",
-    ">",
-    "<>",
-    "=",
-    "\\+",
-    "\\-",
-    "\\*",
-    "\\/",
-    "\\^",
-    "&",
-    "%",
-    "#",
-    ":",
-    "@",
-};
+fn isAlpha(c: u8) bool {
+    return isAlphaUpper(c) or isAlphaLower(c);
+}
 
-const CELL_REFS = [_][]const u8{
-    // not allowed in sheet name: [ ] * / \ ? :
-    "(([a-zA-Z0-9]{1,31}|'[a-zA-Z0-9_ \\-\\$!\\^&#%@]{1,31}')!)?\\$?[a-zA-Z]{1,2}\\$?[0-9]+",
-};
+fn isAlphaNumeric(c: u8) bool {
+    return isDigit(c) or isAlpha(c);
+}
 
-const SYMBOLS = [_][]const u8{
-    "\\(",
-    "\\)",
-    "\\{",
-    "\\}",
-    "\\[",
-    "\\]",
-    "\\,",
-    ";",
-    "\"",
-};
-
-const NUM_LITERALS = [_][]const u8{
-    // number
-    "[0-9]*\\.?[0-9]+",
-};
-
-const STR_LITERALS = [_][]const u8{
-    // string enclosed in double quotes
-    "\".*\"",
-    // string with leading single quote and without closing
-    "'[^']*",
-};
-
-const WHITESPACE = [_][]const u8{
-    // TODO: consider [[:space:]]
-    "[ ]+",
-};
-
-const KEYWORDS = [_][]const u8{
-    "false",
-    "true",
-};
-
-const ALL_PATTERNS = concatStringArrays([_][]const []const u8{
-    &FUNCTIONS,
-    &OPERATORS,
-    &KEYWORDS,
-    &SYMBOLS,
-    &CELL_REFS,
-    &NUM_LITERALS,
-    &STR_LITERALS,
-    &WHITESPACE,
-});
-
-const ALL_TOKENS_REGEX = joinStrings(ALL_PATTERNS, "|");
-const CELL_REF_REGEX = joinStrings(&CELL_REFS, "|");
-const NUM_LITERALS_REGEX = joinStrings(&NUM_LITERALS, "|");
-const STR_LITERALS_REGEX = joinStrings(&STR_LITERALS, "|");
-const WHITESPACE_REGEX = joinStrings(&WHITESPACE, "|");
-const FUNCTION_REGEX = joinStrings(&FUNCTIONS, "|");
+fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8) ![]const u8 {
+    var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, str.len);
+    var i: usize = 0;
+    while (i < str.len) {
+        const c = str[i];
+        const at_end = i == str.len - 1;
+        if (c == quote_char) {
+            if (at_end) {
+                return error.UnterminatedEscapeChar;
+            }
+            i += 1;
+            const next = str[i];
+            if (next == quote_char) {
+                try octets.append(allocator, next);
+            } else {
+                return error.InvalidEscapeSequence;
+            }
+        } else {
+            try octets.append(allocator, c);
+        }
+        i += 1;
+    }
+    const result = try octets.toOwnedSlice(allocator);
+    // deinit is unnecessary here
+    return result;
+}
 
 pub const Token = struct {
     type: TokenType,
     start: usize,
     end: usize,
     /// matched string
-    str: []const u8,
+    lexeme: []const u8,
+    literal: Literal,
+
+    const Self = @This();
+
+    /// Frees any memory that this token may have taken up.
+    ///
+    /// Currently, only strings take up extra memory, but
+    /// caller can just call `deinit` unconditionally.
+    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
+        switch (self.literal) {
+            .string => {
+                allocator.free(self.literal.string);
+            },
+            else => {
+                // no-op
+            },
+        }
+    }
 };
 
-const token_lookup = std.ComptimeStringMap(TokenType, .{
-    .{ "+", .plus },
-    .{ "-", .minus },
-    .{ "*", .mult },
-    .{ "/", .div },
-    .{ "^", .pow },
-    .{ "(", .l_paren },
-    .{ "[", .l_bracket },
-    .{ "{", .l_brace },
-    .{ ")", .r_paren },
-    .{ "]", .r_bracket },
-    .{ "}", .r_brace },
-    .{ ",", .arg_sep },
-    .{ ";", .row_sep },
-    .{ "=", .eq },
-    .{ "<", .lt },
-    .{ ">", .gt },
-    .{ "<=", .lte },
-    .{ ">=", .gte },
-    .{ "<>", .neq },
-    .{ "&", .concat },
-    .{ ":", .range_op },
-    .{ "#", .pound },
-    .{ "@", .ref_op },
-    .{ "%", .percent },
-    .{ "false", .false },
-    .{ "FALSE", .false }, // of course, doesn't handle fAlSe or similar
-    .{ "true", .true },
-    .{ "TRUE", .true },
-});
+fn getAlphaOffset(letter: u8) usize {
+    return @intCast(letter - 'A');
+}
+
+const ALPHABET_SIZE = 'Z' - 'A';
+
+/// Computes the offset assuming a long array like:
+/// A, B, C, ... Z, AA, AB, ... ZY, ZZ
+fn getDoubleAlphaOffset(left: u8, right: u8) usize {
+    const offset_left = getAlphaOffset(left);
+    const offset_right = getAlphaOffset(right);
+    return ALPHABET_SIZE + ALPHABET_SIZE * offset_left + offset_right;
+}
+
+fn getSingleCharToken(c: u8) ?TokenType {
+    return switch (c) {
+        '+' => .plus,
+        '=' => .eq,
+        '-' => .minus,
+        '*' => .mult,
+        '^' => .pow,
+        '/' => .div,
+        '(' => .l_paren,
+        '[' => .l_bracket,
+        '{' => .l_brace,
+        ')' => .r_paren,
+        ']' => .r_bracket,
+        '}' => .r_brace,
+        ',' => .arg_sep,
+        ';' => .row_sep,
+        '&' => .concat,
+        ':' => .range_op,
+        '%' => .percent,
+        '#' => .pound,
+        '@' => .ref_op,
+        ' ' => .space,
+        else => null,
+    };
+}
+
+fn getTwoCharToken(left: u8, right: u8) ?TokenType {
+    return switch (left) {
+        '<' => switch (right) {
+            '=' => .lte,
+            '>' => .neq,
+            else => .lt,
+        },
+        '>' => switch (right) {
+            '=' => .gte,
+            else => .gt,
+        },
+        else => null,
+    };
+}
 
 pub const Tokenizer = struct {
     input: []const u8,
-    index: u64,
-    regex_all_tokens: re.Regex,
-    regex_cell_ref: re.Regex,
-    regex_num_lit: re.Regex,
-    regex_str_lit: re.Regex,
-    regex_whitespace: re.Regex,
-    regex_func: re.Regex,
+    tick: usize,
     const Self = @This();
 
-    pub fn new(allocator: std.mem.Allocator, s: []const u8) !Self {
-        // TODO: make regex explicitly greedy, case-insensitive
-        const regex = try re.Regex.new(allocator, ALL_TOKENS_REGEX);
-        // std.debug.print("{s}\n", .{ALL_TOKENS_REGEX});
-        const cell_ref_regex = try re.Regex.new(
-            allocator,
-            CELL_REF_REGEX,
-        );
-        const num_literal_regex = try re.Regex.new(
-            allocator,
-            NUM_LITERALS_REGEX,
-        );
-        const str_literal_regex = try re.Regex.new(
-            allocator,
-            STR_LITERALS_REGEX,
-        );
-        const whitespace_regex = try re.Regex.new(allocator, WHITESPACE_REGEX);
-        const func_regex = try re.Regex.new(allocator, FUNCTION_REGEX);
+    pub fn new(s: []const u8) Self {
         return Self{
             .input = s,
-            .index = 0,
-            .regex_all_tokens = regex,
-            .regex_cell_ref = cell_ref_regex,
-            .regex_num_lit = num_literal_regex,
-            .regex_str_lit = str_literal_regex,
-            .regex_whitespace = whitespace_regex,
-            .regex_func = func_regex,
+            .tick = 0,
         };
     }
 
-    pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
-        self.regex_all_tokens.deinit(allocator);
-        self.regex_cell_ref.deinit(allocator);
-        self.regex_num_lit.deinit(allocator);
-        self.regex_str_lit.deinit(allocator);
-        self.regex_whitespace.deinit(allocator);
-        self.regex_func.deinit(allocator);
+    fn peek(self: *Self) u8 {
+        return self.input[self.tick];
     }
 
-    pub fn next(self: *Self) !Token {
-        if (self.index >= self.input.len) {
+    /// peeks the next 3 characters, used
+    /// for cell ref (column part), for a total
+    /// length of 4, e.g. `$AZ$`
+    fn peek3(self: *Self) []const u8 {
+        var end = @min(self.input.len, self.tick + 3);
+        return self.input[self.tick..end];
+    }
+
+    fn isEof(self: *Self) bool {
+        return self.tick >= self.input.len;
+    }
+
+    fn atEnd(self: *Self) bool {
+        return self.tick == self.input.len - 1;
+    }
+
+    /// Return current, then advance tick
+    fn advance(self: *Self) u8 {
+        const c = self.input[self.tick];
+        self.tick += 1;
+        return c;
+    }
+
+    /// need to call token.deinit()
+    ///
+    /// if error occurs, caller should check tick
+    pub fn next(self: *Self, allocator: std.mem.Allocator) !Token {
+        const start = self.tick;
+        if (self.isEof()) {
             return Token{
                 .type = TokenType.eof,
-                .start = self.index,
-                .end = self.index,
-                .str = "",
+                .start = start,
+                .end = start,
+                .lexeme = self.input[start..start],
+                .literal = .{
+                    .none = undefined,
+                },
             };
         }
-        const str = self.input[self.index..];
-        const maybe_match = self.regex_all_tokens.matchStart(str);
-        if (maybe_match) |match| {
-            const c = str[match.start..match.end];
-            // need to adjust for initial offset
-            const start = self.index + match.start;
-            const end = self.index + match.end;
-            // mutate AFTER reading start and end
-            self.index += match.end;
-            const token_type = token_lookup.get(c);
-            if (token_type) |tok| {
+
+        const c = self.advance();
+        const maybe_tok = getSingleCharToken(c);
+        if (maybe_tok) |tok_type| {
+            const end = start + 1;
+            return Token{
+                .type = tok_type,
+                .start = start,
+                .end = end,
+                .lexeme = self.input[start..end],
+                .literal = .{
+                    .none = undefined,
+                },
+            };
+        }
+
+        // two-character tokens
+        if (!self.isEof()) {
+            const left = c;
+            const right = self.peek();
+            const two_char_tok = getTwoCharToken(left, right);
+            if (two_char_tok) |tok_type| {
+                const end = start + 2;
+                self.tick += 1;
                 return Token{
-                    .type = tok,
+                    .type = tok_type,
                     .start = start,
                     .end = end,
-                    .str = c,
+                    .lexeme = self.input[start..end],
+                    .literal = .{
+                        .none = undefined,
+                    },
                 };
             }
-            // try regexps one by one
-            const maybe_match_cell_ref = self.regex_cell_ref.matchStart(c);
-            if (maybe_match_cell_ref) |matched_cell_ref| {
-                _ = matched_cell_ref;
+        }
+        if (c == '\'') {
+            // leading single quote (') can be either unterminated
+            // sheet name or string. Sheet name has closing quote
+            // (up to 31 characters long within).
+            const MAX_SHEET_NAME = 31;
+            var tok_type = TokenType.str_literal;
+            var lexeme_len: usize = 1;
+            var char = c;
+            while (lexeme_len <= MAX_SHEET_NAME and !self.isEof()) {
+                const next_char = self.peek();
+                if (char == '\'' and next_char == '!') {
+                    tok_type = TokenType.sheet_ref;
+                    _ = self.advance();
+                    lexeme_len += 1; // + bang
+                    break;
+                }
+                char = self.advance();
+                lexeme_len += 1;
+            }
+            if (tok_type == .sheet_ref) {
+                // allocate memory for new string
+                const end = start + lexeme_len;
+                const lexeme = self.input[start..end];
+                // TODO: subroutine for extracting string
+                // handling escape characters
                 return Token{
-                    .type = .cell_ref,
+                    .type = tok_type,
                     .start = start,
                     .end = end,
-                    .str = c,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .none = undefined,
+                    },
                 };
             }
-            const maybe_num_lit = self.regex_num_lit.matchStart(c);
-            if (maybe_num_lit) |num_lit| {
-                _ = num_lit;
+            // keep going till end
+            while (!self.isEof()) {
+                _ = self.advance();
+                lexeme_len += 1;
+            }
+            const end = start + lexeme_len;
+            const lexeme = self.input[start..end];
+            // start at 1 to skip the single quote
+            const str_lit = try interpretString(allocator, lexeme[1..], '\'');
+            return Token{
+                .type = tok_type,
+                .start = start,
+                .end = end,
+                .lexeme = lexeme,
+                .literal = .{
+                    .string = str_lit,
+                },
+            };
+        }
+        if (c == '"') {
+            var lexeme_len: usize = 1;
+            var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
+            var char = self.advance();
+            while (!self.isEof()) {
+                lexeme_len += 1;
+                if (char == '"') {
+                    const peeked = self.peek();
+                    if (peeked == char) {
+                        // also double quote
+                        try octets.append(allocator, peeked);
+                        _ = self.advance();
+                    }
+                } else {
+                    try octets.append(allocator, char);
+                }
+                char = self.advance();
+            }
+            const literal = try octets.toOwnedSlice(allocator);
+            const end = start + lexeme_len;
+            return Token{
+                .type = .str_literal,
+                .start = start,
+                .end = end,
+                .lexeme = self.input[start..end],
+                .literal = .{
+                    .string = literal,
+                },
+            };
+        }
+        var is_digit = isDigit(c);
+        if (is_digit or c == '.') {
+            var seen_dot = c == '.';
+            var char = c;
+            while ((is_digit or char == '.') and !self.isEof()) {
+                const next_c = self.peek();
+                is_digit = isDigit(next_c);
+                if (!is_digit) {
+                    if (next_c != '.') {
+                        break;
+                    }
+                    if (seen_dot) {
+                        return error.MoreThanOneDotInFloat;
+                    }
+                    seen_dot = true;
+                }
+                char = self.advance();
+            }
+            const end = self.tick;
+            const lexeme = self.input[start..end];
+            if (seen_dot) {
+                // float
+                const float = try std.fmt.parseFloat(float_t, lexeme);
                 return Token{
                     .type = .num_literal,
                     .start = start,
                     .end = end,
-                    .str = c,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .float = float,
+                    },
                 };
             }
-            const maybe_str_lit = self.regex_str_lit.matchStart(c);
-            if (maybe_str_lit) |str_lit| {
-                _ = str_lit;
-                return Token{
-                    .type = .str_literal,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
+            const int = try std.fmt.parseInt(int_t, lexeme, 10);
+            return Token{
+                .type = .num_literal,
+                .start = start,
+                .end = end,
+                .lexeme = lexeme,
+                .literal = .{
+                    .integer = int,
+                },
+            };
+        }
+
+        // alpha-numeric keywords
+        const save_tick = self.tick; // reset back to here
+        // isAlpha is sufficient
+        // since isDigit cannot be true here
+        if (isAlpha(c)) {
+            var char = c;
+            while (isAlphaNumeric(char) and !self.isEof()) {
+                char = self.advance();
             }
-            const maybe_whitespace = self.regex_whitespace.matchStart(c);
-            if (maybe_whitespace) |ws| {
-                _ = ws;
-                return Token{
-                    .type = .space,
-                    .start = start,
-                    .end = end,
-                    .str = c,
-                };
-            }
-            const match_func_call = self.regex_func.matchStart(c);
-            if (match_func_call) |fc| {
-                _ = fc;
+            // no longer alphanumeric
+            const end = self.tick;
+            const lexeme = self.input[start..end];
+            if (char == '(') {
                 return Token{
                     .type = .func_call,
                     .start = start,
                     .end = end,
-                    .str = c,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .keyword = lexeme[0..(lexeme.len - 1)],
+                    },
+                };
+            }
+            if (char == '!') {
+                const value = try allocator.alloc(u8, lexeme.len);
+                // TODO: handle escape characters if any
+                std.mem.copy(u8, value, lexeme[0..(lexeme.len - 1)]);
+                return Token{
+                    .type = .sheet_ref,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{ .string = value },
+                };
+            }
+            // true, false literals
+            if (std.mem.eql(u8, "TRUE", lexeme) or std.mem.eql(u8, "true", lexeme)) {
+                return Token{
+                    .type = .true,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .boolean = true,
+                    },
+                };
+            }
+            if (std.mem.eql(u8, "FALSE", lexeme) or std.mem.eql(u8, "false", lexeme)) {
+                return Token{
+                    .type = .false,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .boolean = false,
+                    },
                 };
             }
         }
+        self.tick = save_tick;
+
+        // cell refs
+        if (isAlphaUpper(c) or c == '$') {
+            const peeked3 = self.peek3();
+            var col_ref: [2]u8 = .{ 0, 0 };
+            var count_alpha: usize = if (c == '$') 0 else 1;
+            if (count_alpha == 1) {
+                col_ref[0] = c;
+            }
+            var ticks_to_advance: usize = 0;
+            for (peeked3) |char| {
+                if (count_alpha == 2 or ticks_to_advance == 3) {
+                    break;
+                }
+                if (!isAlphaUpper(char) and char != '$') {
+                    break;
+                }
+                ticks_to_advance += 1;
+                if (isAlphaUpper(char)) {
+                    count_alpha += 1;
+                    col_ref[count_alpha - 1] = char;
+                }
+            }
+            if (count_alpha == 1 or count_alpha == 2) {
+                var col_index: usize = switch (count_alpha) {
+                    1 => getAlphaOffset(col_ref[0]),
+
+                    2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
+                    else => unreachable,
+                };
+                // get row index
+                self.tick += ticks_to_advance;
+                const digit_start = self.tick;
+                if (!self.atEnd()) {
+                    var char = self.advance();
+                    var peeked = self.peek();
+                    while (isDigit(peeked) and !self.atEnd()) {
+                        char = self.advance();
+                        peeked = self.peek();
+                    }
+                }
+                const end = self.tick;
+                const lexeme = self.input[start..end];
+                const row_str = self.input[digit_start..end];
+                const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
+                return Token{
+                    .type = .cell_ref,
+                    .start = start,
+                    .end = end,
+                    .lexeme = lexeme,
+                    .literal = .{
+                        .cell_ref = .{
+                            .row = row_number - 1,
+                            .col = col_index,
+                        },
+                    },
+                };
+            }
+        }
+
+        // catch-all
         return error.UnexpectedCharacter;
     }
 };
@@ -397,18 +567,28 @@ const ExpectedToken = struct {
 };
 
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
-    var tokenizer = try Tokenizer.new(allocator, input);
-    defer tokenizer.deinit(allocator);
-
-    var token = try tokenizer.next();
+    var tokenizer = Tokenizer.new(input);
     var i: usize = 0;
-    while (token.type != .eof) {
+    while (true) {
+        var token = try tokenizer.next(allocator);
+        defer token.deinit(allocator);
+        if (token.type == .eof) {
+            break;
+        }
         const expected_token = expected[i];
         try std.testing.expectEqualStrings(expected_token.str, input[token.start..token.end]);
         try std.testing.expectEqual(expected_token.type, token.type);
         i += 1;
-        token = try tokenizer.next();
     }
+}
+
+fn testTokenizerString(allocator: std.mem.Allocator, input: []const u8, expected_str: []const u8) !void {
+    var tokenizer = Tokenizer.new(input);
+    var token = try tokenizer.next(allocator);
+    defer token.deinit(allocator);
+    try std.testing.expectEqualStrings(expected_str, token.literal.string);
+    var expected_token_type = TokenType.str_literal;
+    try std.testing.expectEqual(expected_token_type, token.type);
 }
 
 test "lexer basic test" {
@@ -433,7 +613,11 @@ test "lexer basic test" {
     const sheet_cell_ref = "Sheet1!F5=2";
     try testTokenizerInput(allocator, sheet_cell_ref, &[_]ExpectedToken{
         .{
-            .str = "Sheet1!F5",
+            .str = "Sheet1!",
+            .type = .sheet_ref,
+        },
+        .{
+            .str = "F5",
             .type = .cell_ref,
         },
         .{
@@ -448,7 +632,11 @@ test "lexer basic test" {
     const sheet_cell_ref_2 = "'Name with spaces'!F5=2";
     try testTokenizerInput(allocator, sheet_cell_ref_2, &[_]ExpectedToken{
         .{
-            .str = "'Name with spaces'!F5",
+            .str = "'Name with spaces'!",
+            .type = .sheet_ref,
+        },
+        .{
+            .str = "F5",
             .type = .cell_ref,
         },
         .{
@@ -485,11 +673,11 @@ test "lexer basic test" {
         },
     });
 
-    const with_whitespace = "$ZQ$8989 -   100";
+    const with_whitespace = "$Z$Q8989 -   100";
     try testTokenizerInput(allocator, with_whitespace, &[_]ExpectedToken{
         .{
             .type = .cell_ref,
-            .str = "$ZQ$8989",
+            .str = "$Z$Q8989",
         },
         .{
             .type = .space,
@@ -501,7 +689,15 @@ test "lexer basic test" {
         },
         .{
             .type = .space,
-            .str = "   ",
+            .str = " ",
+        },
+        .{
+            .type = .space,
+            .str = " ",
+        },
+        .{
+            .type = .space,
+            .str = " ",
         },
         .{
             .type = .num_literal,
@@ -513,11 +709,7 @@ test "lexer basic test" {
     try testTokenizerInput(allocator, func_call, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "SUM",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "SUM(",
         },
         .{
             .type = .cell_ref,
@@ -541,11 +733,7 @@ test "lexer basic test" {
     try testTokenizerInput(allocator, func_call_args, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "PRODUCT",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "PRODUCT(",
         },
         .{
             .type = .cell_ref,
@@ -568,15 +756,13 @@ test "lexer basic test" {
 
 test "bit more complicated" {
     const allocator = std.testing.allocator;
+    const escaped_quotes = "\"\"\"\"";
+    try testTokenizerString(allocator, escaped_quotes, "\"");
     const nested_func_calls = "SUM((100+.4)*20,SUMIF(A1:A20))";
     try testTokenizerInput(allocator, nested_func_calls, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "SUM",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "SUM(",
         },
         .{
             .type = .l_paren,
@@ -612,11 +798,7 @@ test "bit more complicated" {
         },
         .{
             .type = .func_call,
-            .str = "SUMIF",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "SUMIF(",
         },
         .{
             .type = .cell_ref,
@@ -644,11 +826,7 @@ test "bit more complicated" {
     try testTokenizerInput(allocator, str_lit_inside_func, &[_]ExpectedToken{
         .{
             .type = .func_call,
-            .str = "LENB",
-        },
-        .{
-            .type = .l_paren,
-            .str = "(",
+            .str = "LENB(",
         },
         .{
             .type = .str_literal,

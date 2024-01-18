@@ -2,11 +2,6 @@ const std = @import("std");
 
 fn addUnitTest(b: *std.Build, options: std.Build.TestOptions) *std.Build.Step.Run {
     const unit_test = b.addTest(options);
-    unit_test.addIncludePath(.{
-        .path = "src/lib",
-    });
-    unit_test.linkLibC();
-
     const run_unit_tests = b.addRunArtifact(unit_test);
     return run_unit_tests;
 }
@@ -33,10 +28,6 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
-    });
-    exe.linkLibC();
-    exe.addIncludePath(.{
-        .path = "src/lib",
     });
 
     // This declares intent for the executable to be installed into the
@@ -73,12 +64,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const run_regex_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/regex.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
     const run_parser_tests = addUnitTest(b, .{
         .root_source_file = .{ .path = "src/parser.zig" },
         .target = target,
@@ -90,6 +75,5 @@ pub fn build(b: *std.Build) void {
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lexer_tests.step);
-    test_step.dependOn(&run_regex_tests.step);
     test_step.dependOn(&run_parser_tests.step);
 }

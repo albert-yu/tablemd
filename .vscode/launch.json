@@ -1,14 +1,32 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug exe",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/core/zig-out/bin/spreadsheet",
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug exe",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/core/zig-out/bin/spreadsheet",
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug lexer test",
+      "preLaunchTask": "build lexer test",
+      "program": "${workspaceFolder}/core/zig-out/bin/lexer-test",
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug parser test",
+      "preLaunchTask": "build parser test",
+      "program": "${workspaceFolder}/core/zig-out/bin/parser-test",
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
 }

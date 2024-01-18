@@ -1,14 +1,10 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
 
-const float_t = f64;
+const float_t = lexer.float_t;
+const int_t = lexer.int_t;
 
-const Value = union(enum) {
-    none: void,
-    boolean: bool,
-    float: float_t,
-    string: []const u8,
-};
+const Value = lexer.Literal;
 
 const ExprType = enum {
     unknown,
@@ -29,20 +25,6 @@ fn parseStringLiteral(s: []const u8) []const u8 {
     }
     // only other possibility, starts with single quote
     return s[0..];
-}
-
-fn parseTokenValue(token: lexer.Token) !Value {
-    var val: Value = undefined;
-    val = switch (token.type) {
-        .str_literal => .{
-            .string = parseStringLiteral(token.str),
-        },
-        .num_literal => .{ .float = try std.fmt.parseFloat(float_t, token.str) },
-        .false => .{ .boolean = false },
-        .true => .{ .boolean = true },
-        else => .{ .none = undefined },
-    };
-    return val;
 }
 
 /// Not exhaustive, some are context-dependent (e.g. space, minus),
@@ -87,12 +69,16 @@ pub const CellExpr = struct {
     }
 
     /// Also calls destroy on self and descendents
-    pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
+    pub fn destroySelf(self: *Self, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
-            child.destroy(allocator);
+            child.destroySelf(allocator);
         }
         self.children.deinit(allocator);
         allocator.destroy(self.children);
+        switch (self.value) {
+            .string => allocator.free(self.value.string),
+            else => {},
+        }
         allocator.destroy(self);
     }
 
@@ -152,10 +138,9 @@ pub const CellExpr = struct {
 
     /// Parses string into Expression tree
     pub fn parse(allocator: std.mem.Allocator, s: []const u8) !*Self {
-        var tokenizer = try lexer.Tokenizer.new(allocator, s);
-        defer tokenizer.deinit(allocator);
+        var tokenizer = lexer.Tokenizer.new(s);
 
-        var token = try tokenizer.next();
+        var token = try tokenizer.next(allocator);
         var root = try Self.create_empty(allocator);
         var curr_node_type = getExprType(token.type);
         var has_children = false;
@@ -167,7 +152,7 @@ pub const CellExpr = struct {
             const str = s[token.start..token.end];
             switch (curr_node_type) {
                 .literal => {
-                    var val = try parseTokenValue(token);
+                    var val = token.literal;
                     if (has_children) {
                         var child = try Self.create(allocator, str, token.type, val);
                         try root.addChild(allocator, child);
@@ -189,7 +174,7 @@ pub const CellExpr = struct {
                     // TODO: handle nested and actually everything
                 },
             }
-            token = try tokenizer.next();
+            token = try tokenizer.next(allocator);
         }
         return root;
     }
@@ -202,7 +187,7 @@ const ParserTestCase = struct {
 
 fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
     var parsed = try CellExpr.parse(allocator, test_case.input);
-    defer parsed.destroy(allocator);
+    defer parsed.destroySelf(allocator);
     const sexpr = try parsed.toSexpr(allocator);
     defer allocator.free(sexpr);
 
@@ -212,7 +197,7 @@ fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
 test "print debug" {
     const allocator = std.testing.allocator;
     var expr = try CellExpr.create(allocator, "+", .plus, .{ .none = undefined });
-    defer expr.destroy(allocator);
+    defer expr.destroySelf(allocator);
     var left = try CellExpr.create(allocator, "5", .num_literal, .{ .float = 5 });
     var right = try CellExpr.create(allocator, "4", .num_literal, .{ .float = 4 });
     try expr.addChild(allocator, left);
@@ -226,16 +211,16 @@ test "print debug" {
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
     var parsed = try CellExpr.parse(allocator, "5+4");
-    defer parsed.destroy(allocator);
+    defer parsed.destroySelf(allocator);
     try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
     const left = parsed.children.items[0];
     try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
     const right = parsed.children.items[1];
     var parsed_right = switch (right.value) {
-        .float => right.value.float,
+        .integer => right.value.integer,
         else => -1,
     };
-    const expected: float_t = 4;
+    const expected: int_t = 4;
     try std.testing.expectEqual(expected, parsed_right);
 
     try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
