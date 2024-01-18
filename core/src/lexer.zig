@@ -571,15 +571,17 @@ const ExpectedToken = struct {
 fn testTokenizerInput(allocator: std.mem.Allocator, input: []const u8, expected: []const ExpectedToken) !void {
     std.debug.print("\nINPUT: {s}\n", .{input});
     var tokenizer = Tokenizer.new(input);
-    var token = try tokenizer.next(allocator);
     var i: usize = 0;
-    while (token.type != .eof) {
+    while (true) {
+        var token = try tokenizer.next(allocator);
+        defer token.deinit(allocator);
+        if (token.type == .eof) {
+            break;
+        }
         const expected_token = expected[i];
         try std.testing.expectEqualStrings(expected_token.str, input[token.start..token.end]);
         try std.testing.expectEqual(expected_token.type, token.type);
         i += 1;
-        token.deinit(allocator);
-        token = try tokenizer.next(allocator);
     }
 }
 
