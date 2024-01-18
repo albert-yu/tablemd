@@ -212,7 +212,7 @@ fn getTwoCharToken(left: u8, right: u8) ?TokenType {
             '=' => .gte,
             else => .gt,
         },
-        else => undefined,
+        else => null,
     };
 }
 
