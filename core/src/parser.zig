@@ -1,7 +1,8 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
 
-const float_t = f64;
+const float_t = lexer.float_t;
+const int_t = lexer.int_t;
 
 const Value = lexer.Literal;
 
@@ -216,10 +217,10 @@ test "parse simple expressions" {
     try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
     const right = parsed.children.items[1];
     var parsed_right = switch (right.value) {
-        .float => right.value.float,
+        .integer => right.value.integer,
         else => -1,
     };
-    const expected: float_t = 4;
+    const expected: int_t = 4;
     try std.testing.expectEqual(expected, parsed_right);
 
     try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });

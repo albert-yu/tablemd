@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const float_t = f64;
-const int_t = i64;
+pub const float_t = f64;
+pub const int_t = i64;
 
 /// Cell reference for indexing
 pub const CellRef = struct { row: usize, col: usize };
