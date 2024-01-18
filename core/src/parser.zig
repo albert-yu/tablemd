@@ -30,8 +30,7 @@ fn parseStringLiteral(s: []const u8) []const u8 {
 /// Not exhaustive, some are context-dependent (e.g. space, minus),
 /// which are returned as unknown
 fn getExprType(token_type: lexer.TokenType) ExprType {
-    var expr_type: ExprType = undefined;
-    expr_type = switch (token_type) {
+    var expr_type: ExprType = switch (token_type) {
         .str_literal, .num_literal, .false, .true, .cell_ref => .literal,
         .ref_op, .pound, .percent => .unary,
         .plus, .mult, .div, .pow, .eq, .lt, .gt, .lte, .gte, .neq, .concat, .range_op => .binary,
