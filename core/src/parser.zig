@@ -50,7 +50,7 @@ const UnaryOp = enum {
 };
 
 const ExprUnary = struct {
-    operand: Expr,
+    operand: ExprUnion,
     op: UnaryOp,
 };
 
@@ -71,22 +71,26 @@ const BinaryOp = enum {
 };
 
 const ExprBinary = struct {
-    left: Expr,
-    right: Expr,
+    left: ExprUnion,
+    right: ExprUnion,
     op: BinaryOp,
 };
 
 const ExprVariadic = struct {
     op: fn (...) anyopaque,
-    args: []const Expr,
+    args: []const ExprUnion,
 };
 
-pub const Expr = union(enum) {
+const ExprUnion = union(enum) {
     unknown: void,
     literal: ExprLiteral,
     unary: ExprUnary,
     binary: ExprBinary,
     variadic: ExprVariadic,
+};
+
+pub const Expr = struct {
+    value: ExprUnion,
 };
 
 /// Node on tree
