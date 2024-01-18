@@ -68,9 +68,9 @@ pub const CellExpr = struct {
     }
 
     /// Also calls destroy on self and descendents
-    pub fn destroy(self: *Self, allocator: std.mem.Allocator) void {
+    pub fn destroySelf(self: *Self, allocator: std.mem.Allocator) void {
         for (self.children.items) |child| {
-            child.destroy(allocator);
+            child.destroySelf(allocator);
         }
         self.children.deinit(allocator);
         allocator.destroy(self.children);
@@ -186,7 +186,7 @@ const ParserTestCase = struct {
 
 fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
     var parsed = try CellExpr.parse(allocator, test_case.input);
-    defer parsed.destroy(allocator);
+    defer parsed.destroySelf(allocator);
     const sexpr = try parsed.toSexpr(allocator);
     defer allocator.free(sexpr);
 
@@ -196,7 +196,7 @@ fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
 test "print debug" {
     const allocator = std.testing.allocator;
     var expr = try CellExpr.create(allocator, "+", .plus, .{ .none = undefined });
-    defer expr.destroy(allocator);
+    defer expr.destroySelf(allocator);
     var left = try CellExpr.create(allocator, "5", .num_literal, .{ .float = 5 });
     var right = try CellExpr.create(allocator, "4", .num_literal, .{ .float = 4 });
     try expr.addChild(allocator, left);
@@ -210,7 +210,7 @@ test "print debug" {
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
     var parsed = try CellExpr.parse(allocator, "5+4");
-    defer parsed.destroy(allocator);
+    defer parsed.destroySelf(allocator);
     try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
     const left = parsed.children.items[0];
     try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
