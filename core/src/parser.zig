@@ -77,7 +77,7 @@ const ExprBinary = struct {
 };
 
 const ExprVariadic = struct {
-    op: fn (...) anyopaque,
+    func: []const u8,
     args: []const Expr,
 };
 
@@ -91,6 +91,7 @@ const ExprUnion = union(enum) {
     unary: ExprUnary,
     binary: ExprBinary,
     variadic: ExprVariadic,
+    grouping: ExprGrouping,
 };
 
 pub const Expr = struct {
