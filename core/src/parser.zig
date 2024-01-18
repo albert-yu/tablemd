@@ -50,7 +50,7 @@ const UnaryOp = enum {
 };
 
 const ExprUnary = struct {
-    operand: ExprUnion,
+    operand: Expr,
     op: UnaryOp,
 };
 
@@ -71,14 +71,18 @@ const BinaryOp = enum {
 };
 
 const ExprBinary = struct {
-    left: ExprUnion,
-    right: ExprUnion,
+    left: Expr,
+    right: Expr,
     op: BinaryOp,
 };
 
 const ExprVariadic = struct {
     op: fn (...) anyopaque,
-    args: []const ExprUnion,
+    args: []const Expr,
+};
+
+const ExprGrouping = struct {
+    elements: []const Expr,
 };
 
 const ExprUnion = union(enum) {
@@ -91,6 +95,25 @@ const ExprUnion = union(enum) {
 
 pub const Expr = struct {
     value: ExprUnion,
+
+    const Self = @This();
+    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !*Self {
+        var i: usize = 0;
+        var expr: *Self = undefined;
+        while (true) {
+            var token = try tokenizer.next(allocator);
+            if (token.type == .eof) {
+                break;
+            }
+            i += 1;
+        }
+        return expr;
+    }
+
+    pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Self {
+        var tokenizer = lexer.Tokenizer.new(input);
+        return parseRecursive(allocator, tokenizer);
+    }
 };
 
 /// Node on tree
