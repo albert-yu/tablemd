@@ -664,7 +664,7 @@ test "lexer basic test" {
         },
     });
 
-    const with_whitespace = "$ZQ$8989 -   100";
+    const with_whitespace = "$Z$Q8989 -   100";
     try testTokenizerInput(allocator, with_whitespace, &[_]ExpectedToken{
         .{
             .type = .cell_ref,
