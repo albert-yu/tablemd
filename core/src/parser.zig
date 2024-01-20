@@ -82,7 +82,7 @@ const ExprVariadic = struct {
 };
 
 const ExprGrouping = struct {
-    elements: []const Expr,
+    operand: Expr,
 };
 
 const ExprUnion = union(enum) {
@@ -98,13 +98,40 @@ pub const Expr = struct {
     value: ExprUnion,
 
     const Self = @This();
+
     fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !*Self {
         var i: usize = 0;
-        var expr: *Self = undefined;
+        var expr: Self = try allocator.create(Self);
+        var exprs_at_level = try std.ArrayListUnmanaged(*Self).initCapacity(allocator, 1);
+        defer exprs_at_level.deinit(allocator);
         while (true) {
             var token = try tokenizer.next(allocator);
             if (token.type == .eof) {
                 break;
+            }
+            switch (token.type) {
+                .num_literal, .str_literal, .false, .true, .cell_ref => {
+                    expr.* = Self{
+                        .value = .{
+                            .literal = token.literal,
+                        },
+                    };
+                },
+                .ref_op,
+                .pound,
+                => {
+                    expr.* = Self{
+                        .value = .{},
+                    };
+                },
+                .percent => {},
+                else => {
+                    expr.* = Self{
+                        .value = .{
+                            .unknown = undefined,
+                        },
+                    };
+                },
             }
             i += 1;
         }
