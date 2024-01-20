@@ -94,53 +94,73 @@ const ExprUnion = union(enum) {
     grouping: ExprGrouping,
 };
 
+const ParserState = struct {
+    stack: std.ArrayListUnmanaged(u8),
+
+    pub fn new(allocator: std.mem.Allocator) !ParserState {
+        return .{
+            .stack = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 1),
+        };
+    }
+
+    pub fn deinit(self: *ParserState, allocator: std.mem.Allocator) void {
+        self.stack.deinit(allocator);
+    }
+
+    pub fn push(self: *ParserState, allocator: std.mem.Allocator, char: u8) !void {
+        try self.stack.append(allocator, char);
+    }
+
+    pub fn pop(self: *ParserState) u8 {
+        return self.stack.pop();
+    }
+
+    pub fn empty(self: *ParserState) bool {
+        return self.stack.items.len == 0;
+    }
+};
+
 pub const Expr = struct {
     value: ExprUnion,
 
-    const Self = @This();
+    /// caller must free
+    fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) !*Expr {
+        var expr: *Expr = try allocator.create(Expr);
+        expr.* = Expr{
+            .value = .{
+                .literal = literal,
+            },
+        };
+        return expr;
+    }
 
-    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !*Self {
-        var i: usize = 0;
-        var expr: Self = try allocator.create(Self);
-        var exprs_at_level = try std.ArrayListUnmanaged(*Self).initCapacity(allocator, 1);
+    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !Expr {
+        var expr: *Expr = try allocator.create(Expr);
+        var exprs_at_level = try std.ArrayListUnmanaged(*Expr).initCapacity(allocator, 1);
         defer exprs_at_level.deinit(allocator);
-        while (true) {
-            var token = try tokenizer.next(allocator);
-            if (token.type == .eof) {
-                break;
-            }
-            switch (token.type) {
-                .num_literal, .str_literal, .false, .true, .cell_ref => {
-                    expr.* = Self{
-                        .value = .{
-                            .literal = token.literal,
-                        },
-                    };
-                },
-                .ref_op,
-                .pound,
-                => {
-                    expr.* = Self{
-                        .value = .{},
-                    };
-                },
-                .percent => {},
-                else => {
-                    expr.* = Self{
-                        .value = .{
-                            .unknown = undefined,
-                        },
-                    };
-                },
-            }
-            i += 1;
+        var token = try tokenizer.next(allocator);
+        switch (token.type) {
+            .num_literal => {
+                var literal_expr = try Expr.createLiteral(allocator, token.literal);
+                try exprs_at_level.append(allocator, literal_expr);
+            },
+            .str_literal, .false, .true, .cell_ref => {},
+            .ref_op, .pound => {},
+            .percent => {},
+            else => {
+                expr.* = Expr{
+                    .value = .{
+                        .unknown = undefined,
+                    },
+                };
+            },
         }
         return expr;
     }
 
-    pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Self {
+    pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Expr {
         var tokenizer = lexer.Tokenizer.new(input);
-        return parseRecursive(allocator, tokenizer);
+        return try parseRecursive(allocator, tokenizer);
     }
 };
 
