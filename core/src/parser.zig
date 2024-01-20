@@ -134,7 +134,7 @@ pub const Expr = struct {
         return expr;
     }
 
-    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !Expr {
+    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
         var exprs_at_level = try std.ArrayListUnmanaged(*Expr).initCapacity(allocator, 1);
         defer exprs_at_level.deinit(allocator);
