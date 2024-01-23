@@ -95,11 +95,12 @@ const ExprUnion = union(enum) {
 };
 
 const ParserState = struct {
-    stack: std.ArrayListUnmanaged(u8),
+    stack: std.ArrayListUnmanaged(lexer.Token),
+    prev_token: lexer.Token,
 
     pub fn new(allocator: std.mem.Allocator) !ParserState {
         return .{
-            .stack = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 1),
+            .stack = try std.ArrayListUnmanaged(lexer.Token).initCapacity(allocator, 1),
         };
     }
 
@@ -107,11 +108,11 @@ const ParserState = struct {
         self.stack.deinit(allocator);
     }
 
-    pub fn push(self: *ParserState, allocator: std.mem.Allocator, char: u8) !void {
-        try self.stack.append(allocator, char);
+    pub fn push(self: *ParserState, allocator: std.mem.Allocator, tok: lexer.Token) !void {
+        try self.stack.append(allocator, tok);
     }
 
-    pub fn pop(self: *ParserState) u8 {
+    pub fn pop(self: *ParserState) *lexer.Token {
         return self.stack.pop();
     }
 
@@ -134,33 +135,84 @@ pub const Expr = struct {
         return expr;
     }
 
-    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer) !*Expr {
+    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer, state: ParserState) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
         var exprs_at_level = try std.ArrayListUnmanaged(*Expr).initCapacity(allocator, 1);
         defer exprs_at_level.deinit(allocator);
-        var token = try tokenizer.next(allocator);
-        switch (token.type) {
-            .num_literal => {
-                var literal_expr = try Expr.createLiteral(allocator, token.literal);
-                try exprs_at_level.append(allocator, literal_expr);
-            },
-            .str_literal, .false, .true, .cell_ref => {},
-            .ref_op, .pound => {},
-            .percent => {},
-            else => {
-                expr.* = Expr{
-                    .value = .{
-                        .unknown = undefined,
-                    },
-                };
-            },
+
+        while (true) {
+            var token = try tokenizer.next(allocator);
+            if (token.type == .eof) {
+                break;
+            }
+            switch (token.type) {
+                .num_literal, .str_literal, .false, .true, .cell_ref => {
+                    var literal_expr = try Expr.createLiteral(allocator, token.literal);
+                    try exprs_at_level.append(allocator, literal_expr);
+                },
+                .ref_op, .pound, .percent => {
+                    var unary_expr = try allocator.create(Expr);
+                    unary_expr.* = Expr{
+                        .value = .{
+                            .unary = .{
+                                .op = switch (token.type) {
+                                    .ref_op => .ref_op,
+                                    .pound => .pound,
+                                    .percent => .percent,
+                                },
+                                .operand = .{
+                                    .value = .{
+                                        .unknown = undefined,
+                                    },
+                                },
+                            },
+                        },
+                    };
+                    try exprs_at_level.append(allocator, unary_expr);
+                },
+                .minus => {
+                    // peek ahead
+                    var token_next = try tokenizer.next(allocator);
+                    if (token_next.type == .eof) {
+                        token_next.deinit(allocator);
+                        return error.DanglingMinus;
+                    }
+                    if (token_next.type != .float and token_next.type != .integer) {
+                        token_next.deinit(allocator);
+                        return error.InvalidNegOperand;
+                    }
+
+                    var operand = try Expr.createLiteral(allocator, token_next.literal);
+                    var op = UnaryOp.neg;
+                    var result = try allocator.create(Expr);
+                    result.* = Expr{
+                        .value = .{
+                            .unary = .{
+                                .op = op,
+                                .operand = operand,
+                            },
+                        },
+                    };
+                    try exprs_at_level.append(allocator, result);
+                },
+                else => {
+                    expr.* = Expr{
+                        .value = .{
+                            .unknown = undefined,
+                        },
+                    };
+                },
+            }
+            state.prev_token = token;
         }
         return expr;
     }
 
     pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Expr {
         var tokenizer = lexer.Tokenizer.new(input);
-        return try parseRecursive(allocator, tokenizer);
+        var state = try ParserState.new(allocator);
+        defer state.deinit(allocator);
+        return try parseRecursive(allocator, tokenizer, state);
     }
 };
 
