@@ -112,13 +112,18 @@ const ParserState = struct {
         try self.stack.append(allocator, tok);
     }
 
-    pub fn pop(self: *ParserState) *lexer.Token {
-        return self.stack.pop();
+    pub fn popOrNull(self: *ParserState) ?lexer.Token {
+        return self.stack.popOrNull();
     }
 
     pub fn empty(self: *ParserState) bool {
         return self.stack.items.len == 0;
     }
+};
+
+const ExprOrTok = union(enum) {
+    tok: lexer.Token,
+    expr: *Expr,
 };
 
 pub const Expr = struct {
@@ -137,8 +142,10 @@ pub const Expr = struct {
 
     fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer, state: ParserState) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
-        var exprs_at_level = try std.ArrayListUnmanaged(*Expr).initCapacity(allocator, 1);
-        defer exprs_at_level.deinit(allocator);
+        var items_at_level = try std.ArrayListUnmanaged(ExprOrTok).initCapacity(allocator, 1);
+        defer items_at_level.deinit(allocator);
+
+        var matching_tok: ?lexer.Token = null;
 
         while (true) {
             var token = try tokenizer.next(allocator);
@@ -146,61 +153,37 @@ pub const Expr = struct {
                 break;
             }
             switch (token.type) {
-                .num_literal, .str_literal, .false, .true, .cell_ref => {
-                    var literal_expr = try Expr.createLiteral(allocator, token.literal);
-                    try exprs_at_level.append(allocator, literal_expr);
+                .num_literal, .str_literal, .false, .true, .cell_ref, .sheet_ref, .ref_op, .pound, .percent, .minus, .plus, .minus, .mult, .div, .pow, .eq, .lt, .gt, .lte, .gte, .neq, .concat, .range_op, .space, .false, .true, .arg_sep, .row_sep => {
+                    try items_at_level.append(.{
+                        .tok = token,
+                    });
                 },
-                .ref_op, .pound, .percent => {
-                    var unary_expr = try allocator.create(Expr);
-                    unary_expr.* = Expr{
-                        .value = .{
-                            .unary = .{
-                                .op = switch (token.type) {
-                                    .ref_op => .ref_op,
-                                    .pound => .pound,
-                                    .percent => .percent,
-                                },
-                                .operand = .{
-                                    .value = .{
-                                        .unknown = undefined,
-                                    },
-                                },
-                            },
-                        },
-                    };
-                    try exprs_at_level.append(allocator, unary_expr);
+                .func_call, .l_paren, .l_brace, .l_bracket => {
+                    try state.push(allocator, token);
+                    var func_expr = try Expr.parseRecursive(allocator, tokenizer, state);
+                    try items_at_level.append(.{
+                        .expr = func_expr,
+                    });
                 },
-                .minus => {
-                    // peek ahead
-                    var token_next = try tokenizer.next(allocator);
-                    if (token_next.type == .eof) {
-                        token_next.deinit(allocator);
-                        return error.DanglingMinus;
+                .r_paren, .r_brance, .r_bracket => {
+                    var matching = try state.popOrNull();
+                    if (matching) |m| {
+                        matching_tok = m;
+                        break;
+                    } else {
+                        return error.ExtraClosingBraceOrParen;
                     }
-                    if (token_next.type != .float and token_next.type != .integer) {
-                        token_next.deinit(allocator);
-                        return error.InvalidNegOperand;
-                    }
-
-                    var operand = try Expr.createLiteral(allocator, token_next.literal);
-                    var op = UnaryOp.neg;
-                    var result = try allocator.create(Expr);
-                    result.* = Expr{
-                        .value = .{
-                            .unary = .{
-                                .op = op,
-                                .operand = operand,
-                            },
-                        },
-                    };
-                    try exprs_at_level.append(allocator, result);
                 },
                 else => {
-                    expr.* = Expr{
+                    var res = try allocator.create(Expr);
+                    res.* = Expr{
                         .value = .{
                             .unknown = undefined,
                         },
                     };
+                    try items_at_level.append(.{
+                        .expr = res,
+                    });
                 },
             }
             state.prev_token = token;
