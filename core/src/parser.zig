@@ -18,17 +18,6 @@ const ExprType = enum {
     grouping,
 };
 
-/// Returns slice, does not allocate memory
-fn parseStringLiteral(s: []const u8) []const u8 {
-    if (s[0] == '"') {
-        const end = s.len - 1;
-        const cleaned = s[1..end];
-        return cleaned;
-    }
-    // only other possibility, starts with single quote
-    return s[0..];
-}
-
 /// Not exhaustive, some are context-dependent (e.g. space, minus),
 /// which are returned as unknown
 fn getExprType(token_type: lexer.TokenType) ExprType {
@@ -94,42 +83,52 @@ const ExprUnion = union(enum) {
     grouping: ExprGrouping,
 };
 
-const ParserState = struct {
-    stack: std.ArrayListUnmanaged(lexer.Token),
-    prev_token: lexer.Token,
-
-    pub fn new(allocator: std.mem.Allocator) !ParserState {
-        return .{
-            .stack = try std.ArrayListUnmanaged(lexer.Token).initCapacity(allocator, 1),
-        };
-    }
-
-    pub fn deinit(self: *ParserState, allocator: std.mem.Allocator) void {
-        self.stack.deinit(allocator);
-    }
-
-    pub fn push(self: *ParserState, allocator: std.mem.Allocator, tok: lexer.Token) !void {
-        try self.stack.append(allocator, tok);
-    }
-
-    pub fn popOrNull(self: *ParserState) ?lexer.Token {
-        return self.stack.popOrNull();
-    }
-
-    pub fn empty(self: *ParserState) bool {
-        return self.stack.items.len == 0;
-    }
-};
+// const ParserState = struct {
+//     stack: std.ArrayListUnmanaged(lexer.Token),
+//     prev_token: lexer.Token,
+//
+//     pub fn new(allocator: std.mem.Allocator) !ParserState {
+//         return .{
+//             .stack = try std.ArrayListUnmanaged(lexer.Token).initCapacity(allocator, 1),
+//         };
+//     }
+//
+//     pub fn deinit(self: *ParserState, allocator: std.mem.Allocator) void {
+//         self.stack.deinit(allocator);
+//     }
+//
+//     pub fn push(self: *ParserState, allocator: std.mem.Allocator, tok: lexer.Token) !void {
+//         try self.stack.append(allocator, tok);
+//     }
+//
+//     pub fn popOrNull(self: *ParserState) ?lexer.Token {
+//         return self.stack.popOrNull();
+//     }
+//
+//     pub fn empty(self: *ParserState) bool {
+//         return self.stack.items.len == 0;
+//     }
+// };
 
 const ExprOrTok = union(enum) {
     tok: lexer.Token,
     expr: *Expr,
 };
 
+fn isNegativeOp(prev_tok: lexer.Token, next_item: ExprOrTok) bool {
+    if (prev_tok.type != .space) {
+        return false;
+    }
+    return switch (next_item) {
+        .expr => true,
+        .tok => next_item.tok.isNumLiteral(),
+    };
+}
+
 pub const Expr = struct {
     value: ExprUnion,
 
-    /// caller must free
+    /// caller must free with `.destroySelf`
     fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
         expr.* = Expr{
@@ -140,62 +139,172 @@ pub const Expr = struct {
         return expr;
     }
 
-    fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer, state: ParserState) !*Expr {
+    fn createUnaryOp(allocator: std.mem.Allocator, op: UnaryOp, operand: *Expr) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
-        var items_at_level = try std.ArrayListUnmanaged(ExprOrTok).initCapacity(allocator, 1);
-        defer items_at_level.deinit(allocator);
-
-        var matching_tok: ?lexer.Token = null;
-
-        while (true) {
-            var token = try tokenizer.next(allocator);
-            if (token.type == .eof) {
-                break;
-            }
-            switch (token.type) {
-                .num_literal, .str_literal, .false, .true, .cell_ref, .sheet_ref, .ref_op, .pound, .percent, .minus, .plus, .minus, .mult, .div, .pow, .eq, .lt, .gt, .lte, .gte, .neq, .concat, .range_op, .space, .false, .true, .arg_sep, .row_sep => {
-                    try items_at_level.append(.{
-                        .tok = token,
-                    });
+        expr.* = Expr{
+            .value = .{
+                .unary = .{
+                    .op = op,
+                    .operand = operand,
                 },
-                .func_call, .l_paren, .l_brace, .l_bracket => {
-                    try state.push(allocator, token);
-                    var func_expr = try Expr.parseRecursive(allocator, tokenizer, state);
-                    try items_at_level.append(.{
-                        .expr = func_expr,
-                    });
-                },
-                .r_paren, .r_brance, .r_bracket => {
-                    var matching = try state.popOrNull();
-                    if (matching) |m| {
-                        matching_tok = m;
-                        break;
-                    } else {
-                        return error.ExtraClosingBraceOrParen;
-                    }
-                },
-                else => {
-                    var res = try allocator.create(Expr);
-                    res.* = Expr{
-                        .value = .{
-                            .unknown = undefined,
-                        },
-                    };
-                    try items_at_level.append(.{
-                        .expr = res,
-                    });
-                },
-            }
-            state.prev_token = token;
-        }
+            },
+        };
         return expr;
     }
 
-    pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Expr {
-        var tokenizer = lexer.Tokenizer.new(input);
-        var state = try ParserState.new(allocator);
-        defer state.deinit(allocator);
-        return try parseRecursive(allocator, tokenizer, state);
+    fn createBinaryOp(allocator: std.mem.Allocator, left: *Expr, op: BinaryOp, right: *Expr) !*Expr {
+        var expr: *Expr = try allocator.create(Expr);
+        expr.* = Expr{
+            .value = .{
+                .binary = .{
+                    .op = op,
+                    .left = left,
+                    .right = right,
+                },
+            },
+        };
+        return expr;
+    }
+
+    // fn consumeGroup(allocator: std.mem.Allocator, items: []const ExprOrTok) !*Expr {
+    //     _ = allocator;
+    //     var expr: *Expr = undefined;
+    //     var prev_expr: *Expr = undefined;
+    //     _ = prev_expr;
+    //     var prev_tok: lexer.Token = undefined;
+    //     for (items, 0..) |item, i| {
+    //         switch (item) {
+    //             .tok => {
+    //                 switch (item.tok.type) {
+    //                     .plus => {},
+    //                     .minus => {
+    //                         if (i > 0 and i < items.len - 1) {
+    //                             // i > 0 to ensure prev_tok exists
+    //                             var next_item = items[i + 1];
+    //                             var is_neg = isNegativeOp(prev_tok, next_item);
+    //                             if (is_neg) {
+    //                                 switch (next_item) {
+    //                                     .expr => {},
+    //                                 }
+    //                             }
+    //                         }
+    //                     },
+    //                     else => {},
+    //                 }
+    //                 prev_tok = item.tok;
+    //             },
+    //             .expr => {},
+    //         }
+    //     }
+    //     return expr;
+    // }
+
+    // fn parseRecursive(allocator: std.mem.Allocator, tokenizer: lexer.Tokenizer, state: ParserState) !*Expr {
+    //     var expr: *Expr = try allocator.create(Expr);
+    //     var items_at_level = try std.ArrayListUnmanaged(ExprOrTok).initCapacity(allocator, 1);
+    //     defer items_at_level.deinit(allocator);
+
+    //     var matching_tok: ?lexer.Token = null;
+
+    //     while (true) {
+    //         var token = try tokenizer.next(allocator);
+    //         if (token.type == .eof) {
+    //             break;
+    //         }
+    //         switch (token.type) {
+    //             .num_literal, .str_literal, .false, .true, .cell_ref, .sheet_ref, .ref_op, .pound, .percent, .minus, .plus, .minus, .mult, .div, .pow, .eq, .lt, .gt, .lte, .gte, .neq, .concat, .range_op, .space, .false, .true, .arg_sep, .row_sep => {
+    //                 try items_at_level.append(.{
+    //                     .tok = token,
+    //                 });
+    //             },
+    //             .func_call, .l_paren, .l_brace, .l_bracket => {
+    //                 try state.push(allocator, token);
+    //                 var func_expr = try Expr.parseRecursive(allocator, tokenizer, state);
+    //                 try items_at_level.append(.{
+    //                     .expr = func_expr,
+    //                 });
+    //             },
+    //             .r_paren, .r_brace, .r_bracket => {
+    //                 var matching = try state.popOrNull();
+    //                 if (matching) |m| {
+    //                     matching_tok = m;
+    //                     break;
+    //                 } else {
+    //                     return error.ExtraClosingBraceOrParen;
+    //                 }
+    //             },
+    //             else => {
+    //                 var res = try allocator.create(Expr);
+    //                 res.* = Expr{
+    //                     .value = .{
+    //                         .unknown = undefined,
+    //                     },
+    //                 };
+    //                 try items_at_level.append(.{
+    //                     .expr = res,
+    //                 });
+    //             },
+    //         }
+    //         state.prev_token = token;
+    //     }
+
+    //     if (matching_tok) |tok| {
+    //         switch (tok.type) {
+    //             .l_paren => {
+    //                 var inner_expr = try Expr.consumeGroup(allocator, items_at_level.itmes);
+    //                 expr.* = .{
+    //                     .value = .{
+    //                         .grouping = .{
+    //                             .operand = inner_expr,
+    //                         },
+    //                     },
+    //                 };
+    //             },
+    //             else => {
+    //                 return error.UnhandledExprOpener;
+    //             },
+    //         }
+    //     }
+
+    //     return expr;
+    // }
+
+    // pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Expr {
+    //     var tokenizer = lexer.Tokenizer.new(input);
+    //     var state = try ParserState.new(allocator);
+    //     defer state.deinit(allocator);
+    //     return try parseRecursive(allocator, tokenizer, state);
+    // }
+};
+
+pub const Parser = struct {
+    current: usize,
+    tokens: lexer.Token,
+
+    pub fn new(tokens: []const lexer.Token) Parser {
+        return .{
+            .current = 0,
+            .tokens = tokens,
+        };
+    }
+
+    fn peek(self: *Parser) lexer.Token {
+        return self.tokens[self.current];
+    }
+
+    fn atEnd(self: *Parser) bool {
+        return self.peek().type == .eof;
+    }
+
+    fn previous(self: *Parser) lexer.Token {
+        return self.tokens[self.current - 1];
+    }
+
+    fn advance(self: *Parser) lexer.Token {
+        if (!self.atEnd()) {
+            self.current += 1;
+        }
+        return self.previous();
     }
 };
 

@@ -160,6 +160,13 @@ pub const Token = struct {
             },
         }
     }
+
+    pub fn isNumLiteral(self: *Token) bool {
+        return switch (self.literal) {
+            .float, .integer => true,
+            else => false,
+        };
+    }
 };
 
 fn getAlphaOffset(letter: u8) usize {
