@@ -70,7 +70,7 @@ pub const TokenType = enum {
     range_op,
     /// " " (without quotes, duh)
     space,
-    /// #
+    /// # TODO: I don't think this is used
     pound,
     /// @
     ref_op,

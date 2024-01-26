@@ -33,8 +33,8 @@ fn getExprType(token_type: lexer.TokenType) ExprType {
 
 const UnaryOp = enum {
     ref_op,
-    pound,
-    percent,
+    pound, // post-fix
+    percent, // post-fix
     neg,
 };
 
@@ -305,6 +305,157 @@ pub const Parser = struct {
             self.current += 1;
         }
         return self.previous();
+    }
+
+    fn check(self: *Parser, tokenType: lexer.TokenType) bool {
+        if (self.atEnd()) {
+            return false;
+        }
+        return self.peek().type == tokenType;
+    }
+
+    fn match(self: *Parser, tokenTypes: []const lexer.TokenType) bool {
+        for (tokenTypes) |tokenType| {
+            if (self.check(tokenType)) {
+                _ = self.advance();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn matchOne(self: *Parser, tokenType: lexer.TokenType) bool {
+        if (self.check(tokenType)) {
+            _ = self.advance();
+            return true;
+        }
+        return false;
+    }
+
+    fn equality(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        var expr = try self.comparison(allocator);
+
+        while (self.match([_]lexer.TokenType{ .neq, .eq })) {
+            var operator = self.previous();
+            var right = try self.comparison(allocator);
+
+            var op = switch (operator.type) {
+                .eq => BinaryOp.eq,
+                .neq => BinaryOp.neq,
+                else => unreachable,
+            };
+            // swap
+            var temp = expr;
+            var new_expr = try Expr.createBinaryOp(allocator, temp, op, right);
+            expr = new_expr;
+        }
+        return expr;
+    }
+
+    fn expression(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        return try self.equality(allocator);
+    }
+
+    fn primary(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        if (self.matchOne(.false)) {
+            var expr = try Expr.createLiteral(allocator, .{
+                .boolean = false,
+            });
+            return expr;
+        }
+        if (self.matchOne(.false)) {
+            var expr = try Expr.createLiteral(allocator, .{
+                .boolean = true,
+            });
+            return expr;
+        }
+        if (self.match([_]lexer.TokenType{ .num_literal, .str_literal })) {
+            var expr = try Expr.createLiteral(allocator, self.previous().literal);
+            return expr;
+        }
+        if (self.matchOne(.l_paren)) {}
+    }
+
+    fn unary(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        // TODO: unary post-fix
+        if (self.match([_]lexer.TokenType{
+            .ref_op,
+            .minus,
+        })) {
+            var operator = self.previous();
+            var right = try self.unary(allocator);
+            var op = switch (operator.type) {
+                .ref_op => UnaryOp.ref_op,
+                .minus => UnaryOp.neg,
+                // TODO: others
+                else => unreachable,
+            };
+            return try Expr.createUnaryOp(allocator, op, right);
+        }
+        return try self.primary(allocator);
+    }
+
+    fn factor(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        var expr = try self.unary(allocator);
+
+        while (self.match([_]lexer.TokenType{
+            .mult,
+            .div,
+        })) {
+            var operator = self.previous();
+            var right = try self.unary(allocator);
+            var op = switch (operator.type) {
+                .mult => BinaryOp.mult,
+                .div => BinaryOp.div,
+                else => unreachable,
+            };
+            var temp = expr;
+            expr = Expr.createBinaryOp(allocator, temp, op, right);
+        }
+        return expr;
+    }
+
+    fn term(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        var expr = try self.factor(allocator);
+        while (self.match([_]lexer.TokenType{
+            .minus,
+            .plus,
+        })) {
+            var operator = self.previous();
+            var right = try self.unary(allocator);
+            var op = switch (operator.type) {
+                .minus => BinaryOp.minus,
+                .plus => BinaryOp.plus,
+                else => unreachable,
+            };
+            var temp = expr;
+            expr = Expr.createBinaryOp(allocator, temp, op, right);
+        }
+        return expr;
+    }
+
+    fn comparison(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        var expr = try self.term(allocator);
+
+        while (self.match([_]lexer.TokenType{
+            .gt,
+            .gte,
+            .lt,
+            .lte,
+        })) {
+            var operator = self.previous();
+            var right = try self.term(allocator);
+            var op = switch (operator.type) {
+                .gt => BinaryOp.gt,
+                .gte => BinaryOp.gte,
+                .lt => BinaryOp.lt,
+                .lte => BinaryOp.lte,
+                else => unreachable,
+            };
+            var temp = expr;
+            expr = Expr.createBinaryOp(allocator, temp, op, right);
+        }
+        return expr;
     }
 };
 
