@@ -169,6 +169,7 @@ pub const Expr = struct {
                 for (self.value.variadic.args) |arg| {
                     arg.destroySelf(allocator);
                 }
+                allocator.free(self.value.variadic.args);
             },
             .grouping => {
                 var expr = self.value.grouping.operand;
