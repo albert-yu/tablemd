@@ -138,6 +138,45 @@ pub const Expr = struct {
         };
         return expr;
     }
+
+    pub fn destroySelf(self: *Expr, allocator: std.mem.Allocator) void {
+        switch (self.value) {
+            .unknown => {},
+            .literal => {
+                switch (self.value.literal) {
+                    .string => {
+                        allocator.free(self.value.literal.string);
+                    },
+                    else => {
+                        // do nothing
+                    },
+                }
+            },
+            .unary => {
+                var allocated = self.value.unary.operand;
+                allocated.destroySelf(allocator);
+            },
+            .binary => {
+                var allocated_l = self.value.binary.left;
+                allocated_l.destroySelf(allocator);
+
+                var allocated_r = self.value.binary.right;
+                allocated_r.destroySelf(allocator);
+            },
+            .variadic => {
+                var func = self.value.variadic.func;
+                allocator.free(func);
+                for (self.value.variadic.args) |arg| {
+                    arg.destroySelf(allocator);
+                }
+            },
+            .grouping => {
+                var expr = self.value.grouping.operand;
+                expr.destroySelf(allocator);
+            },
+        }
+        allocator.destroy(self);
+    }
 };
 
 pub const Parser = struct {
