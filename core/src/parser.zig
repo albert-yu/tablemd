@@ -360,6 +360,11 @@ pub const Parser = struct {
         }
         return expr;
     }
+
+    pub fn parse(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+        var expr = try self.expression(allocator);
+        return expr;
+    }
 };
 
 /// Node on tree
