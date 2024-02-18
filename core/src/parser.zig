@@ -39,7 +39,7 @@ const UnaryOp = enum {
 };
 
 const ExprUnary = struct {
-    operand: Expr,
+    operand: *Expr,
     op: UnaryOp,
 };
 
@@ -60,27 +60,27 @@ const BinaryOp = enum {
 };
 
 const ExprBinary = struct {
-    left: Expr,
-    right: Expr,
+    left: *Expr,
+    right: *Expr,
     op: BinaryOp,
 };
 
 const ExprVariadic = struct {
     func: []const u8,
-    args: []const Expr,
+    args: []const *Expr,
 };
 
 const ExprGrouping = struct {
-    operand: Expr,
+    operand: *Expr,
 };
 
 const ExprUnion = union(enum) {
     unknown: void,
     literal: ExprLiteral,
-    unary: ExprUnary,
-    binary: ExprBinary,
-    variadic: ExprVariadic,
-    grouping: ExprGrouping,
+    unary: *ExprUnary,
+    binary: *ExprBinary,
+    variadic: *ExprVariadic,
+    grouping: *ExprGrouping,
 };
 
 const ExprOrTok = union(enum) {
@@ -99,48 +99,58 @@ fn isNegativeOp(prev_tok: lexer.Token, next_item: ExprOrTok) bool {
 }
 
 pub const Expr = struct {
-    value: ExprUnion,
+    value: *ExprUnion,
 
     /// caller must free with `.destroySelf`
-    fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) !*Expr {
+    pub fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
+        var value = try allocator.create(ExprUnion);
+        value.* = ExprUnion{
+            .literal = literal,
+        };
         expr.* = Expr{
-            .value = .{
-                .literal = literal,
-            },
+            .value = value,
         };
         return expr;
     }
 
-    fn createUnaryOp(allocator: std.mem.Allocator, op: UnaryOp, operand: *Expr) !*Expr {
+    pub fn createUnaryOp(allocator: std.mem.Allocator, op: UnaryOp, operand: *Expr) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
+        var unary = try allocator.create(ExprUnion);
+        var unary_inner = try allocator.create(ExprUnary);
+        unary_inner.* = ExprUnary{
+            .op = op,
+            .operand = operand,
+        };
+        unary.* = ExprUnion{
+            .unary = unary_inner,
+        };
         expr.* = Expr{
-            .value = .{
-                .unary = .{
-                    .op = op,
-                    .operand = operand,
-                },
-            },
+            .value = unary,
         };
         return expr;
     }
 
-    fn createBinaryOp(allocator: std.mem.Allocator, left: *Expr, op: BinaryOp, right: *Expr) !*Expr {
+    pub fn createBinaryOp(allocator: std.mem.Allocator, left: *Expr, op: BinaryOp, right: *Expr) !*Expr {
         var expr: *Expr = try allocator.create(Expr);
+        var binary = try allocator.create(ExprUnion);
+        var binary_inner = try allocator.create(ExprBinary);
+        binary_inner.* = ExprBinary{
+            .op = op,
+            .left = left,
+            .right = right,
+        };
+        binary.* = ExprUnion{
+            .binary = binary_inner,
+        };
         expr.* = Expr{
-            .value = .{
-                .binary = .{
-                    .op = op,
-                    .left = left,
-                    .right = right,
-                },
-            },
+            .value = binary,
         };
         return expr;
     }
 
     pub fn destroySelf(self: *Expr, allocator: std.mem.Allocator) void {
-        switch (self.value) {
+        switch (self.value.*) {
             .unknown => {},
             .literal => {
                 switch (self.value.literal) {
@@ -177,6 +187,112 @@ pub const Expr = struct {
             },
         }
         allocator.destroy(self);
+    }
+
+    fn toAstStringInner(self: *Expr, allocator: std.mem.Allocator, char_list: *std.ArrayListUnmanaged(u8)) !void {
+        switch (self.value.*) {
+            .unknown => try char_list.appendSlice(allocator, "unknown"),
+            .literal => {
+                switch (self.value.literal) {
+                    .none => try char_list.appendSlice(allocator, "none"),
+                    .boolean => {
+                        const s = if (self.value.literal.boolean) "true" else "false";
+                        try char_list.appendSlice(allocator, s);
+                    },
+                    .integer => {
+                        const s = try std.fmt.allocPrint(allocator, "{d}", .{self.value.literal.integer});
+                        defer allocator.free(s);
+                        try char_list.appendSlice(allocator, s);
+                    },
+                    .float => {
+                        const s = try std.fmt.allocPrint(allocator, "{d}", .{self.value.literal.float});
+                        defer allocator.free(s);
+                        try char_list.appendSlice(allocator, s);
+                    },
+                    .string => {
+                        const s = self.value.literal.string;
+                        try char_list.append(allocator, '"');
+                        try char_list.appendSlice(allocator, s);
+                        try char_list.append(allocator, '"');
+                    },
+                    .keyword => {
+                        const s = self.value.literal.keyword;
+                        try char_list.appendSlice(allocator, s);
+                    },
+                    .cell_ref => {
+                        const cell_ref = self.value.literal.cell_ref;
+                        const row_col = try std.fmt.allocPrint(allocator, "({d}, {d})", .{ cell_ref.row, cell_ref.col });
+                        defer allocator.free(row_col);
+                        try char_list.appendSlice(allocator, row_col);
+                    },
+                }
+            },
+            .unary => {
+                const op = switch (self.value.unary.op) {
+                    .ref_op => "&",
+                    .neg => "-",
+                    else => unreachable,
+                };
+                try char_list.append(allocator, '(');
+                try char_list.appendSlice(allocator, op);
+                try char_list.append(allocator, ' ');
+                var operand = self.value.unary.operand;
+                try operand.toAstStringInner(allocator, char_list);
+                try char_list.append(allocator, ')');
+            },
+            .binary => {
+                const op = switch (self.value.binary.op) {
+                    .plus => "+",
+                    .minus => "-",
+                    .mult => "*",
+                    .div => "/",
+                    .pow => "^",
+                    .eq => "=",
+                    .lt => "<",
+                    .gt => ">",
+                    .lte => "<=",
+                    .gte => ">=",
+                    .neq => "<>",
+                    .concat => "&",
+                    .range_op => ":",
+                };
+                try char_list.append(allocator, '(');
+                try char_list.appendSlice(allocator, op);
+                try char_list.append(allocator, ' ');
+                var left = self.value.binary.left;
+                try left.toAstStringInner(allocator, char_list);
+                try char_list.append(allocator, ' ');
+                var right = self.value.binary.right;
+                try right.toAstStringInner(allocator, char_list);
+                try char_list.append(allocator, ')');
+            },
+            .variadic => {
+                try char_list.append(allocator, '(');
+                var func = self.value.variadic.func;
+                try char_list.appendSlice(allocator, func);
+                try char_list.append(allocator, ' ');
+                for (self.value.variadic.args, 0..) |arg, i| {
+                    try arg.toAstStringInner(allocator, char_list);
+                    if (i != self.value.variadic.args.len - 1) {
+                        try char_list.append(allocator, ' ');
+                    }
+                }
+                try char_list.append(allocator, ')');
+            },
+            .grouping => {
+                try char_list.append(allocator, '(');
+                var operand = self.value.grouping.operand;
+                try operand.toAstStringInner(allocator, char_list);
+                try char_list.append(allocator, ')');
+            },
+        }
+    }
+
+    pub fn toAstString(self: *Expr, allocator: std.mem.Allocator) ![]const u8 {
+        var char_list = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 8);
+        try self.toAstStringInner(allocator, &char_list);
+        var result = try char_list.toOwnedSlice(allocator);
+        return result;
     }
 };
 
@@ -522,16 +638,19 @@ fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
 
 test "print debug" {
     const allocator = std.testing.allocator;
-    var expr = try ExprOld.create(allocator, "+", .plus, .{ .none = undefined });
-    defer expr.destroySelf(allocator);
-    var left = try ExprOld.create(allocator, "5", .num_literal, .{ .float = 5 });
-    var right = try ExprOld.create(allocator, "4", .num_literal, .{ .float = 4 });
-    try expr.addChild(allocator, left);
-    try expr.addChild(allocator, right);
+    var four = try Expr.createLiteral(allocator, .{
+        .integer = 4,
+    });
+    _ = four;
+    // var five = try Expr.createLiteral(allocator, .{
+    //     .integer = 5,
+    // });
+    // var expr = try Expr.createBinaryOp(allocator, five, .plus, four);
+    // defer expr.destroySelf(allocator);
 
-    const sexpr = try expr.toSexpr(allocator);
-    try std.testing.expectEqualStrings("(+ 5 4)", sexpr);
-    defer allocator.free(sexpr);
+    // const sexpr = try expr.toAstString(allocator);
+    // defer allocator.free(sexpr);
+    // try std.testing.expectEqualStrings("(+ 5 4)", sexpr);
 }
 
 test "parse simple expressions" {
