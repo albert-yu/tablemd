@@ -279,14 +279,14 @@ pub const Parser = struct {
         if (self.matchOne(.l_paren)) {}
     }
 
-    fn unary(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn unaryPre(self: *Parser, allocator: std.mem.Allocator) !*Expr {
         // TODO: unary post-fix
         if (self.match([_]lexer.TokenType{
             .ref_op,
             .minus,
         })) {
             var operator = self.previous();
-            var right = try self.unary(allocator);
+            var right = try self.unaryPre(allocator);
             var op = switch (operator.type) {
                 .ref_op => UnaryOp.ref_op,
                 .minus => UnaryOp.neg,
@@ -299,14 +299,14 @@ pub const Parser = struct {
     }
 
     fn factor(self: *Parser, allocator: std.mem.Allocator) !*Expr {
-        var expr = try self.unary(allocator);
+        var expr = try self.unaryPre(allocator);
 
         while (self.match([_]lexer.TokenType{
             .mult,
             .div,
         })) {
             var operator = self.previous();
-            var right = try self.unary(allocator);
+            var right = try self.unaryPre(allocator);
             var op = switch (operator.type) {
                 .mult => BinaryOp.mult,
                 .div => BinaryOp.div,
@@ -325,7 +325,7 @@ pub const Parser = struct {
             .plus,
         })) {
             var operator = self.previous();
-            var right = try self.unary(allocator);
+            var right = try self.unaryPre(allocator);
             var op = switch (operator.type) {
                 .minus => BinaryOp.minus,
                 .plus => BinaryOp.plus,
