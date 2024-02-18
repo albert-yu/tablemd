@@ -117,6 +117,7 @@ fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8
         const at_end = i == str.len - 1;
         if (c == quote_char) {
             if (at_end) {
+                octets.deinit(allocator);
                 return error.UnterminatedEscapeChar;
             }
             i += 1;
@@ -124,6 +125,7 @@ fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8
             if (next == quote_char) {
                 try octets.append(allocator, next);
             } else {
+                octets.deinit(allocator);
                 return error.InvalidEscapeSequence;
             }
         } else {
