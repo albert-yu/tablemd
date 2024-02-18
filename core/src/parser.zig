@@ -165,6 +165,7 @@ pub const Expr = struct {
             .unary => {
                 var allocated = self.value.unary.operand;
                 allocated.destroySelf(allocator);
+                allocator.destroy(self.value.unary);
             },
             .binary => {
                 var allocated_l = self.value.binary.left;
@@ -172,6 +173,8 @@ pub const Expr = struct {
 
                 var allocated_r = self.value.binary.right;
                 allocated_r.destroySelf(allocator);
+
+                allocator.destroy(self.value.binary);
             },
             .variadic => {
                 var func = self.value.variadic.func;
@@ -180,12 +183,15 @@ pub const Expr = struct {
                     arg.destroySelf(allocator);
                 }
                 allocator.free(self.value.variadic.args);
+                allocator.destroy(self.value.variadic);
             },
             .grouping => {
                 var expr = self.value.grouping.operand;
                 expr.destroySelf(allocator);
+                allocator.destroy(self.value.grouping);
             },
         }
+        allocator.destroy(self.value);
         allocator.destroy(self);
     }
 
@@ -641,16 +647,15 @@ test "print debug" {
     var four = try Expr.createLiteral(allocator, .{
         .integer = 4,
     });
-    _ = four;
-    // var five = try Expr.createLiteral(allocator, .{
-    //     .integer = 5,
-    // });
-    // var expr = try Expr.createBinaryOp(allocator, five, .plus, four);
-    // defer expr.destroySelf(allocator);
+    var five = try Expr.createLiteral(allocator, .{
+        .integer = 5,
+    });
+    var expr = try Expr.createBinaryOp(allocator, five, .plus, four);
+    defer expr.destroySelf(allocator);
 
-    // const sexpr = try expr.toAstString(allocator);
-    // defer allocator.free(sexpr);
-    // try std.testing.expectEqualStrings("(+ 5 4)", sexpr);
+    const sexpr = try expr.toAstString(allocator);
+    defer allocator.free(sexpr);
+    try std.testing.expectEqualStrings("(+ 5 4)", sexpr);
 }
 
 test "parse simple expressions" {
