@@ -568,6 +568,20 @@ pub const Tokenizer = struct {
         // catch-all
         return error.UnexpectedCharacter;
     }
+
+    /// Tokenizes the input and returns a heap-allocated slice of tokens.
+    pub fn tokenize(self: *Tokenizer, allocator: std.mem.Allocator) ![]Token {
+        var tokens_arrlist = try std.ArrayListUnmanaged(Token).initCapacity(allocator, 2);
+        while (true) {
+            var token = try self.next(allocator);
+            try tokens_arrlist.append(allocator, token);
+            if (token.type == .eof) {
+                break;
+            }
+        }
+        const tokens = try tokens_arrlist.toOwnedSlice(allocator);
+        return tokens;
+    }
 };
 
 const ExpectedToken = struct {

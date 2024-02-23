@@ -695,15 +695,7 @@ test "parse simple expressions" {
     const allocator = std.testing.allocator;
     var tokenizer = lexer.Tokenizer.new("5+4");
 
-    var tokens_arrlist = try std.ArrayListUnmanaged(lexer.Token).initCapacity(allocator, 2);
-    while (true) {
-        var token = try tokenizer.next(allocator);
-        try tokens_arrlist.append(allocator, token);
-        if (token.type == .eof) {
-            break;
-        }
-    }
-    const tokens = try tokens_arrlist.toOwnedSlice(allocator);
+    const tokens = try tokenizer.tokenize(allocator);
     defer {
         for (tokens) |token| {
             var t = token; // discard const
