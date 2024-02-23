@@ -666,14 +666,26 @@ const ParserTestCase = struct {
     expected_str: []const u8,
 };
 
-// fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
-//     var parsed = try ExprOld.parse(allocator, test_case.input);
-//     defer parsed.destroySelf(allocator);
-//     const sexpr = try parsed.toSexpr(allocator);
-//     defer allocator.free(sexpr);
+fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
+    var tokenizer = lexer.Tokenizer.new(test_case.input);
+    const tokens = try tokenizer.tokenize(allocator);
+    defer {
+        for (tokens) |token| {
+            var t = token; // discard const
+            t.deinit(allocator);
+        }
+        allocator.free(tokens);
+    }
 
-//     try std.testing.expectEqualStrings(test_case.expected_str, sexpr);
-// }
+    var parser = Parser.new(tokens);
+    const expr = try parser.parse(allocator);
+    defer expr.destroySelf(allocator);
+
+    const sexpr = try expr.toAstString(allocator);
+    defer allocator.free(sexpr);
+
+    try std.testing.expectEqualStrings(test_case.expected_str, sexpr);
+}
 
 test "print debug" {
     const allocator = std.testing.allocator;
@@ -727,17 +739,6 @@ test "parse simple expressions" {
         },
     }
 
-    // try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
-    // const left = parsed.children.items[0];
-    // try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
-    // const right = parsed.children.items[1];
-    // var parsed_right = switch (right.value) {
-    //     .integer => right.value.integer,
-    //     else => -1,
-    // };
-    // const expected: int_t = 4;
-    // try std.testing.expectEqual(expected, parsed_right);
-
-    // try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
-    // try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
+    try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
+    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
 }
