@@ -146,14 +146,7 @@ pub const Expr = struct {
         switch (self.value.*) {
             .unknown => {},
             .literal => {
-                switch (self.value.literal) {
-                    .string => {
-                        allocator.free(self.value.literal.string);
-                    },
-                    else => {
-                        // do nothing
-                    },
-                }
+                // do nothing
             },
             .unary => {
                 var allocated = self.value.unary.operand;
@@ -430,8 +423,26 @@ pub const Parser = struct {
         return try self.primary(allocator);
     }
 
-    fn factor(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
+    fn exp(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.unaryPre(allocator);
+
+        while (self.match(&[_]lexer.TokenType{
+            .pow,
+        })) {
+            var operator = self.previous();
+            var right = try self.unaryPre(allocator);
+            var op = switch (operator.type) {
+                .pow => BinaryOp.pow,
+                else => unreachable,
+            };
+            var temp = expr;
+            expr = try Expr.createBinaryOp(allocator, temp, op, right);
+        }
+        return expr;
+    }
+
+    fn factor(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
+        var expr = try self.exp(allocator);
 
         while (self.match(&[_]lexer.TokenType{
             .mult,
