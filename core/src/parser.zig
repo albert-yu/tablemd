@@ -571,7 +571,7 @@ test "parse simple expressions" {
     switch (expr.value.*) {
         .binary => {
             try std.testing.expectEqual(BinaryOp.plus, expr.value.binary.op);
-            // const left = expr.value.binary.left;
+            const left = expr.value.binary.left;
             const right = expr.value.binary.right;
             var parsed_right = switch (right.value.*) {
                 .literal => switch (right.value.literal) {
@@ -580,8 +580,18 @@ test "parse simple expressions" {
                 },
                 else => -1,
             };
-            const expected: int_t = 4;
-            try std.testing.expectEqual(expected, parsed_right);
+            const expected_right: int_t = 4;
+            try std.testing.expectEqual(expected_right, parsed_right);
+
+            var parsed_left = switch (left.value.*) {
+                .literal => switch (left.value.literal) {
+                    .integer => left.value.literal.integer,
+                    else => -1,
+                },
+                else => -1,
+            };
+            const expected_left: int_t = 5;
+            try std.testing.expectEqual(expected_left, parsed_left);
         },
         else => {
             try std.testing.expect(false);
@@ -590,4 +600,15 @@ test "parse simple expressions" {
 
     try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
     try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "\"a string\"" });
+}
+
+test "precedence" {
+    const allocator = std.testing.allocator;
+    try testParse(allocator, .{ .input = "2+3*4", .expected_str = "(+ 2 (* 3 4))" });
+    try testParse(allocator, .{ .input = "2*3+4", .expected_str = "(+ (* 2 3) 4)" });
+    try testParse(allocator, .{ .input = "2*3+4*5", .expected_str = "(+ (* 2 3) (* 4 5))" });
+    try testParse(allocator, .{ .input = "2*3*4", .expected_str = "(* (* 2 3) 4)" });
+    try testParse(allocator, .{ .input = "2^3^4", .expected_str = "(^ (^ 2 3) 4)" });
+    try testParse(allocator, .{ .input = "2^3*4", .expected_str = "(* (^ 2 3) 4)" });
+    try testParse(allocator, .{ .input = "2*3^4", .expected_str = "(* 2 (^ 3 4))" });
 }
