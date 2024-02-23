@@ -720,13 +720,10 @@ test "parse simple expressions" {
             try std.testing.expectEqual(BinaryOp.plus, expr.value.binary.op);
             // const left = expr.value.binary.left;
             const right = expr.value.binary.right;
-            var parsed_right: int_t = switch (right.value.*) {
-                .literal => {
-                    var result: int_t = switch (right.value.literal) {
-                        .integer => right.value.literal.integer,
-                        else => -1,
-                    };
-                    return result;
+            var parsed_right = switch (right.value.*) {
+                .literal => switch (right.value.literal) {
+                    .integer => right.value.literal.integer,
+                    else => -1,
                 },
                 else => -1,
             };
