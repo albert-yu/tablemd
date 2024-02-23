@@ -589,5 +589,5 @@ test "parse simple expressions" {
     }
 
     try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
-    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
+    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "\"a string\"" });
 }
