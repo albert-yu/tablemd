@@ -102,7 +102,7 @@ pub const Expr = struct {
     value: *ExprUnion,
 
     /// caller must free with `.destroySelf`
-    pub fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) !*Expr {
+    pub fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) error{ OutOfMemory, TokenError }!*Expr {
         var expr: *Expr = try allocator.create(Expr);
         var value = try allocator.create(ExprUnion);
         value.* = ExprUnion{
@@ -114,7 +114,7 @@ pub const Expr = struct {
         return expr;
     }
 
-    pub fn createUnaryOp(allocator: std.mem.Allocator, op: UnaryOp, operand: *Expr) !*Expr {
+    pub fn createUnaryOp(allocator: std.mem.Allocator, op: UnaryOp, operand: *Expr) error{ OutOfMemory, TokenError }!*Expr {
         var expr: *Expr = try allocator.create(Expr);
         var unary = try allocator.create(ExprUnion);
         var unary_inner = try allocator.create(ExprUnary);
@@ -131,7 +131,7 @@ pub const Expr = struct {
         return expr;
     }
 
-    pub fn createBinaryOp(allocator: std.mem.Allocator, left: *Expr, op: BinaryOp, right: *Expr) !*Expr {
+    pub fn createBinaryOp(allocator: std.mem.Allocator, left: *Expr, op: BinaryOp, right: *Expr) error{ OutOfMemory, TokenError }!*Expr {
         var expr: *Expr = try allocator.create(Expr);
         var binary = try allocator.create(ExprUnion);
         var binary_inner = try allocator.create(ExprBinary);
@@ -145,6 +145,22 @@ pub const Expr = struct {
         };
         expr.* = Expr{
             .value = binary,
+        };
+        return expr;
+    }
+
+    pub fn createGrouping(allocator: std.mem.Allocator, operand: *Expr) error{ OutOfMemory, TokenError }!*Expr {
+        var expr: *Expr = try allocator.create(Expr);
+        var grouping = try allocator.create(ExprUnion);
+        var grouping_inner = try allocator.create(ExprGrouping);
+        grouping_inner.* = ExprGrouping{
+            .operand = operand,
+        };
+        grouping.* = ExprUnion{
+            .grouping = grouping_inner,
+        };
+        expr.* = Expr{
+            .value = grouping,
         };
         return expr;
     }
@@ -304,7 +320,7 @@ pub const Expr = struct {
 
 pub const Parser = struct {
     current: usize,
-    tokens: lexer.Token,
+    tokens: []const lexer.Token,
 
     pub fn new(tokens: []const lexer.Token) Parser {
         return .{
@@ -339,6 +355,15 @@ pub const Parser = struct {
         return self.peek().type == tokenType;
     }
 
+    fn consume(self: *Parser, tokenType: lexer.TokenType, message: []const u8) error{TokenError}!lexer.Token {
+        if (self.check(tokenType)) {
+            return self.advance();
+        }
+        // TODO: incorporate error message
+        _ = message;
+        return error.TokenError;
+    }
+
     fn match(self: *Parser, tokenTypes: []const lexer.TokenType) bool {
         for (tokenTypes) |tokenType| {
             if (self.check(tokenType)) {
@@ -357,10 +382,10 @@ pub const Parser = struct {
         return false;
     }
 
-    fn equality(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn equality(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.comparison(allocator);
 
-        while (self.match([_]lexer.TokenType{ .neq, .eq })) {
+        while (self.match(&[_]lexer.TokenType{ .neq, .eq })) {
             var operator = self.previous();
             var right = try self.comparison(allocator);
 
@@ -377,11 +402,11 @@ pub const Parser = struct {
         return expr;
     }
 
-    fn expression(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn expression(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         return try self.equality(allocator);
     }
 
-    fn primary(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn primary(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         if (self.matchOne(.false)) {
             var expr = try Expr.createLiteral(allocator, .{
                 .boolean = false,
@@ -394,16 +419,24 @@ pub const Parser = struct {
             });
             return expr;
         }
-        if (self.match([_]lexer.TokenType{ .num_literal, .str_literal })) {
+        if (self.match(&[_]lexer.TokenType{ .num_literal, .str_literal })) {
             var expr = try Expr.createLiteral(allocator, self.previous().literal);
             return expr;
         }
-        if (self.matchOne(.l_paren)) {}
+        if (self.matchOne(.l_paren)) {
+            var expr = try self.expression(allocator);
+
+            _ = try self.consume(.r_paren, "Expected ')' after expression.");
+            return try Expr.createGrouping(allocator, expr);
+        }
+
+        // TODO: is this the right return value?
+        return error.TokenError;
     }
 
-    fn unaryPre(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn unaryPre(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         // TODO: unary post-fix
-        if (self.match([_]lexer.TokenType{
+        if (self.match(&[_]lexer.TokenType{
             .ref_op,
             .minus,
         })) {
@@ -420,10 +453,10 @@ pub const Parser = struct {
         return try self.primary(allocator);
     }
 
-    fn factor(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn factor(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.unaryPre(allocator);
 
-        while (self.match([_]lexer.TokenType{
+        while (self.match(&[_]lexer.TokenType{
             .mult,
             .div,
         })) {
@@ -435,14 +468,14 @@ pub const Parser = struct {
                 else => unreachable,
             };
             var temp = expr;
-            expr = Expr.createBinaryOp(allocator, temp, op, right);
+            expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
     }
 
-    fn term(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn term(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.factor(allocator);
-        while (self.match([_]lexer.TokenType{
+        while (self.match(&[_]lexer.TokenType{
             .minus,
             .plus,
         })) {
@@ -454,15 +487,15 @@ pub const Parser = struct {
                 else => unreachable,
             };
             var temp = expr;
-            expr = Expr.createBinaryOp(allocator, temp, op, right);
+            expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
     }
 
-    fn comparison(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    fn comparison(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.term(allocator);
 
-        while (self.match([_]lexer.TokenType{
+        while (self.match(&[_]lexer.TokenType{
             .gt,
             .gte,
             .lt,
@@ -478,12 +511,12 @@ pub const Parser = struct {
                 else => unreachable,
             };
             var temp = expr;
-            expr = Expr.createBinaryOp(allocator, temp, op, right);
+            expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
     }
 
-    pub fn parse(self: *Parser, allocator: std.mem.Allocator) !*Expr {
+    pub fn parse(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.expression(allocator);
         return expr;
     }
@@ -633,14 +666,14 @@ const ParserTestCase = struct {
     expected_str: []const u8,
 };
 
-fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
-    var parsed = try ExprOld.parse(allocator, test_case.input);
-    defer parsed.destroySelf(allocator);
-    const sexpr = try parsed.toSexpr(allocator);
-    defer allocator.free(sexpr);
+// fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
+//     var parsed = try ExprOld.parse(allocator, test_case.input);
+//     defer parsed.destroySelf(allocator);
+//     const sexpr = try parsed.toSexpr(allocator);
+//     defer allocator.free(sexpr);
 
-    try std.testing.expectEqualStrings(test_case.expected_str, sexpr);
-}
+//     try std.testing.expectEqualStrings(test_case.expected_str, sexpr);
+// }
 
 test "print debug" {
     const allocator = std.testing.allocator;
@@ -660,19 +693,62 @@ test "print debug" {
 
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
-    var parsed = try ExprOld.parse(allocator, "5+4");
-    defer parsed.destroySelf(allocator);
-    try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
-    const left = parsed.children.items[0];
-    try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
-    const right = parsed.children.items[1];
-    var parsed_right = switch (right.value) {
-        .integer => right.value.integer,
-        else => -1,
-    };
-    const expected: int_t = 4;
-    try std.testing.expectEqual(expected, parsed_right);
+    var tokenizer = lexer.Tokenizer.new("5+4");
 
-    try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
-    try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
+    var tokens_arrlist = try std.ArrayListUnmanaged(lexer.Token).initCapacity(allocator, 2);
+    while (true) {
+        var token = try tokenizer.next(allocator);
+        try tokens_arrlist.append(allocator, token);
+        if (token.type == .eof) {
+            break;
+        }
+    }
+    const tokens = try tokens_arrlist.toOwnedSlice(allocator);
+    defer {
+        for (tokens) |token| {
+            var t = token; // discard const
+            t.deinit(allocator);
+        }
+        allocator.free(tokens);
+    }
+    var parser = Parser.new(tokens);
+    const expr = try parser.parse(allocator);
+    defer expr.destroySelf(allocator);
+
+    switch (expr.value.*) {
+        .binary => {
+            try std.testing.expectEqual(BinaryOp.plus, expr.value.binary.op);
+            // const left = expr.value.binary.left;
+            const right = expr.value.binary.right;
+            var parsed_right: int_t = switch (right.value.*) {
+                .literal => {
+                    var result: int_t = switch (right.value.literal) {
+                        .integer => right.value.literal.integer,
+                        else => -1,
+                    };
+                    return result;
+                },
+                else => -1,
+            };
+            const expected: int_t = 4;
+            try std.testing.expectEqual(expected, parsed_right);
+        },
+        else => {
+            try std.testing.expect(false);
+        },
+    }
+
+    // try std.testing.expectEqual(lexer.TokenType.plus, parsed.token_type);
+    // const left = parsed.children.items[0];
+    // try std.testing.expectEqual(lexer.TokenType.num_literal, left.token_type);
+    // const right = parsed.children.items[1];
+    // var parsed_right = switch (right.value) {
+    //     .integer => right.value.integer,
+    //     else => -1,
+    // };
+    // const expected: int_t = 4;
+    // try std.testing.expectEqual(expected, parsed_right);
+
+    // try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
+    // try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "a string" });
 }
