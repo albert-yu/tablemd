@@ -6,7 +6,7 @@ const print = std.debug.print;
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    var tokenizer = lexer.Tokenizer.new("2+3*4");
+    var tokenizer = lexer.Tokenizer.new("2*3^4");
     const tokens = try tokenizer.tokenize(allocator);
     defer {
         for (tokens) |token| {
