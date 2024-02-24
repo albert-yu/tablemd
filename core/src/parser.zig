@@ -602,6 +602,12 @@ test "parse simple expressions" {
     try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "\"a string\"" });
 }
 
+test "white space" {
+    const allocator = std.testing.allocator;
+    try testParse(allocator, .{ .input = "2 - 3", .expected_str = "(- 2 3)" });
+    try testParse(allocator, .{ .input = "-2+ 3", .expected_str = "(+ (- 2) 3)" });
+}
+
 test "precedence" {
     const allocator = std.testing.allocator;
     try testParse(allocator, .{ .input = "2+3*4", .expected_str = "(+ 2 (* 3 4))" });
