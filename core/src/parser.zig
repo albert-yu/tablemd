@@ -75,6 +75,15 @@ fn isNegativeOp(prev_tok: lexer.Token, next_item: ExprOrTok) bool {
     };
 }
 
+fn copyStrLiteral(allocator: std.mem.Allocator, s: []const u8) !ExprLiteral {
+    const len = s.len;
+    const str = try allocator.alloc(u8, len);
+    @memcpy(str, s);
+    return ExprLiteral{
+        .string = str,
+    };
+}
+
 pub const Expr = struct {
     value: *ExprUnion,
 
@@ -82,8 +91,12 @@ pub const Expr = struct {
     pub fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) error{ OutOfMemory, TokenError }!*Expr {
         var expr: *Expr = try allocator.create(Expr);
         var value = try allocator.create(ExprUnion);
+
         value.* = ExprUnion{
-            .literal = literal,
+            .literal = switch (literal) {
+                .string => try copyStrLiteral(allocator, literal.string),
+                else => literal,
+            },
         };
         expr.* = Expr{
             .value = value,
