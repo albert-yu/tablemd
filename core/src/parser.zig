@@ -159,7 +159,12 @@ pub const Expr = struct {
         switch (self.value.*) {
             .unknown => {},
             .literal => {
-                // do nothing
+                switch (self.value.literal) {
+                    .string => allocator.free(self.value.literal.string),
+                    else => {
+                        // do nothing
+                    },
+                }
             },
             .unary => {
                 var allocated = self.value.unary.operand;
