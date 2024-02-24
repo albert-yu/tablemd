@@ -223,7 +223,8 @@ pub const Expr = struct {
                 const op = switch (self.value.unary.op) {
                     .ref_op => "&",
                     .neg => "-",
-                    else => unreachable,
+                    .pound => "#",
+                    .percent => "%",
                 };
                 try char_list.append(allocator, '(');
                 try char_list.appendSlice(allocator, op);
