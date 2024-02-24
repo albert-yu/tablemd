@@ -468,7 +468,7 @@ pub const Parser = struct {
             .plus,
         })) {
             var operator = self.previous();
-            var right = try self.unaryPre(allocator);
+            var right = try self.term(allocator);
             var op = switch (operator.type) {
                 .minus => BinaryOp.minus,
                 .plus => BinaryOp.plus,
