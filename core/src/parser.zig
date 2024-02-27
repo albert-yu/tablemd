@@ -636,4 +636,6 @@ test "precedence" {
     try testParse(allocator, .{ .input = "2^3^4", .expected_str = "(^ (^ 2 3) 4)" });
     try testParse(allocator, .{ .input = "2^3*4", .expected_str = "(* (^ 2 3) 4)" });
     try testParse(allocator, .{ .input = "2*3^4", .expected_str = "(* 2 (^ 3 4))" });
+    // Yes, this is actually how precedence works in Google Sheets!
+    try testParse(allocator, .{ .input = "-2^2", .expected_str = "(^ (- 2) 2)" });
 }
