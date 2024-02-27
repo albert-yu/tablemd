@@ -4,8 +4,6 @@ const lexer = @import("lexer.zig");
 const float_t = lexer.float_t;
 const int_t = lexer.int_t;
 
-const Value = lexer.Literal;
-
 const ExprLiteral = lexer.Literal;
 
 const UnaryOp = enum {
