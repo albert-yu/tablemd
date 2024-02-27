@@ -75,10 +75,15 @@ fn isNegativeOp(prev_tok: lexer.Token, next_item: ExprOrTok) bool {
     };
 }
 
-fn copyStrLiteral(allocator: std.mem.Allocator, s: []const u8) !ExprLiteral {
+fn copyString(allocator: std.mem.Allocator, s: []const u8) ![]const u8 {
     const len = s.len;
     const str = try allocator.alloc(u8, len);
     @memcpy(str, s);
+    return str;
+}
+
+fn copyStrLiteral(allocator: std.mem.Allocator, s: []const u8) !ExprLiteral {
+    const str = try copyString(allocator, s);
     return ExprLiteral{
         .string = str,
     };
@@ -441,7 +446,7 @@ pub const Parser = struct {
             return expr;
         }
         if (self.matchOne(.func_call)) {
-            var func = self.previous().literal.keyword;
+            var func = try copyString(allocator, self.previous().literal.keyword);
             var args = try self.arguments(allocator);
             var expr = try Expr.createVariadic(allocator, .{
                 .func = func,
@@ -656,6 +661,7 @@ test "parse simple expressions" {
 
     try testParse(allocator, .{ .input = "2^0.0", .expected_str = "(^ 2 0)" });
     try testParse(allocator, .{ .input = "\"a string\"", .expected_str = "\"a string\"" });
+    try testParse(allocator, .{ .input = "SUM(1,2)", .expected_str = "(SUM 1 2)" });
 }
 
 test "white space" {
