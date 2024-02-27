@@ -402,7 +402,7 @@ pub const Parser = struct {
             });
             return expr;
         }
-        if (self.matchOne(.false)) {
+        if (self.matchOne(.true)) {
             var expr = try Expr.createLiteral(allocator, .{
                 .boolean = true,
             });
