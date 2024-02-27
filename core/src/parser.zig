@@ -65,16 +65,6 @@ const ExprOrTok = union(enum) {
     expr: *Expr,
 };
 
-fn isNegativeOp(prev_tok: lexer.Token, next_item: ExprOrTok) bool {
-    if (prev_tok.type != .space) {
-        return false;
-    }
-    return switch (next_item) {
-        .expr => true,
-        .tok => next_item.tok.isNumLiteral(),
-    };
-}
-
 fn copyString(allocator: std.mem.Allocator, s: []const u8) ![]const u8 {
     const len = s.len;
     const str = try allocator.alloc(u8, len);
