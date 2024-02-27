@@ -155,6 +155,20 @@ pub const Expr = struct {
         return expr;
     }
 
+    pub fn createVariadic(allocator: std.mem.Allocator, expr_variadic: ExprVariadic) error{ OutOfMemory, TokenError }!*Expr {
+        var expr: *Expr = try allocator.create(Expr);
+        var variadic = try allocator.create(ExprUnion);
+        var variadic_inner = try allocator.create(ExprVariadic);
+        variadic_inner.* = expr_variadic;
+        variadic.* = ExprUnion{
+            .variadic = variadic_inner,
+        };
+        expr.* = Expr{
+            .value = variadic,
+        };
+        return expr;
+    }
+
     pub fn destroySelf(self: *Expr, allocator: std.mem.Allocator) void {
         switch (self.value.*) {
             .unknown => {},
@@ -395,6 +409,20 @@ pub const Parser = struct {
         return try self.equality(allocator);
     }
 
+    fn arguments(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }![]*Expr {
+        var args = try std.ArrayListUnmanaged(*Expr).initCapacity(allocator, 1);
+        if (!self.matchOne(.r_paren)) {
+            while (true) {
+                var arg = try self.expression(allocator);
+                try args.append(allocator, arg);
+                if (!self.matchOne(.arg_sep)) {
+                    break;
+                }
+            }
+        }
+        return args.toOwnedSlice(allocator);
+    }
+
     fn primary(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         if (self.matchOne(.false)) {
             var expr = try Expr.createLiteral(allocator, .{
@@ -410,6 +438,15 @@ pub const Parser = struct {
         }
         if (self.match(&[_]lexer.TokenType{ .num_literal, .str_literal })) {
             var expr = try Expr.createLiteral(allocator, self.previous().literal);
+            return expr;
+        }
+        if (self.matchOne(.func_call)) {
+            var func = self.previous().literal.keyword;
+            var args = try self.arguments(allocator);
+            var expr = try Expr.createVariadic(allocator, .{
+                .func = func,
+                .args = args,
+            });
             return expr;
         }
         if (self.matchOne(.l_paren)) {
