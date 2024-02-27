@@ -574,6 +574,10 @@ pub const Tokenizer = struct {
         var tokens_arrlist = try std.ArrayListUnmanaged(Token).initCapacity(allocator, 2);
         while (true) {
             var token = try self.next(allocator);
+            if (token.type == .space) {
+                // skip spaces
+                continue;
+            }
             try tokens_arrlist.append(allocator, token);
             if (token.type == .eof) {
                 break;
