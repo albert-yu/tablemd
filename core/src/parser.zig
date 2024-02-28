@@ -19,7 +19,7 @@ const ExprUnary = struct {
     op: UnaryOp,
 };
 
-const BinaryOp = enum {
+pub const BinaryOp = enum {
     plus,
     minus,
     mult,

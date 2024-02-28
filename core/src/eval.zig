@@ -53,6 +53,107 @@ pub const Result = struct {
     }
 };
 
+fn evalInts(op: parser.BinaryOp, left_result: Result, right_result: Result) !Result {
+    const left = left_result.value.integer;
+    const right = right_result.value.integer;
+    switch (op) {
+        .plus => {
+            return Result.newInteger(left + right);
+        },
+        .minus => {
+            return Result.newInteger(left - right);
+        },
+        .mult => {
+            return Result.newInteger(left * right);
+        },
+        .pow => {
+            return Result.newInteger(std.math.pow(lexer.int_t, left, right));
+        },
+        .eq => {
+            return Result.newBoolean(left == right);
+        },
+        .lt => {
+            return Result.newBoolean(left < right);
+        },
+        .lte => {
+            return Result.newBoolean(left <= right);
+        },
+        .gt => {
+            return Result.newBoolean(left > right);
+        },
+        .gte => {
+            return Result.newBoolean(left >= right);
+        },
+        .neq => {
+            return Result.newBoolean(left != right);
+        },
+        else => {
+            return error.InvalidIntBinaryOperator;
+        },
+    }
+}
+
+fn evalFloats(op: parser.BinaryOp, left_result: Result, right_result: Result) !Result {
+    const left = left_result.value.float;
+    const right = right_result.value.float;
+    switch (op) {
+        .plus => {
+            return Result.newFloat(left + right);
+        },
+        .minus => {
+            return Result.newFloat(left - right);
+        },
+        .mult => {
+            return Result.newFloat(left * right);
+        },
+        .div => {
+            if (right == 0) {
+                return error.DivideByZero;
+            }
+            return Result.newFloat(left / right);
+        },
+        .pow => {
+            return Result.newFloat(std.math.pow(lexer.float_t, left, right));
+        },
+        .eq => {
+            // TODO: use an epsilon
+            return Result.newBoolean(left == right);
+        },
+        .lt => {
+            return Result.newBoolean(left < right);
+        },
+        .lte => {
+            return Result.newBoolean(left <= right);
+        },
+        .gt => {
+            return Result.newBoolean(left > right);
+        },
+        .gte => {
+            return Result.newBoolean(left >= right);
+        },
+        .neq => {
+            return Result.newBoolean(left != right);
+        },
+        else => {
+            return error.InvalidFloatBinaryOperator;
+        },
+    }
+}
+
+fn coerceIntToFloat(r: Result) !Result {
+    switch (r.value) {
+        .integer => {
+            return Result.newFloat(@as(lexer.float_t, @floatFromInt(r.value.integer)));
+        },
+        .float => {
+            return r;
+        },
+        else => {
+            return error.InvalidCoercion;
+        },
+    }
+}
+
 pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
     var result: Result = undefined;
     switch (expr.value.*) {
@@ -119,6 +220,36 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
                 },
             }
         },
+        .binary => {
+            const binary = expr.value.binary;
+            var left = try eval(allocator, binary.left);
+            defer left.deinit(allocator);
+            var right = try eval(allocator, binary.right);
+            defer right.deinit(allocator);
+
+            var use_ints = switch (left.value) {
+                .integer => switch (right.value) {
+                    .integer => true,
+                    else => false,
+                },
+                else => false,
+            };
+            // Ints are closed under addition, subtraction, and multiplication.
+            // But not division.
+            const op = binary.op;
+            if (op == .div) {
+                use_ints = false;
+            }
+            if (use_ints) {
+                result = try evalInts(op, left, right);
+            } else {
+                var left_float = try coerceIntToFloat(left);
+                defer left_float.deinit(allocator);
+                var right_float = try coerceIntToFloat(right);
+                defer right_float.deinit(allocator);
+                result = try evalFloats(op, left_float, right_float);
+            }
+        },
         else => {
             return error.UnhandledExpression;
         },
@@ -126,9 +257,7 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
     return result;
 }
 
-test "simple evaluations" {
-    const allocator = std.heap.page_allocator;
-    const source = "-2";
+fn testInts(allocator: std.mem.Allocator, source: []const u8, expected: lexer.int_t) !void {
     var tokenizer = lexer.Tokenizer.new(source);
     const tokens = try tokenizer.tokenize(allocator);
     defer {
@@ -146,11 +275,41 @@ test "simple evaluations" {
 
     switch (result.value) {
         .integer => {
-            const expected: lexer.int_t = -2;
             try std.testing.expectEqual(expected, result.value.integer);
         },
         else => {
             try std.testing.expect(false);
         },
     }
+}
+
+test "integer evaluations" {
+    const allocator = std.heap.page_allocator;
+    try testInts(allocator, "-2", -2);
+    try testInts(allocator, "3 + 4", 7);
+    // const source = "-2";
+    // var tokenizer = lexer.Tokenizer.new(source);
+    // const tokens = try tokenizer.tokenize(allocator);
+    // defer {
+    //     for (tokens) |token| {
+    //         var t = token;
+    //         t.deinit(allocator);
+    //     }
+    //     allocator.free(tokens);
+    // }
+    // var p = parser.Parser.new(tokens);
+    // var expr = try p.parse(allocator);
+    // defer expr.destroySelf(allocator);
+    // var result = try eval(allocator, expr);
+    // defer result.deinit(allocator);
+
+    // switch (result.value) {
+    //     .integer => {
+    //         const expected: lexer.int_t = -2;
+    //         try std.testing.expectEqual(expected, result.value.integer);
+    //     },
+    //     else => {
+    //         try std.testing.expect(false);
+    //     },
+    // }
 }
