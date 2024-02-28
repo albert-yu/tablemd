@@ -257,7 +257,7 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
     return result;
 }
 
-fn testInts(allocator: std.mem.Allocator, source: []const u8, expected: lexer.int_t) !void {
+fn testEval(allocator: std.mem.Allocator, source: []const u8, comptime T: type, expected: T, val_getter: fn (Result) error{ValueError}!T) !void {
     var tokenizer = lexer.Tokenizer.new(source);
     const tokens = try tokenizer.tokenize(allocator);
     defer {
@@ -273,14 +273,19 @@ fn testInts(allocator: std.mem.Allocator, source: []const u8, expected: lexer.in
     var result = try eval(allocator, expr);
     defer result.deinit(allocator);
 
-    switch (result.value) {
-        .integer => {
-            try std.testing.expectEqual(expected, result.value.integer);
-        },
-        else => {
-            try std.testing.expect(false);
-        },
+    var result_value = try val_getter(result);
+    try std.testing.expectEqual(expected, result_value);
+}
+
+fn getIntVal(r: Result) error{ValueError}!lexer.int_t {
+    switch (r.value) {
+        .integer => return r.value.integer,
+        else => return error.ValueError,
     }
+}
+
+fn testInts(allocator: std.mem.Allocator, source: []const u8, expected: lexer.int_t) !void {
+    try testEval(allocator, source, lexer.int_t, expected, getIntVal);
 }
 
 test "integer evaluations" {
