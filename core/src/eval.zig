@@ -287,29 +287,4 @@ test "integer evaluations" {
     const allocator = std.heap.page_allocator;
     try testInts(allocator, "-2", -2);
     try testInts(allocator, "3 + 4", 7);
-    // const source = "-2";
-    // var tokenizer = lexer.Tokenizer.new(source);
-    // const tokens = try tokenizer.tokenize(allocator);
-    // defer {
-    //     for (tokens) |token| {
-    //         var t = token;
-    //         t.deinit(allocator);
-    //     }
-    //     allocator.free(tokens);
-    // }
-    // var p = parser.Parser.new(tokens);
-    // var expr = try p.parse(allocator);
-    // defer expr.destroySelf(allocator);
-    // var result = try eval(allocator, expr);
-    // defer result.deinit(allocator);
-
-    // switch (result.value) {
-    //     .integer => {
-    //         const expected: lexer.int_t = -2;
-    //         try std.testing.expectEqual(expected, result.value.integer);
-    //     },
-    //     else => {
-    //         try std.testing.expect(false);
-    //     },
-    // }
 }
