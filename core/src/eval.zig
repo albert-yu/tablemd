@@ -284,12 +284,34 @@ fn getIntVal(r: Result) error{ValueError}!lexer.int_t {
     }
 }
 
+fn getFloatVal(r: Result) error{ValueError}!lexer.float_t {
+    switch (r.value) {
+        .float => return r.value.float,
+        else => return error.ValueError,
+    }
+}
+
 fn testInts(allocator: std.mem.Allocator, source: []const u8, expected: lexer.int_t) !void {
     try testEval(allocator, source, lexer.int_t, expected, getIntVal);
+}
+
+fn testFloats(allocator: std.mem.Allocator, source: []const u8, expected: lexer.float_t) !void {
+    try testEval(allocator, source, lexer.float_t, expected, getFloatVal);
 }
 
 test "integer evaluations" {
     const allocator = std.heap.page_allocator;
     try testInts(allocator, "-2", -2);
     try testInts(allocator, "3 + 4", 7);
+    try testInts(allocator, "9 * 7", 63);
+    try testInts(allocator, "12*12", 144);
+    try testInts(allocator, "3^2", 9);
+    try testFloats(allocator, "12 / 2", 6);
+    try testFloats(allocator, "1 / 2", 0.5);
+}
+
+test "float evaluations" {
+    const allocator = std.heap.page_allocator;
+    try testFloats(allocator, "-2.0", -2.0);
+    try testFloats(allocator, "3.0 + 4.0", 7.0);
 }
