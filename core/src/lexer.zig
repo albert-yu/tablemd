@@ -15,8 +15,8 @@ pub const Literal = union(enum) {
     float: float_t,
     string: []const u8,
     /// like string, except it's a slice (no mem alloc)
-    keyword: []const u8,
-    cell_ref: CellRef,
+    keyword: []const u8, // TODO: should this be a literal?
+    cell_ref: CellRef, // TODO: should this be a literal?
 };
 
 /// Reference: https://support.microsoft.com/en-us/office/calculation-operators-and-precedence-in-excel-48be406d-4975-4d31-b2b8-7af9e0e2878a
