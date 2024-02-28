@@ -600,13 +600,7 @@ test "parse simple expressions" {
     var tokenizer = lexer.Tokenizer.new("5+4");
 
     const tokens = try tokenizer.tokenize(allocator);
-    defer {
-        for (tokens) |token| {
-            var t = token; // discard const
-            t.deinit(allocator);
-        }
-        allocator.free(tokens);
-    }
+    defer lexer.freeTokens(allocator, tokens);
     var parser = Parser.new(tokens);
     const expr = try parser.parse(allocator);
     defer expr.destroySelf(allocator);

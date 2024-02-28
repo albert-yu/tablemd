@@ -570,6 +570,7 @@ pub const Tokenizer = struct {
     }
 
     /// Tokenizes the input and returns a heap-allocated slice of tokens.
+    /// Hint: call `freeTokens` to free the memory.
     pub fn tokenize(self: *Tokenizer, allocator: std.mem.Allocator) ![]Token {
         var tokens_arrlist = try std.ArrayListUnmanaged(Token).initCapacity(allocator, 2);
         while (true) {
@@ -587,6 +588,14 @@ pub const Tokenizer = struct {
         return tokens;
     }
 };
+
+pub fn freeTokens(allocator: std.mem.Allocator, tokens: []Token) void {
+    for (tokens) |token| {
+        var t = token;
+        t.deinit(allocator);
+    }
+    allocator.free(tokens);
+}
 
 const ExpectedToken = struct {
     str: []const u8,
