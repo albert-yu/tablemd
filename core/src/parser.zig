@@ -1,5 +1,6 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
+const string_utils = @import("string_utils.zig");
 
 const float_t = lexer.float_t;
 const int_t = lexer.int_t;
@@ -63,15 +64,8 @@ const ExprOrTok = union(enum) {
     expr: *Expr,
 };
 
-fn copyString(allocator: std.mem.Allocator, s: []const u8) ![]const u8 {
-    const len = s.len;
-    const str = try allocator.alloc(u8, len);
-    @memcpy(str, s);
-    return str;
-}
-
 fn copyStrLiteral(allocator: std.mem.Allocator, s: []const u8) !ExprLiteral {
-    const str = try copyString(allocator, s);
+    const str = try string_utils.copyString(allocator, s);
     return ExprLiteral{
         .string = str,
     };
@@ -434,7 +428,7 @@ pub const Parser = struct {
             return expr;
         }
         if (self.matchOne(.func_call)) {
-            var func = try copyString(allocator, self.previous().literal.keyword);
+            var func = try string_utils.copyString(allocator, self.previous().literal.keyword);
             var args = try self.arguments(allocator);
             var expr = try Expr.createVariadic(allocator, .{
                 .func = func,
