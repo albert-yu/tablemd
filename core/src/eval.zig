@@ -3,50 +3,44 @@ const lexer = @import("lexer.zig");
 const parser = @import("parser.zig");
 const string_utils = @import("string_utils.zig");
 
-pub const ResolvedValue = union(enum) {
+pub const Result = union(enum) {
     none: void,
     boolean: bool,
     integer: lexer.int_t,
     float: lexer.float_t,
     string: []const u8,
-};
-
-pub const Result = struct {
-    value: ResolvedValue,
 
     pub fn newBoolean(b: bool) Result {
-        return Result{ .value = .{
+        return .{
             .boolean = b,
-        } };
+        };
     }
 
     pub fn newInteger(i: lexer.int_t) Result {
-        return Result{ .value = .{
+        return .{
             .integer = i,
-        } };
+        };
     }
 
     pub fn newFloat(f: lexer.float_t) Result {
-        return Result{ .value = .{
+        return .{
             .float = f,
-        } };
+        };
     }
 
     /// Input string is copied
     pub fn newString(allocator: std.mem.Allocator, str: []const u8) !Result {
         const s = try string_utils.copyString(allocator, str);
         const result = Result{
-            .value = .{
-                .string = s,
-            },
+            .string = s,
         };
         return result;
     }
 
-    pub fn deinit(self: *Result, allocator: std.mem.Allocator) void {
-        switch (self.value) {
+    pub fn deinit(self: Result, allocator: std.mem.Allocator) void {
+        switch (self) {
             .string => {
-                allocator.free(self.value.string);
+                allocator.free(self.string);
             },
             else => {},
         }
@@ -54,8 +48,8 @@ pub const Result = struct {
 };
 
 fn evalInts(op: parser.BinaryOp, left_result: Result, right_result: Result) !Result {
-    const left = left_result.value.integer;
-    const right = right_result.value.integer;
+    const left = left_result.integer;
+    const right = right_result.integer;
     switch (op) {
         .plus => {
             return Result.newInteger(left + right);
@@ -94,8 +88,8 @@ fn evalInts(op: parser.BinaryOp, left_result: Result, right_result: Result) !Res
 }
 
 fn evalFloats(op: parser.BinaryOp, left_result: Result, right_result: Result) !Result {
-    const left = left_result.value.float;
-    const right = right_result.value.float;
+    const left = left_result.float;
+    const right = right_result.float;
     switch (op) {
         .plus => {
             return Result.newFloat(left + right);
@@ -141,9 +135,9 @@ fn evalFloats(op: parser.BinaryOp, left_result: Result, right_result: Result) !R
 }
 
 fn coerceIntToFloat(r: Result) !Result {
-    switch (r.value) {
+    switch (r) {
         .integer => {
-            return Result.newFloat(@as(lexer.float_t, @floatFromInt(r.value.integer)));
+            return Result.newFloat(@as(lexer.float_t, @floatFromInt(r.integer)));
         },
         .float => {
             return r;
@@ -186,12 +180,12 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
             defer operand.deinit(allocator);
             switch (unary.op) {
                 .neg => {
-                    switch (operand.value) {
+                    switch (operand) {
                         .integer => {
-                            result = Result.newInteger(-operand.value.integer);
+                            result = Result.newInteger(-operand.integer);
                         },
                         .float => {
-                            result = Result.newFloat(-operand.value.float);
+                            result = Result.newFloat(-operand.float);
                         },
                         else => {
                             std.log.warn("Negative operand must be float or integer", .{});
@@ -200,13 +194,13 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
                     }
                 },
                 .percent => {
-                    switch (operand.value) {
+                    switch (operand) {
                         .integer => {
-                            const as_float = @as(lexer.float_t, @floatFromInt(operand.value.integer));
+                            const as_float = @as(lexer.float_t, @floatFromInt(operand.integer));
                             result = Result.newFloat(as_float / 100);
                         },
                         .float => {
-                            result = Result.newFloat(operand.value.float / 100.0);
+                            result = Result.newFloat(operand.float / 100.0);
                         },
                         else => {
                             std.log.warn("Percent operand must be float or integer", .{});
@@ -227,8 +221,8 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
             var right = try eval(allocator, binary.right);
             defer right.deinit(allocator);
 
-            var use_ints = switch (left.value) {
-                .integer => switch (right.value) {
+            var use_ints = switch (left) {
+                .integer => switch (right) {
                     .integer => true,
                     else => false,
                 },
@@ -273,15 +267,15 @@ fn testEval(allocator: std.mem.Allocator, source: []const u8, comptime T: type, 
 }
 
 fn getIntVal(r: Result) error{ValueError}!lexer.int_t {
-    switch (r.value) {
-        .integer => return r.value.integer,
+    switch (r) {
+        .integer => return r.integer,
         else => return error.ValueError,
     }
 }
 
 fn getFloatVal(r: Result) error{ValueError}!lexer.float_t {
-    switch (r.value) {
-        .float => return r.value.float,
+    switch (r) {
+        .float => return r.float,
         else => return error.ValueError,
     }
 }
