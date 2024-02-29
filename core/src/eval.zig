@@ -150,12 +150,12 @@ fn coerceIntToFloat(r: Result) !Result {
 
 pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
     var result: Result = undefined;
-    switch (expr.value.*) {
+    switch (expr.*) {
         .unknown => {
             return error.UnknownExpression;
         },
         .literal => {
-            const literal = expr.value.literal;
+            const literal = expr.literal;
             switch (literal) {
                 .boolean => {
                     result = Result.newBoolean(literal.boolean);
@@ -175,7 +175,7 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
             }
         },
         .unary => {
-            const unary = expr.value.unary;
+            const unary = expr.unary;
             var operand = try eval(allocator, unary.operand);
             defer operand.deinit(allocator);
             switch (unary.op) {
@@ -215,7 +215,7 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
             }
         },
         .binary => {
-            const binary = expr.value.binary;
+            const binary = expr.binary;
             var left = try eval(allocator, binary.left);
             defer left.deinit(allocator);
             var right = try eval(allocator, binary.right);
