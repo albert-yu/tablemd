@@ -558,7 +558,13 @@ pub const Parser = struct {
 pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Expr {
     var tokenizer = lexer.Tokenizer.new(input);
     const tokens = try tokenizer.tokenize(allocator);
-    defer lexer.freeTokens(allocator, tokens);
+    defer {
+        for (tokens) |token| {
+            var t = token; // discard const
+            t.deinit(allocator);
+        }
+        allocator.free(tokens);
+    }
 
     var parser = Parser.new(tokens);
     const expr = try parser.parse(allocator);
@@ -598,12 +604,8 @@ test "print debug" {
 
 test "parse simple expressions" {
     const allocator = std.testing.allocator;
-    var tokenizer = lexer.Tokenizer.new("5+4");
 
-    const tokens = try tokenizer.tokenize(allocator);
-    defer lexer.freeTokens(allocator, tokens);
-    var parser = Parser.new(tokens);
-    const expr = try parser.parse(allocator);
+    const expr = try parse(allocator, "5+4");
     defer expr.destroySelf(allocator);
 
     switch (expr.value.*) {
