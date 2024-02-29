@@ -446,3 +446,13 @@ test "float evaluations" {
     try testFloats(allocator, "3.0 + 4.0", 7.0);
     try testFloats(allocator, "SUM(1, 2, 3.5)", 6.5);
 }
+
+test "precedence" {
+    const allocator = std.heap.page_allocator;
+    try testInts(allocator, "3 + 4 * 5", 23);
+    try testInts(allocator, "3 * 4 + 5", 17);
+    try testInts(allocator, "3 * (4 + 5)", 27);
+    try testInts(allocator, "3 * (4 + 5) * 2", 54);
+    try testInts(allocator, "3 * (4 + 5) * 2 + 1", 55);
+    try testInts(allocator, "3 * (4 + 5) * (2 + 1)", 81);
+}
