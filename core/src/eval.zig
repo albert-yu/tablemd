@@ -444,4 +444,5 @@ test "float evaluations" {
     const allocator = std.heap.page_allocator;
     try testFloats(allocator, "-2.0", -2.0);
     try testFloats(allocator, "3.0 + 4.0", 7.0);
+    try testFloats(allocator, "SUM(1, 2, 3.5)", 6.5);
 }
