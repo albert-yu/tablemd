@@ -1,23 +1,11 @@
 const std = @import("std");
-const parse = @import("parser.zig");
-const lexer = @import("lexer.zig");
+const parser = @import("parser.zig");
 const print = std.debug.print;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    var tokenizer = lexer.Tokenizer.new("SUM(1,2)");
-    const tokens = try tokenizer.tokenize(allocator);
-    defer {
-        for (tokens) |token| {
-            var t = token; // discard const
-            t.deinit(allocator);
-        }
-        allocator.free(tokens);
-    }
-
-    var parser = parse.Parser.new(tokens);
-    const expr = try parser.parse(allocator);
+    const expr = try parser.parse(allocator, "SUM(1,2)");
     defer expr.destroySelf(allocator);
 
     const sexpr = try expr.toAstString(allocator);

@@ -252,12 +252,7 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) !Result {
 }
 
 fn testEval(allocator: std.mem.Allocator, source: []const u8, comptime T: type, expected: T, val_getter: fn (Result) error{ValueError}!T) !void {
-    var tokenizer = lexer.Tokenizer.new(source);
-    const tokens = try tokenizer.tokenize(allocator);
-    defer lexer.freeTokens(allocator, tokens);
-
-    var p = parser.Parser.new(tokens);
-    var expr = try p.parse(allocator);
+    var expr = try parser.parse(allocator, source);
     defer expr.destroySelf(allocator);
     var result = try eval(allocator, expr);
     defer result.deinit(allocator);

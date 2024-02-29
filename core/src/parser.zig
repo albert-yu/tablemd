@@ -553,24 +553,25 @@ pub const Parser = struct {
     }
 };
 
+/// Parse the input into an expression.
+/// Caller must free the returned expression.
+pub fn parse(allocator: std.mem.Allocator, input: []const u8) !*Expr {
+    var tokenizer = lexer.Tokenizer.new(input);
+    const tokens = try tokenizer.tokenize(allocator);
+    defer lexer.freeTokens(allocator, tokens);
+
+    var parser = Parser.new(tokens);
+    const expr = try parser.parse(allocator);
+    return expr;
+}
+
 const ParserTestCase = struct {
     input: []const u8,
     expected_str: []const u8,
 };
 
 fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
-    var tokenizer = lexer.Tokenizer.new(test_case.input);
-    const tokens = try tokenizer.tokenize(allocator);
-    defer {
-        for (tokens) |token| {
-            var t = token; // discard const
-            t.deinit(allocator);
-        }
-        allocator.free(tokens);
-    }
-
-    var parser = Parser.new(tokens);
-    const expr = try parser.parse(allocator);
+    const expr = try parse(allocator, test_case.input);
     defer expr.destroySelf(allocator);
 
     const sexpr = try expr.toAstString(allocator);
