@@ -35,14 +35,12 @@ pub fn main() !void {
             continue;
         }
         const expr = parser.parse(allocator, line) catch |err| {
-            // TODO: this leaks
             try stdout.print("Parse error: {}\n", .{err});
             continue;
         };
         defer expr.destroySelf(allocator);
 
         const result = evaluator.eval(allocator, expr) catch |err| {
-            // TODO: this leaks
             try stdout.print("Eval error: {}\n", .{err});
             continue;
         };
