@@ -24,6 +24,9 @@ pub fn main() !void {
             continue;
         }
         const line = std.mem.trimRight(u8, line_buf[0..amt], "\r\n");
+        if (line.len == 0) {
+            continue;
+        }
         const expr = parser.parse(allocator, line) catch |err| {
             // TODO: this leaks
             try stdout.print("Parse error: {}\n", .{err});
