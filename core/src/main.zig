@@ -10,7 +10,7 @@ pub fn main() !void {
     const stdout = io.getStdOut().writer();
     const stdin = io.getStdIn();
 
-    try stdout.print("Spreadsheet.\n", .{});
+    try stdout.print("Spreadsheet. (^D to exit)\n", .{});
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
@@ -19,6 +19,10 @@ pub fn main() !void {
     while (true) {
         try stdout.print("> ", .{});
         const amt = try stdin.read(&line_buf);
+        if (amt == 0) {
+            // ctrl-d
+            break;
+        }
         if (amt == line_buf.len) {
             try stdout.print("Input too long.\n", .{});
             continue;
