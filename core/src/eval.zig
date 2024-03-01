@@ -45,6 +45,44 @@ pub const Result = union(enum) {
             else => {},
         }
     }
+
+    pub fn toString(self: Result, allocator: std.mem.Allocator) ![]const u8 {
+        var string_builder = std.ArrayList(u8).init(allocator);
+        switch (self) {
+            .none => {
+                string_builder.appendSlice("NONE");
+            },
+            .boolean => {
+                if (self.boolean) {
+                    string_builder.appendSlice("TRUE");
+                } else {
+                    string_builder.appendSlice("FALSE");
+                }
+            },
+            .integer => {
+                const str = try std.fmt.allocPrint(allocator, "{d}", self.integer);
+                defer allocator.free(str);
+                string_builder.appendSlice(str);
+            },
+            .float => {
+                const str = try std.fmt.allocPrint(allocator, "{f}", self.float);
+                defer allocator.free(str);
+                string_builder.appendSlice(str);
+            },
+            .string => {
+                string_builder.append('"');
+                for (self.string) |c| {
+                    if (c == '"') {
+                        // escape double quotes
+                        string_builder.append('\\');
+                    }
+                    string_builder.append(c);
+                }
+                string_builder.append('"');
+            },
+        }
+        return try string_builder.toOwnedSlice(allocator);
+    }
 };
 
 fn evalInts(op: parser.BinaryOp, left_result: Result, right_result: Result) !Result {
