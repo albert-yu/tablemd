@@ -50,38 +50,38 @@ pub const Result = union(enum) {
         var string_builder = std.ArrayList(u8).init(allocator);
         switch (self) {
             .none => {
-                string_builder.appendSlice("NONE");
+                try string_builder.appendSlice("NONE");
             },
             .boolean => {
                 if (self.boolean) {
-                    string_builder.appendSlice("TRUE");
+                    try string_builder.appendSlice("TRUE");
                 } else {
-                    string_builder.appendSlice("FALSE");
+                    try string_builder.appendSlice("FALSE");
                 }
             },
             .integer => {
-                const str = try std.fmt.allocPrint(allocator, "{d}", self.integer);
+                const str = try std.fmt.allocPrint(allocator, "{d}", .{self.integer});
                 defer allocator.free(str);
-                string_builder.appendSlice(str);
+                try string_builder.appendSlice(str);
             },
             .float => {
-                const str = try std.fmt.allocPrint(allocator, "{f}", self.float);
+                const str = try std.fmt.allocPrint(allocator, "{d}", .{self.float});
                 defer allocator.free(str);
-                string_builder.appendSlice(str);
+                try string_builder.appendSlice(str);
             },
             .string => {
-                string_builder.append('"');
+                try string_builder.append('"');
                 for (self.string) |c| {
                     if (c == '"') {
                         // escape double quotes
-                        string_builder.append('\\');
+                        try string_builder.append('\\');
                     }
-                    string_builder.append(c);
+                    try string_builder.append(c);
                 }
-                string_builder.append('"');
+                try string_builder.append('"');
             },
         }
-        return try string_builder.toOwnedSlice(allocator);
+        return try string_builder.toOwnedSlice();
     }
 };
 
