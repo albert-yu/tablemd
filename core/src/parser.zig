@@ -282,7 +282,7 @@ fn copyStrLiteral(allocator: std.mem.Allocator, s: []const u8) !ExprLiteral {
     };
 }
 
-pub const Parser = struct {
+const Parser = struct {
     current: usize,
     tokens: []const lexer.Token,
 
