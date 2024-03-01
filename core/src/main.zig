@@ -14,7 +14,10 @@ pub fn main() !void {
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = gpa.allocator();
+    const gpa_allocator = gpa.allocator();
+    var arena_allocator = std.heap.ArenaAllocator.init(gpa_allocator);
+    defer arena_allocator.deinit();
+    const allocator = arena_allocator.allocator();
     var line_buf: [2048]u8 = undefined;
     while (true) {
         try stdout.print("> ", .{});
