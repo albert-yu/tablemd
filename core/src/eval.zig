@@ -214,6 +214,8 @@ fn evalNumericArgs(allocator: std.mem.Allocator, args: []const *parser.Expr) any
     var arg_list = try std.ArrayListUnmanaged(*Result).initCapacity(allocator, 1);
     defer arg_list.deinit(allocator);
     var use_float = false;
+
+    // evaluate all the numbers and store them in a list
     for (args) |arg| {
         const r = try eval(allocator, arg);
         const allocated = try allocator.create(Result);
@@ -227,6 +229,14 @@ fn evalNumericArgs(allocator: std.mem.Allocator, args: []const *parser.Expr) any
             else => return error.InvalidNumericArgument,
         }
     }
+    defer {
+        for (arg_list.items) |r| {
+            r.deinit(allocator);
+            allocator.destroy(r);
+        }
+    }
+
+    // convert list to a NumericResult
     var result: NumericResult = undefined;
     if (use_float) {
         result = NumericResult{

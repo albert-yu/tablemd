@@ -43,6 +43,7 @@ pub fn main() !void {
             try stdout.print("Eval error: {}\n", .{err});
             continue;
         };
+        defer result.deinit(allocator);
         const str = try result.toString(allocator);
         defer allocator.free(str);
         try stdout.print("{s}\n", .{str});
