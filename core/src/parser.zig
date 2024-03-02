@@ -323,7 +323,7 @@ const Parser = struct {
         if (self.check(tokenType)) {
             return self.advance();
         }
-        std.log.err("Error: {s}\n", .{message});
+        std.log.err("{s}\n", .{message});
         return error.TokenError;
     }
 
@@ -416,7 +416,7 @@ const Parser = struct {
             return try Expr.createGrouping(allocator, expr);
         }
 
-        std.log.err("Error: unexpected token {}\n", .{self.peek().type});
+        std.log.err("unexpected token {}\n", .{self.peek().type});
         // TODO: is this the right return value?
         return error.TokenError;
     }
@@ -442,12 +442,14 @@ const Parser = struct {
 
     fn exp(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.unaryPre(allocator);
+        errdefer expr.destroySelf(allocator);
 
         while (self.match(&[_]lexer.TokenType{
             .pow,
         })) {
             var operator = self.previous();
             var right = try self.unaryPre(allocator);
+            errdefer right.destroySelf(allocator);
             var op = switch (operator.type) {
                 .pow => BinaryOp.pow,
                 else => unreachable,
@@ -460,6 +462,7 @@ const Parser = struct {
 
     fn factor(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.exp(allocator);
+        errdefer expr.destroySelf(allocator);
 
         while (self.match(&[_]lexer.TokenType{
             .mult,
@@ -467,6 +470,7 @@ const Parser = struct {
         })) {
             var operator = self.previous();
             var right = try self.exp(allocator);
+            errdefer right.destroySelf(allocator);
             var op = switch (operator.type) {
                 .mult => BinaryOp.mult,
                 .div => BinaryOp.div,
@@ -480,12 +484,14 @@ const Parser = struct {
 
     fn term(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         var expr = try self.factor(allocator);
+        errdefer expr.destroySelf(allocator);
         while (self.match(&[_]lexer.TokenType{
             .minus,
             .plus,
         })) {
             var operator = self.previous();
             var right = try self.factor(allocator);
+            errdefer right.destroySelf(allocator);
             var op = switch (operator.type) {
                 .minus => BinaryOp.minus,
                 .plus => BinaryOp.plus,
