@@ -372,6 +372,7 @@ pub const Tokenizer = struct {
         if (c == '"') {
             var lexeme_len: usize = 1;
             var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
+            errdefer octets.deinit(allocator);
             var char = self.advance();
             while (!self.isEof()) {
                 lexeme_len += 1;
