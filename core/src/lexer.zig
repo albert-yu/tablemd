@@ -142,7 +142,7 @@ pub const Token = struct {
     start: usize,
     end: usize,
     /// matched string
-    lexeme: []const u8,
+    repr: []const u8,
     literal: Literal,
 
     const Self = @This();
@@ -276,7 +276,7 @@ pub const Tokenizer = struct {
                 .type = TokenType.eof,
                 .start = start,
                 .end = start,
-                .lexeme = self.input[start..start],
+                .repr = self.input[start..start],
                 .literal = .{
                     .none = undefined,
                 },
@@ -297,7 +297,7 @@ pub const Tokenizer = struct {
                     .type = tok_type,
                     .start = start,
                     .end = end,
-                    .lexeme = self.input[start..end],
+                    .repr = self.input[start..end],
                     .literal = .{
                         .none = undefined,
                     },
@@ -312,7 +312,7 @@ pub const Tokenizer = struct {
                 .type = tok_type,
                 .start = start,
                 .end = end,
-                .lexeme = self.input[start..end],
+                .repr = self.input[start..end],
                 .literal = .{
                     .none = undefined,
                 },
@@ -325,30 +325,30 @@ pub const Tokenizer = struct {
             // (up to 31 characters long within).
             const MAX_SHEET_NAME = 31;
             var tok_type = TokenType.str_literal;
-            var lexeme_len: usize = 1;
+            var repr_len: usize = 1;
             var char = c;
-            while (lexeme_len <= MAX_SHEET_NAME and !self.isEof()) {
+            while (repr_len <= MAX_SHEET_NAME and !self.isEof()) {
                 const next_char = self.peek();
                 if (char == '\'' and next_char == '!') {
                     tok_type = TokenType.sheet_ref;
                     _ = self.advance();
-                    lexeme_len += 1; // + bang
+                    repr_len += 1; // + bang
                     break;
                 }
                 char = self.advance();
-                lexeme_len += 1;
+                repr_len += 1;
             }
             if (tok_type == .sheet_ref) {
                 // allocate memory for new string
-                const end = start + lexeme_len;
-                const lexeme = self.input[start..end];
+                const end = start + repr_len;
+                const repr = self.input[start..end];
                 // TODO: subroutine for extracting string
                 // handling escape characters
                 return Token{
                     .type = tok_type,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{
                         .none = undefined,
                     },
@@ -357,29 +357,29 @@ pub const Tokenizer = struct {
             // keep going till end
             while (!self.isEof()) {
                 _ = self.advance();
-                lexeme_len += 1;
+                repr_len += 1;
             }
-            const end = start + lexeme_len;
-            const lexeme = self.input[start..end];
+            const end = start + repr_len;
+            const repr = self.input[start..end];
             // start at 1 to skip the single quote
-            const str_lit = try interpretString(allocator, lexeme[1..], '\'');
+            const str_lit = try interpretString(allocator, repr[1..], '\'');
             return Token{
                 .type = tok_type,
                 .start = start,
                 .end = end,
-                .lexeme = lexeme,
+                .repr = repr,
                 .literal = .{
                     .string = str_lit,
                 },
             };
         }
         if (c == '"') {
-            var lexeme_len: usize = 1;
+            var repr_len: usize = 1;
             var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
             errdefer octets.deinit(allocator);
             var char = self.advance();
             while (!self.isEof()) {
-                lexeme_len += 1;
+                repr_len += 1;
                 if (char == '"') {
                     const peeked = self.peek();
                     if (peeked == char) {
@@ -393,12 +393,12 @@ pub const Tokenizer = struct {
                 char = self.advance();
             }
             const literal = try octets.toOwnedSlice(allocator);
-            const end = start + lexeme_len;
+            const end = start + repr_len;
             return Token{
                 .type = .str_literal,
                 .start = start,
                 .end = end,
-                .lexeme = self.input[start..end],
+                .repr = self.input[start..end],
                 .literal = .{
                     .string = literal,
                 },
@@ -423,26 +423,26 @@ pub const Tokenizer = struct {
                 char = self.advance();
             }
             const end = self.tick;
-            const lexeme = self.input[start..end];
+            const repr = self.input[start..end];
             if (seen_dot) {
                 // float
-                const float = try std.fmt.parseFloat(float_t, lexeme);
+                const float = try std.fmt.parseFloat(float_t, repr);
                 return Token{
                     .type = .num_literal,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{
                         .float = float,
                     },
                 };
             }
-            const int = try std.fmt.parseInt(int_t, lexeme, 10);
+            const int = try std.fmt.parseInt(int_t, repr, 10);
             return Token{
                 .type = .num_literal,
                 .start = start,
                 .end = end,
-                .lexeme = lexeme,
+                .repr = repr,
                 .literal = .{
                     .integer = int,
                 },
@@ -460,48 +460,48 @@ pub const Tokenizer = struct {
             }
             // no longer alphanumeric
             const end = self.tick;
-            const lexeme = self.input[start..end];
+            const repr = self.input[start..end];
             if (char == '(') {
                 return Token{
                     .type = .func_call,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{
-                        .keyword = lexeme[0..(lexeme.len - 1)],
+                        .keyword = repr[0..(repr.len - 1)],
                     },
                 };
             }
             if (char == '!') {
-                const value = try allocator.alloc(u8, lexeme.len);
+                const value = try allocator.alloc(u8, repr.len);
                 // TODO: handle escape characters if any
-                std.mem.copy(u8, value, lexeme[0..(lexeme.len - 1)]);
+                std.mem.copy(u8, value, repr[0..(repr.len - 1)]);
                 return Token{
                     .type = .sheet_ref,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{ .string = value },
                 };
             }
             // true, false literals
-            if (std.mem.eql(u8, "TRUE", lexeme) or std.mem.eql(u8, "true", lexeme)) {
+            if (std.mem.eql(u8, "TRUE", repr) or std.mem.eql(u8, "true", repr)) {
                 return Token{
                     .type = .true,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{
                         .boolean = true,
                     },
                 };
             }
-            if (std.mem.eql(u8, "FALSE", lexeme) or std.mem.eql(u8, "false", lexeme)) {
+            if (std.mem.eql(u8, "FALSE", repr) or std.mem.eql(u8, "false", repr)) {
                 return Token{
                     .type = .false,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{
                         .boolean = false,
                     },
@@ -550,14 +550,14 @@ pub const Tokenizer = struct {
                     }
                 }
                 const end = self.tick;
-                const lexeme = self.input[start..end];
+                const repr = self.input[start..end];
                 const row_str = self.input[digit_start..end];
                 const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
                 return Token{
                     .type = .cell_ref,
                     .start = start,
                     .end = end,
-                    .lexeme = lexeme,
+                    .repr = repr,
                     .literal = .{
                         .cell_ref = .{
                             .row = row_number - 1,
