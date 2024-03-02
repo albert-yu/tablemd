@@ -402,7 +402,14 @@ const Parser = struct {
         }
         if (self.matchOne(.func_call)) {
             var func = try string_utils.copyString(allocator, self.previous().literal.keyword);
+            errdefer allocator.free(func);
             var args = try self.arguments(allocator);
+            errdefer {
+                for (args) |arg| {
+                    arg.destroySelf(allocator);
+                }
+                allocator.free(args);
+            }
             var expr = try Expr.createVariadic(allocator, .{
                 .func = func,
                 .args = args,
