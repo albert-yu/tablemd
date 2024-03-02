@@ -192,6 +192,8 @@ fn getSingleCharToken(c: u8) ?TokenType {
         '*' => .mult,
         '^' => .pow,
         '/' => .div,
+        '>' => .gt,
+        '<' => .lt,
         '(' => .l_paren,
         '[' => .l_bracket,
         '{' => .l_brace,
@@ -215,11 +217,11 @@ fn getTwoCharToken(left: u8, right: u8) ?TokenType {
         '<' => switch (right) {
             '=' => .lte,
             '>' => .neq,
-            else => .lt,
+            else => null,
         },
         '>' => switch (right) {
             '=' => .gte,
-            else => .gt,
+            else => null,
         },
         else => null,
     };
@@ -282,19 +284,6 @@ pub const Tokenizer = struct {
         }
 
         const c = self.advance();
-        const maybe_tok = getSingleCharToken(c);
-        if (maybe_tok) |tok_type| {
-            const end = start + 1;
-            return Token{
-                .type = tok_type,
-                .start = start,
-                .end = end,
-                .lexeme = self.input[start..end],
-                .literal = .{
-                    .none = undefined,
-                },
-            };
-        }
 
         // two-character tokens
         if (!self.isEof()) {
@@ -315,6 +304,21 @@ pub const Tokenizer = struct {
                 };
             }
         }
+
+        const maybe_tok = getSingleCharToken(c);
+        if (maybe_tok) |tok_type| {
+            const end = start + 1;
+            return Token{
+                .type = tok_type,
+                .start = start,
+                .end = end,
+                .lexeme = self.input[start..end],
+                .literal = .{
+                    .none = undefined,
+                },
+            };
+        }
+
         if (c == '\'') {
             // leading single quote (') can be either unterminated
             // sheet name or string. Sheet name has closing quote
