@@ -111,13 +111,13 @@ fn isAlphaNumeric(c: u8) bool {
 
 fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8) ![]const u8 {
     var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, str.len);
+    errdefer octets.deinit(allocator);
     var i: usize = 0;
     while (i < str.len) {
         const c = str[i];
         const at_end = i == str.len - 1;
         if (c == quote_char) {
             if (at_end) {
-                octets.deinit(allocator);
                 return error.UnterminatedEscapeChar;
             }
             i += 1;
@@ -125,7 +125,6 @@ fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8
             if (next == quote_char) {
                 try octets.append(allocator, next);
             } else {
-                octets.deinit(allocator);
                 return error.InvalidEscapeSequence;
             }
         } else {
