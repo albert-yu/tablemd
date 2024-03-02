@@ -323,8 +323,7 @@ const Parser = struct {
         if (self.check(tokenType)) {
             return self.advance();
         }
-        // TODO: incorporate error message
-        _ = message;
+        std.log.err("Error: {s}\n", .{message});
         return error.TokenError;
     }
 
@@ -417,6 +416,7 @@ const Parser = struct {
             return try Expr.createGrouping(allocator, expr);
         }
 
+        std.log.err("Error: unexpected token {}\n", .{self.peek().type});
         // TODO: is this the right return value?
         return error.TokenError;
     }
