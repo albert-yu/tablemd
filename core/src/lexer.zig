@@ -573,6 +573,7 @@ pub const Tokenizer = struct {
     /// Tokenizes the input and returns a heap-allocated slice of tokens.
     pub fn tokenize(self: *Tokenizer, allocator: std.mem.Allocator) ![]Token {
         var tokens_arrlist = try std.ArrayListUnmanaged(Token).initCapacity(allocator, 2);
+        errdefer tokens_arrlist.deinit(allocator);
         while (true) {
             var token = try self.next(allocator);
             if (token.type == .space) {
