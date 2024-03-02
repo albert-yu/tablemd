@@ -566,6 +566,7 @@ pub const Tokenizer = struct {
         }
 
         // catch-all
+        std.log.err("unexpected character: {c}\n", .{c});
         return error.UnexpectedCharacter;
     }
 
