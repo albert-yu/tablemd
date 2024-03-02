@@ -530,7 +530,6 @@ pub const Tokenizer = struct {
             if (count_alpha == 1 or count_alpha == 2) {
                 var col_index: usize = switch (count_alpha) {
                     1 => getAlphaOffset(col_ref[0]),
-
                     2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
                     else => unreachable,
                 };
