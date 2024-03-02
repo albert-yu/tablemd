@@ -423,7 +423,8 @@ const Parser = struct {
             return try Expr.createGrouping(allocator, expr);
         }
 
-        std.log.err("unexpected token {}\n", .{self.peek().type});
+        // TODO: std.log.err and .warn fail the test
+        std.log.debug("unexpected token {}\n", .{self.peek().type});
         // TODO: is this the right return value?
         return error.TokenError;
     }
@@ -647,4 +648,13 @@ test "precedence" {
     try testParse(allocator, .{ .input = "2*3^4", .expected_str = "(* 2 (^ 3 4))" });
     // Yes, this is actually how precedence works in Google Sheets!
     try testParse(allocator, .{ .input = "-2^2", .expected_str = "(^ (- 2) 2)" });
+}
+
+test "invalid input leak" {
+    const allocator = std.testing.allocator;
+    const result = parse(allocator, "1+");
+    try std.testing.expectError(error.TokenError, result);
+
+    const result_2 = parse(allocator, "1 $");
+    try std.testing.expectError(error.UnexpectedCharacter, result_2);
 }
