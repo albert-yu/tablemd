@@ -4,7 +4,10 @@ pub const float_t = f64;
 pub const int_t = i64;
 
 /// Cell reference for indexing
-pub const CellRef = struct { row: usize, col: usize };
+pub const CellRef = struct {
+    row: usize,
+    col: usize,
+};
 
 /// Tagged union of possible literal values
 pub const Literal = union(enum) {
