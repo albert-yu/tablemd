@@ -10,45 +10,72 @@ const MH = H - 1; // 31
 const SIZEW = 1 << (4 * LOGW); // 65536
 const SIZEH = 1 << (4 * LOGH); // 1048576
 
-// private readonly Cell[][][][] tile0 = new Cell[W * H]
+// Cell[][][][] tile0 = new Cell[W * H]
 
 const Data = struct {
     raw: []const u8,
     parsed: *parser.Expr,
 };
 
-const TreeNode = union(enum) {
-    /// leaf
-    data: Data,
+const Tile3 = []Data;
+const Tile2 = []Tile3;
+const Tile1 = []Tile2;
+const Tile0 = []Tile1;
 
-    /// size W * H
-    children: ?[]*TreeNode,
-};
+inline fn compute_index(row: usize, col: usize, remaining_levels: usize) usize {
+    return (((col >> (remaining_levels * LOGW)) & MW) << LOGH) | ((row >> (remaining_levels * LOGH)) & MH);
+}
 
 /// QT4 is a simplified 4-level quadtree
 /// See Spreadsheet Implementation Technology (Sestoft)
 /// p. 60
-pub const Map = struct {
-    root: *TreeNode,
+pub const QT4 = struct {
+    root: Tile0,
 
-    pub fn new(allocator: std.mem.Allocator) !Map {
-        const root = try allocator.create(TreeNode);
-        const children = try allocator.alloc(*TreeNode, W * H);
-        root.* = TreeNode{
-            .children = children,
-        };
-        return Map{
+    pub fn new(allocator: std.mem.Allocator) !QT4 {
+        const root = try allocator.alloc(Tile1, W * H);
+        return QT4{
             .root = root,
         };
     }
 
-    pub fn deinit(self: Map, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: QT4, allocator: std.mem.Allocator) void {
         allocator.destroy(self.tree.root);
     }
 
-    // pub fn get(self: Map, row: usize, col: usize) ?Data {
-    //     if (SIZEW <= col or SIZEH <= row) {
-    //         return null;
-    //     }
-    // }
+    pub fn get(self: QT4, row: usize, col: usize) ?Data {
+        if (SIZEW <= col or SIZEH <= row) {
+            return null;
+        }
+        const index_1 = compute_index(row, col, 3);
+        if (index_1 >= self.root.len) {
+            return null;
+        }
+        const tile_1 = self.root[index_1];
+        if (tile_1.len == 0) {
+            // TODO: does this check work for an unallocated slice?
+            return null;
+        }
+        const index_2 = compute_index(row, col, 2);
+        if (index_2 >= tile_1.len) {
+            return null;
+        }
+        const tile_2 = tile_1[index_2];
+        if (tile_2.len == 0) {
+            return null;
+        }
+        const index_3 = compute_index(row, col, 1);
+        if (index_3 >= tile_2.len) {
+            return null;
+        }
+        const tile_3 = tile_2[index_3];
+        if (tile_3.len == 0) {
+            return null;
+        }
+        const index_4 = compute_index(row, col, 0);
+        if (index_4 >= tile_3.len) {
+            return null;
+        }
+        return tile_3[index_4];
+    }
 };
