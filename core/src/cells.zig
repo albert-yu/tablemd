@@ -35,7 +35,6 @@ pub const QT4 = struct {
     allocs_tile_1: std.ArrayList(Tile1),
     allocs_tile_2: std.ArrayList(Tile2),
     allocs_tile_3: std.ArrayList(Tile3),
-    allocs_data: std.ArrayList(Data),
 
     pub fn new(allocator: std.mem.Allocator) !QT4 {
         const root = try allocator.alloc(Tile1, W * H);
@@ -44,16 +43,10 @@ pub const QT4 = struct {
             .allocs_tile_1 = try std.ArrayList(Tile1).init(allocator),
             .allocs_tile_2 = try std.ArrayList(Tile2).init(allocator),
             .allocs_tile_3 = try std.ArrayList(Tile3).init(allocator),
-            .allocs_data = try std.ArrayList(Data).init(allocator),
         };
     }
 
     pub fn deinit(self: QT4, allocator: std.mem.Allocator) void {
-        for (self.allocs_data.items) |data| {
-            data.parsed.destroySelf(allocator);
-        }
-        self.allocs_data.deinit();
-
         for (self.allocs_tile_3.items) |data_slice| {
             allocator.free(data_slice);
         }
