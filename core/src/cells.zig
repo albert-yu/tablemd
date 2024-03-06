@@ -38,12 +38,12 @@ pub fn QT4(comptime T: type) type {
 
         const Self = @This();
         pub fn new(allocator: std.mem.Allocator) !Self {
-            const root = try allocator.alloc(T, W * H);
+            const root = try allocator.alloc([][][]T, W * H);
             return Self{
                 .root = root,
-                .allocs_tile_1 = try std.ArrayList([][][]T).init(allocator),
-                .allocs_tile_2 = try std.ArrayList([][]T).init(allocator),
-                .allocs_tile_3 = try std.ArrayList([]T).init(allocator),
+                .allocs_tile_1 = try std.ArrayList([][][]T).initCapacity(allocator, 0),
+                .allocs_tile_2 = try std.ArrayList([][]T).initCapacity(allocator, 0),
+                .allocs_tile_3 = try std.ArrayList([]T).initCapacity(allocator, 0),
             };
         }
 
@@ -100,7 +100,7 @@ pub fn QT4(comptime T: type) type {
         }
 
         /// Right now, invalid indexes are no-ops
-        pub fn set(self: Map, allocator: std.mem.Allocator, row: usize, col: usize, data: T) !void {
+        pub fn set(self: *Self, allocator: std.mem.Allocator, row: usize, col: usize, data: T) !void {
             if (SIZEW <= col or SIZEH <= row) {
                 return;
             }
@@ -111,8 +111,8 @@ pub fn QT4(comptime T: type) type {
             var tile_1 = self.root[index_1];
             if (tile_1.len == 0) {
                 const new_tile_1 = try allocator.alloc([][]T, W * H);
-                self.allocs_tile_1.append(new_tile_1);
-                tile_1.* = new_tile_1;
+                try self.allocs_tile_1.append(new_tile_1);
+                self.root[index_1] = new_tile_1;
             }
             const index_2 = compute_index(row, col, 2);
             if (index_2 >= tile_1.len) {
@@ -121,7 +121,7 @@ pub fn QT4(comptime T: type) type {
             var tile_2 = tile_1[index_2];
             if (tile_2.len == 0) {
                 const new_tile_2 = try allocator.alloc([]T, W * H);
-                self.allocs_tile_2.append(new_tile_2);
+                try self.allocs_tile_2.append(new_tile_2);
                 tile_1[index_2] = new_tile_2;
             }
             const index_3 = compute_index(row, col, 1);
@@ -131,7 +131,7 @@ pub fn QT4(comptime T: type) type {
             const tile_3 = tile_2[index_3];
             if (tile_3.len == 0) {
                 const new_tile_3 = try allocator.alloc(T, W * H);
-                self.allocs_tile_3.append(new_tile_3);
+                try self.allocs_tile_3.append(new_tile_3);
                 tile_2[index_3] = new_tile_3;
             }
             const index_4 = compute_index(row, col, 0);
