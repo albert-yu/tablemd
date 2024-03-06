@@ -144,3 +144,19 @@ pub fn QT4(comptime T: type) type {
 }
 
 pub const Map = QT4(Data);
+
+const TestQT4 = QT4(i32);
+
+test "QT4 get and set" {
+    var allocator = std.testing.allocator;
+    var tree = try TestQT4.new(allocator);
+    defer tree.deinit(allocator);
+
+    try tree.set(allocator, 0, 0, 1);
+    try tree.set(allocator, 0, 1, 2);
+    try tree.set(allocator, 1, 0, 3);
+
+    try std.testing.expectEqual(tree.get(0, 0), 1);
+    try std.testing.expectEqual(tree.get(0, 1), 2);
+    try std.testing.expectEqual(tree.get(1, 0), 3);
+}
