@@ -17,13 +17,13 @@ const Data = struct {
     parsed: *parser.Expr,
 };
 
-const Tile3 = []Data;
-const Tile2 = []Tile3;
-const Tile1 = []Tile2;
-const Tile0 = []Tile1;
-
 inline fn compute_index(row: usize, col: usize, remaining_levels: usize) usize {
     return (((col >> (remaining_levels * LOGW)) & MW) << LOGH) | ((row >> (remaining_levels * LOGH)) & MH);
+}
+
+fn allocateTile(comptime T: type, allocator: std.mem.Allocator) ![]T {
+    const tile = try allocator.alloc(T, W * H);
+    return tile;
 }
 
 /// QT4 is a simplified 4-level quadtree
@@ -31,33 +31,39 @@ inline fn compute_index(row: usize, col: usize, remaining_levels: usize) usize {
 /// p. 60
 pub fn QT4(comptime T: type) type {
     return struct {
-        root: [][][][]T,
-        allocs_tile_1: std.ArrayList([][][]T),
-        allocs_tile_2: std.ArrayList([][]T),
-        allocs_tile_3: std.ArrayList([]T),
+        root: []?[]?[]?[]T,
+        allocs_tile_1: std.ArrayList(?[]?[]?[]T),
+        allocs_tile_2: std.ArrayList(?[]?[]T),
+        allocs_tile_3: std.ArrayList(?[]T),
 
         const Self = @This();
         pub fn new(allocator: std.mem.Allocator) !Self {
-            const root = try allocator.alloc([][][]T, W * H);
+            const root = try allocateTile(?[]?[]?[]T, allocator);
             return Self{
                 .root = root,
-                .allocs_tile_1 = try std.ArrayList([][][]T).initCapacity(allocator, 0),
-                .allocs_tile_2 = try std.ArrayList([][]T).initCapacity(allocator, 0),
-                .allocs_tile_3 = try std.ArrayList([]T).initCapacity(allocator, 0),
+                .allocs_tile_1 = try std.ArrayList(?[]?[]?[]T).initCapacity(allocator, 0),
+                .allocs_tile_2 = try std.ArrayList(?[]?[]T).initCapacity(allocator, 0),
+                .allocs_tile_3 = try std.ArrayList(?[]T).initCapacity(allocator, 0),
             };
         }
 
         pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
-            for (self.allocs_tile_3.items) |data_slice| {
-                allocator.free(data_slice);
+            for (self.allocs_tile_3.items) |maybe_slice| {
+                if (maybe_slice) |slice| {
+                    allocator.free(slice);
+                }
             }
             self.allocs_tile_3.deinit();
-            for (self.allocs_tile_2.items) |data_slice| {
-                allocator.free(data_slice);
+            for (self.allocs_tile_2.items) |maybe_slice| {
+                if (maybe_slice) |slice| {
+                    allocator.free(slice);
+                }
             }
             self.allocs_tile_2.deinit();
-            for (self.allocs_tile_1.items) |data_slice| {
-                allocator.free(data_slice);
+            for (self.allocs_tile_1.items) |maybe_slice| {
+                if (maybe_slice) |slice| {
+                    allocator.free(slice);
+                }
             }
             self.allocs_tile_1.deinit();
             allocator.free(self.root);
@@ -71,32 +77,29 @@ pub fn QT4(comptime T: type) type {
             if (index_1 >= self.root.len) {
                 return null;
             }
-            const tile_1 = self.root[index_1];
-            if (tile_1.len == 0) {
-                // TODO: does this check work for an unallocated slice?
-                return null;
+            const maybe_tile_1 = self.root[index_1];
+            if (maybe_tile_1) |tile_1| {
+                const index_2 = compute_index(row, col, 2);
+                if (index_2 >= tile_1.len) {
+                    return null;
+                }
+                const maybe_tile_2 = tile_1[index_2];
+                if (maybe_tile_2) |tile_2| {
+                    const index_3 = compute_index(row, col, 1);
+                    if (index_3 >= tile_2.len) {
+                        return null;
+                    }
+                    const maybe_tile_3 = tile_2[index_3];
+                    if (maybe_tile_3) |tile_3| {
+                        const index_4 = compute_index(row, col, 0);
+                        if (index_4 >= tile_3.len) {
+                            return null;
+                        }
+                        return tile_3[index_4];
+                    }
+                }
             }
-            const index_2 = compute_index(row, col, 2);
-            if (index_2 >= tile_1.len) {
-                return null;
-            }
-            const tile_2 = tile_1[index_2];
-            if (tile_2.len == 0) {
-                return null;
-            }
-            const index_3 = compute_index(row, col, 1);
-            if (index_3 >= tile_2.len) {
-                return null;
-            }
-            const tile_3 = tile_2[index_3];
-            if (tile_3.len == 0) {
-                return null;
-            }
-            const index_4 = compute_index(row, col, 0);
-            if (index_4 >= tile_3.len) {
-                return null;
-            }
-            return tile_3[index_4];
+            return null;
         }
 
         /// Right now, invalid indexes are no-ops
@@ -108,31 +111,40 @@ pub fn QT4(comptime T: type) type {
             if (index_1 >= self.root.len) {
                 return;
             }
-            var tile_1 = self.root[index_1];
-            if (tile_1.len == 0) {
-                const new_tile_1 = try allocator.alloc([][]T, W * H);
-                try self.allocs_tile_1.append(new_tile_1);
-                self.root[index_1] = new_tile_1;
+            var tile_1: []?[]?[]T = undefined;
+            var maybe_tile_1 = self.root[index_1];
+            if (maybe_tile_1) |tile| {
+                tile_1 = tile;
+            } else {
+                tile_1 = try allocateTile(?[]?[]T, allocator);
+                try self.allocs_tile_1.append(tile_1);
+                self.root[index_1] = tile_1;
             }
             const index_2 = compute_index(row, col, 2);
             if (index_2 >= tile_1.len) {
                 return;
             }
-            var tile_2 = tile_1[index_2];
-            if (tile_2.len == 0) {
-                const new_tile_2 = try allocator.alloc([]T, W * H);
-                try self.allocs_tile_2.append(new_tile_2);
-                tile_1[index_2] = new_tile_2;
+            var tile_2: []?[]T = undefined;
+            var maybe_tile_2 = tile_1[index_2];
+            if (maybe_tile_2) |tile| {
+                tile_2 = tile;
+            } else {
+                tile_2 = try allocateTile(?[]T, allocator);
+                try self.allocs_tile_2.append(tile_2);
+                tile_1[index_2] = tile_2;
             }
             const index_3 = compute_index(row, col, 1);
             if (index_3 >= tile_2.len) {
                 return;
             }
-            const tile_3 = tile_2[index_3];
-            if (tile_3.len == 0) {
-                const new_tile_3 = try allocator.alloc(T, W * H);
-                try self.allocs_tile_3.append(new_tile_3);
-                tile_2[index_3] = new_tile_3;
+            var tile_3: []T = undefined;
+            const maybe_tile_3 = tile_2[index_3];
+            if (maybe_tile_3) |tile| {
+                tile_3 = tile;
+            } else {
+                tile_3 = try allocator.alloc(T, W * H);
+                try self.allocs_tile_3.append(tile_3);
+                tile_2[index_3] = tile_3;
             }
             const index_4 = compute_index(row, col, 0);
             if (index_4 >= tile_3.len) {
