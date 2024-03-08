@@ -21,8 +21,12 @@ inline fn compute_index(row: usize, col: usize, remaining_levels: usize) usize {
     return (((col >> (remaining_levels * LOGW)) & MW) << LOGH) | ((row >> (remaining_levels * LOGH)) & MH);
 }
 
+/// Assumes T is nullable
 fn allocateTile(comptime T: type, allocator: std.mem.Allocator) ![]T {
     const tile = try allocator.alloc(T, W * H);
+    for (tile, 0..) |_, i| {
+        tile[i] = null;
+    }
     return tile;
 }
 
