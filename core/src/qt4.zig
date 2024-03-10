@@ -165,12 +165,12 @@ pub fn Map(comptime T: type) type {
         }
 
         /// Does nothing if item not found. Calls `free` on the item.
-        pub fn delete(self: *Self, allocator: std.mem.Allocator, row: usize, col: usize, free: fn (allocator: std.mem.Allocator, T) void) void {
+        pub fn delete(self: *Self, allocator: std.mem.Allocator, row: usize, col: usize, comptime free: fn (allocator: std.mem.Allocator, T) void) void {
             // get the item and free it
             var maybe_item = self.get(row, col);
             if (maybe_item) |item| {
                 free(allocator, item);
-                self.setExistingToNull(allocator, row, col);
+                self.setExistingToNull(row, col);
             }
             // item not found, do nothing
         }
@@ -191,7 +191,7 @@ pub fn Map(comptime T: type) type {
 
 const IntMap = Map(i32);
 
-test "QT4 get and set integers" {
+test "QT4 integers" {
     var allocator = std.testing.allocator;
     var ints = try IntMap.new(allocator);
     defer ints.deinit(allocator);
@@ -206,4 +206,34 @@ test "QT4 get and set integers" {
 
     const one = ints.pop(0, 0);
     try std.testing.expectEqual(one, 1);
+}
+
+const StringMap = Map([]const u8);
+
+fn freeString(allocator: std.mem.Allocator, s: []const u8) void {
+    allocator.free(s);
+}
+
+test "QT4 heap-allocated strings" {
+    var allocator = std.testing.allocator;
+    var strings = try StringMap.new(allocator);
+    defer strings.deinit(allocator);
+
+    const row = 12345;
+    const col = 12831;
+
+    const one_s = try allocator.alloc(u8, 3);
+    @memcpy(one_s, "one");
+
+    try strings.set(allocator, row, col, one_s);
+
+    const one = strings.get(row, col);
+    if (one) |val| {
+        try std.testing.expectEqualStrings("one", val);
+    } else {
+        try std.testing.expect(false);
+    }
+    strings.delete(allocator, row, col, freeString);
+    const empty = strings.get(row, col);
+    try std.testing.expect(empty == null);
 }
