@@ -7,6 +7,7 @@ pub const int_t = i64;
 pub const CellRef = struct {
     row: usize,
     col: usize,
+    // TODO: absolute vs. relative
 };
 
 /// Tagged union of possible literal values
