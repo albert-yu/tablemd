@@ -1,5 +1,4 @@
 const std = @import("std");
-const parser = @import("parser.zig");
 
 const LOGW = 4;
 const LOGH = 5;
@@ -9,13 +8,6 @@ const MW = W - 1; // 15
 const MH = H - 1; // 31
 const SIZEW = 1 << (4 * LOGW); // 65536
 const SIZEH = 1 << (4 * LOGH); // 1048576
-
-// Cell[][][][] tile0 = new Cell[W * H]
-
-const Data = struct {
-    raw: []const u8,
-    parsed: *parser.Expr,
-};
 
 inline fn compute_index(row: usize, col: usize, remaining_levels: usize) usize {
     return (((col >> (remaining_levels * LOGW)) & MW) << LOGH) | ((row >> (remaining_levels * LOGH)) & MH);
@@ -33,7 +25,7 @@ fn allocateTile(comptime T: type, allocator: std.mem.Allocator) ![]T {
 /// QT4 is a simplified 4-level quadtree
 /// See Spreadsheet Implementation Technology (Sestoft)
 /// p. 60
-pub fn QT4(comptime T: type) type {
+pub fn Map(comptime T: type) type {
     return struct {
         root: []?[]?[]?[]T,
         allocs_tile_1: std.ArrayList(?[]?[]?[]T),
@@ -159,20 +151,18 @@ pub fn QT4(comptime T: type) type {
     };
 }
 
-pub const Map = QT4(Data);
-
-const TestQT4 = QT4(i32);
+const IntMap = Map(i32);
 
 test "QT4 get and set" {
     var allocator = std.testing.allocator;
-    var tree = try TestQT4.new(allocator);
-    defer tree.deinit(allocator);
+    var ints = try IntMap.new(allocator);
+    defer ints.deinit(allocator);
 
-    try tree.set(allocator, 0, 0, 1);
-    try tree.set(allocator, 0, 1, 2);
-    try tree.set(allocator, 1, 0, 3);
+    try ints.set(allocator, 0, 0, 1);
+    try ints.set(allocator, 0, 1, 2);
+    try ints.set(allocator, 1, 0, 3);
 
-    try std.testing.expectEqual(tree.get(0, 0), 1);
-    try std.testing.expectEqual(tree.get(0, 1), 2);
-    try std.testing.expectEqual(tree.get(1, 0), 3);
+    try std.testing.expectEqual(ints.get(0, 0), 1);
+    try std.testing.expectEqual(ints.get(0, 1), 2);
+    try std.testing.expectEqual(ints.get(1, 0), 3);
 }
