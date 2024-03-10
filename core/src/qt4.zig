@@ -152,7 +152,8 @@ pub fn Map(comptime T: type) type {
             tile_3[index_4] = data;
         }
 
-        fn setNoCheck(self: *Self, row: usize, col: usize, data: ?T) void {
+        /// Assumes row and col point to allocated memory.
+        fn setExistingToNull(self: *Self, row: usize, col: usize) void {
             const index_1 = compute_index(row, col, 3);
             var tile_1 = self.root[index_1] orelse unreachable;
             const index_2 = compute_index(row, col, 2);
@@ -160,26 +161,27 @@ pub fn Map(comptime T: type) type {
             const index_3 = compute_index(row, col, 1);
             var tile_3 = tile_2[index_3] orelse unreachable;
             const index_4 = compute_index(row, col, 0);
-            tile_3[index_4] = data;
+            tile_3[index_4] = null;
         }
 
-        /// Does nothing if item not found
+        /// Does nothing if item not found. Calls `free` on the item.
         pub fn delete(self: *Self, allocator: std.mem.Allocator, row: usize, col: usize, free: fn (allocator: std.mem.Allocator, T) void) void {
             // get the item and free it
             var maybe_item = self.get(row, col);
             if (maybe_item) |item| {
                 free(allocator, item);
-                self.setNoCheck(allocator, row, col, null);
+                self.setExistingToNull(allocator, row, col);
             }
             // item not found, do nothing
         }
 
         /// Deletes the item and returns it.
         /// Returns null if item not found.
+        /// Caller owns the returned item.
         pub fn pop(self: *Self, row: usize, col: usize) ?T {
             var maybe_item = self.get(row, col);
             if (maybe_item) |item| {
-                self.setNoCheck(row, col, null);
+                self.setExistingToNull(row, col);
                 return item;
             }
             return null;
