@@ -22,9 +22,12 @@ fn allocateTile(comptime T: type, allocator: std.mem.Allocator) ![]T {
     return tile;
 }
 
-/// QT4 is a simplified 4-level quadtree
+/// We expose a map-like interface for QT4, a memory-efficient
+/// representation of sparse matrices.
+///
+/// QT4 is a simplified 4-level quadtree.
 /// See Spreadsheet Implementation Technology (Sestoft)
-/// p. 60
+/// p. 60 for implementation details and performance benchmarks.
 pub fn Map(comptime T: type) type {
     return struct {
         root: []?[]?[]?[]T,
