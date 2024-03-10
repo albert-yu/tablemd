@@ -28,7 +28,7 @@ fn allocateTile(comptime T: type, allocator: std.mem.Allocator) ![]T {
 /// QT4 is a simplified 4-level quadtree.
 /// See Spreadsheet Implementation Technology (Sestoft)
 /// p. 60 for implementation details and performance benchmarks.
-pub fn Map(comptime T: type) type {
+pub fn QT4(comptime T: type) type {
     return struct {
         root: []?[]?[]?[]?T,
         allocs_tile_1: std.ArrayList(?[]?[]?[]?T),
@@ -189,7 +189,7 @@ pub fn Map(comptime T: type) type {
     };
 }
 
-const IntMap = Map(i32);
+const IntMap = QT4(i32);
 
 test "QT4 integers" {
     var allocator = std.testing.allocator;
@@ -208,7 +208,7 @@ test "QT4 integers" {
     try std.testing.expectEqual(one, 1);
 }
 
-const StringMap = Map([]const u8);
+const StringMap = QT4([]const u8);
 
 fn freeString(allocator: std.mem.Allocator, s: []const u8) void {
     allocator.free(s);

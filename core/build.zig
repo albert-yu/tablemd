@@ -76,8 +76,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const run_qt4_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/qt4.zig" },
+    const run_map_tests = addUnitTest(b, .{
+        .root_source_file = .{ .path = "src/map.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -89,5 +89,5 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_lexer_tests.step);
     test_step.dependOn(&run_parser_tests.step);
     test_step.dependOn(&run_eval_tests.step);
-    test_step.dependOn(&run_qt4_tests.step);
+    test_step.dependOn(&run_map_tests.step);
 }
