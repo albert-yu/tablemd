@@ -1,6 +1,6 @@
 const std = @import("std");
 const parser = @import("parser.zig");
-const evaluator = @import("eval.zig");
+const engine = @import("engine.zig");
 const io = std.io;
 const fmt = std.fmt;
 
@@ -37,7 +37,7 @@ pub fn main() !void {
         };
         defer expr.destroySelf(allocator);
 
-        const result = evaluator.eval(allocator, expr) catch |err| {
+        const result = engine.eval(allocator, expr) catch |err| {
             try stdout.print("Eval error: {}\n", .{err});
             continue;
         };

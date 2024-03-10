@@ -70,8 +70,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const run_eval_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/eval.zig" },
+    const run_engine_tests = addUnitTest(b, .{
+        .root_source_file = .{ .path = "src/engine.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -88,6 +88,6 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lexer_tests.step);
     test_step.dependOn(&run_parser_tests.step);
-    test_step.dependOn(&run_eval_tests.step);
+    test_step.dependOn(&run_engine_tests.step);
     test_step.dependOn(&run_map_tests.step);
 }
