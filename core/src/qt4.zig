@@ -151,12 +151,45 @@ pub fn Map(comptime T: type) type {
             }
             tile_3[index_4] = data;
         }
+
+        fn setNoCheck(self: *Self, row: usize, col: usize, data: ?T) void {
+            const index_1 = compute_index(row, col, 3);
+            var tile_1 = self.root[index_1] orelse unreachable;
+            const index_2 = compute_index(row, col, 2);
+            var tile_2 = tile_1[index_2] orelse unreachable;
+            const index_3 = compute_index(row, col, 1);
+            var tile_3 = tile_2[index_3] orelse unreachable;
+            const index_4 = compute_index(row, col, 0);
+            tile_3[index_4] = data;
+        }
+
+        /// Does nothing if item not found
+        pub fn delete(self: *Self, allocator: std.mem.Allocator, row: usize, col: usize, free: fn (allocator: std.mem.Allocator, T) void) void {
+            // get the item and free it
+            var maybe_item = self.get(row, col);
+            if (maybe_item) |item| {
+                free(allocator, item);
+                self.setNoCheck(allocator, row, col, null);
+            }
+            // item not found, do nothing
+        }
+
+        /// Deletes the item and returns it.
+        /// Returns null if item not found.
+        pub fn pop(self: *Self, row: usize, col: usize) ?T {
+            var maybe_item = self.get(row, col);
+            if (maybe_item) |item| {
+                self.setNoCheck(row, col, null);
+                return item;
+            }
+            return null;
+        }
     };
 }
 
 const IntMap = Map(i32);
 
-test "QT4 get and set" {
+test "QT4 get and set integers" {
     var allocator = std.testing.allocator;
     var ints = try IntMap.new(allocator);
     defer ints.deinit(allocator);
@@ -168,4 +201,7 @@ test "QT4 get and set" {
     try std.testing.expectEqual(ints.get(0, 0), 1);
     try std.testing.expectEqual(ints.get(0, 1), 2);
     try std.testing.expectEqual(ints.get(1, 0), 3);
+
+    const one = ints.pop(0, 0);
+    try std.testing.expectEqual(one, 1);
 }
