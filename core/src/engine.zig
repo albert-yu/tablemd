@@ -684,3 +684,16 @@ test "precedence" {
     try testInts(allocator, "3 * (4 + 5) * 2 + 1", 55);
     try testInts(allocator, "3 * (4 + 5) * (2 + 1)", 81);
 }
+
+test "load" {
+    const allocator = std.heap.page_allocator;
+    var sheet = try Sheet.new(allocator);
+    defer sheet.deinit(allocator);
+    var result_none = try sheet.eval(allocator, "__LOAD__(A1, \"1\")");
+    defer result_none.deinit(allocator);
+
+    var two = try sheet.eval(allocator, "A1 + 1");
+    defer two.deinit(allocator);
+
+    try std.testing.expectEqual(getIntVal(two), 2);
+}
