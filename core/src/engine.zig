@@ -192,12 +192,16 @@ fn coerceIntToFloat(r: Result) !Result {
 }
 
 const BuiltInFunc = enum {
+    /// @internal
+    __load__,
+
     sum,
     avg,
     product,
 };
 
 const func_lookup = std.ComptimeStringMap(BuiltInFunc, .{
+    .{ "__LOAD__", .__load__ },
     .{ "SUM", .sum },
     .{ "AVG", .avg },
     .{ "PRODUCT", .product },
@@ -399,6 +403,9 @@ pub const Cell = struct {
                             return Result.newFloat(product);
                         },
                     }
+                },
+                .__load__ => {
+                    return error.UnknownFunction;
                 },
             }
         } else {
