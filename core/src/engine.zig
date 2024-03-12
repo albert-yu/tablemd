@@ -425,11 +425,15 @@ pub const Cell = struct {
                         std.log.warn("Expected 2 args for __load__, got {d}", .{args.len});
                         return error.UnexpectedArgCount;
                     }
-                    const first_arg = try self.evalExpr(allocator, args[0]);
-                    switch (first_arg) {
-                        .cell_ref => {},
+                    const first_arg = args[0];
+                    var cell_ref = switch (first_arg.*) {
+                        .literal => switch (first_arg.literal) {
+                            .cell_ref => first_arg.literal.cell_ref,
+                            else => return error.TypeError,
+                        },
                         else => return error.TypeError,
-                    }
+                    };
+
                     const second_arg = try self.evalExpr(allocator, args[1]);
                     switch (second_arg) {
                         .string => {},
@@ -437,7 +441,7 @@ pub const Cell = struct {
                     }
                     var new_cell = try allocator.create(Cell);
                     new_cell.* = Cell.new(second_arg.string, self.map);
-                    try self.map.set(allocator, first_arg.cell_ref.row, first_arg.cell_ref.col, new_cell);
+                    try self.map.set(allocator, cell_ref.row, cell_ref.col, new_cell);
                     _ = try new_cell.evalSelf(allocator);
                     return Result.newNone();
                 },
