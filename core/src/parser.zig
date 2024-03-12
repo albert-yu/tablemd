@@ -400,6 +400,11 @@ const Parser = struct {
             var expr = try Expr.createLiteral(allocator, self.previous().literal);
             return expr;
         }
+        if (self.matchOne(.cell_ref)) {
+            // TODO: need to copy?
+            var expr = try Expr.createLiteral(allocator, self.previous().literal);
+            return expr;
+        }
         if (self.matchOne(.func_call)) {
             var func = try string_utils.copyString(allocator, self.previous().literal.keyword);
             errdefer allocator.free(func);
