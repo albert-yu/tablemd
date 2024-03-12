@@ -665,17 +665,30 @@ pub const Cell = struct {
 };
 
 pub const Sheet = struct {
-    allocator: std.mem.Allocator,
     map: Map,
+
+    pub fn new(allocator: std.mem.Allocator) !Sheet {
+        var cell_map = try Map.new(allocator);
+        return .{
+            .map = cell_map,
+        };
+    }
+
+    pub fn deinit(self: *Sheet, allocator: std.mem.Allocator) void {
+        self.map.deinit(allocator);
+    }
+
+    pub fn eval(self: *Sheet, allocator: std.mem.Allocator, source: []const u8) !Result {
+        var cell = Cell.new(source, &self.map);
+        defer cell.deinit(allocator);
+        return cell.evalSelf(allocator);
+    }
 };
 
 fn testEval(allocator: std.mem.Allocator, source: []const u8, comptime T: type, expected: T, val_getter: fn (Result) error{ValueError}!T) !void {
-    var cell_map = try Map.new(allocator);
-    defer cell_map.deinit(allocator);
-    var cell = Cell.new(source, &cell_map);
-    defer cell.deinit(allocator);
-
-    var result = try cell.evalSelf(allocator);
+    var sheet = try Sheet.new(allocator);
+    defer sheet.deinit(allocator);
+    var result = try sheet.eval(allocator, source);
     defer result.deinit(allocator);
 
     var result_value = try val_getter(result);
