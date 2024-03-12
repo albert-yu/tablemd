@@ -2,6 +2,7 @@ const std = @import("std");
 const lexer = @import("lexer.zig");
 const parser = @import("parser.zig");
 const string_utils = @import("string_utils.zig");
+const map = @import("map.zig");
 
 pub const Result = union(enum) {
     none: void,
@@ -9,6 +10,10 @@ pub const Result = union(enum) {
     integer: lexer.int_t,
     float: lexer.float_t,
     string: []const u8,
+
+    pub fn newNone() Result {
+        return .{ .none = undefined };
+    }
 
     pub fn newBoolean(b: bool) Result {
         return .{
@@ -445,10 +450,232 @@ pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) anyerror!Result {
     return result;
 }
 
+const CellValue = union(enum) {
+    none: void,
+    res: Result,
+    err: []const u8,
+
+    pub fn makeError(allocator: std.mem.Allocator, err: []const u8) !CellValue {
+        var err_slice = try allocator.alloc(u8, err.len);
+        @memcpy(err_slice, err);
+        return .{ .err = err_slice };
+    }
+
+    pub fn makeValue(res: Result) CellValue {
+        return .{ .res = res };
+    }
+
+    pub fn toString(self: CellValue, allocator: std.mem.Allocator) ![]const u8 {
+        switch (self) {
+            .none => {
+                const none = "none";
+                const result = try allocator.alloc(u8, none.len);
+                @memcpy(result, none);
+                return result;
+            },
+            .res => {
+                const result = try self.res.toString(allocator);
+                return result;
+            },
+            .err => return self.err,
+        }
+    }
+
+    pub fn deinit(self: *CellValue, allocator: std.mem.Allocator) void {
+        switch (self.*) {
+            .none => {},
+            .res => self.res.deinit(allocator),
+            .err => allocator.free(self.err),
+        }
+    }
+};
+
+const Map = map.QT4(*Cell);
+
+pub const Cell = struct {
+    raw: []const u8,
+    val: CellValue,
+    map: *Map,
+
+    // TODO: support_graph
+
+    /// IMPORTANT: cell_map is NOT owned by the cell,
+    /// so the caller must free it.
+    pub fn new(raw: []const u8, cell_map: *Map) Cell {
+        return Cell{
+            .raw = raw,
+            .val = CellValue.none,
+            .map = cell_map,
+        };
+    }
+
+    pub fn deinit(self: *Cell, allocator: std.mem.Allocator) void {
+        self.val.deinit(allocator);
+    }
+
+    pub fn evalExpr(self: Cell, allocator: std.mem.Allocator, expr: *parser.Expr) anyerror!Result {
+        var result: Result = undefined;
+        switch (expr.*) {
+            .unknown => {
+                return error.UnknownExpression;
+            },
+            .literal => {
+                const literal = expr.literal;
+                switch (literal) {
+                    .boolean => {
+                        result = Result.newBoolean(literal.boolean);
+                    },
+                    .integer => {
+                        result = Result.newInteger(literal.integer);
+                    },
+                    .float => {
+                        result = Result.newFloat(literal.float);
+                    },
+                    .string => {
+                        result = try Result.newString(allocator, literal.string);
+                    },
+                    .cell_ref => {
+                        const row = literal.cell_ref.row;
+                        const col = literal.cell_ref.col;
+                        var maybe_cell: ?*Cell = self.map.get(row, col);
+                        if (maybe_cell) |cell| {
+                            var res = try cell.evalSelf(allocator);
+                            switch (res) {
+                                .none => return error.CellHasNoValue,
+                                else => {
+                                    result = res;
+                                },
+                            }
+                        } else {
+                            return error.MissingCellReference;
+                        }
+                    },
+                    else => {
+                        return error.UnhandledLiteral;
+                    },
+                }
+            },
+            .unary => {
+                const unary = expr.unary;
+                var operand = try self.evalExpr(allocator, unary.operand);
+                defer operand.deinit(allocator);
+                switch (unary.op) {
+                    .neg => {
+                        switch (operand) {
+                            .integer => {
+                                result = Result.newInteger(-operand.integer);
+                            },
+                            .float => {
+                                result = Result.newFloat(-operand.float);
+                            },
+                            else => {
+                                std.log.warn("Negative operand must be float or integer", .{});
+                                return error.InvalidNegativeOperand;
+                            },
+                        }
+                    },
+                    .percent => {
+                        switch (operand) {
+                            .integer => {
+                                const as_float = @as(lexer.float_t, @floatFromInt(operand.integer));
+                                result = Result.newFloat(as_float / 100);
+                            },
+                            .float => {
+                                result = Result.newFloat(operand.float / 100.0);
+                            },
+                            else => {
+                                std.log.warn("Percent operand must be float or integer", .{});
+                                return error.InvalidPercentOperand;
+                            },
+                        }
+                    },
+                    else => {
+                        std.log.warn("Unhandled unary operator", .{});
+                        return error.UnhandledUnaryOperator;
+                    },
+                }
+            },
+            .binary => {
+                const binary = expr.binary;
+                var left = try self.evalExpr(allocator, binary.left);
+                defer left.deinit(allocator);
+                var right = try self.evalExpr(allocator, binary.right);
+                defer right.deinit(allocator);
+
+                var use_ints = switch (left) {
+                    .integer => switch (right) {
+                        .integer => true,
+                        else => false,
+                    },
+                    else => false,
+                };
+                // Ints are closed under addition, subtraction, and multiplication.
+                // But not division.
+                const op = binary.op;
+                if (op == .div) {
+                    use_ints = false;
+                }
+                if (use_ints) {
+                    result = try evalInts(op, left, right);
+                } else {
+                    var left_float = try coerceIntToFloat(left);
+                    defer left_float.deinit(allocator);
+                    var right_float = try coerceIntToFloat(right);
+                    defer right_float.deinit(allocator);
+                    result = try evalFloats(op, left_float, right_float);
+                }
+            },
+            .variadic => {
+                const variadic = expr.variadic;
+                result = try evalFunc(allocator, variadic.func, variadic.args);
+            },
+            .grouping => {
+                result = try self.evalExpr(allocator, expr.grouping.operand);
+            },
+        }
+        return result;
+    }
+
+    /// Evaluates the cell's expression and stores the result in the cell.
+    /// Also returns the result.
+    /// Run-time errors are caught and stored in the cell.
+    pub fn evalSelf(self: *Cell, allocator: std.mem.Allocator) !Result {
+        if (self.raw.len == 0) {
+            // empty cell is no-op
+            return Result.newNone();
+        }
+        var expr = parser.parse(allocator, self.raw) catch |err| {
+            std.log.warn("Failed to parse cell: {}", .{err});
+            self.val = try CellValue.makeError(allocator, "Failed to parse cell");
+            return Result.newNone();
+        };
+        var result = self.evalExpr(allocator, expr) catch |eval_err| {
+            std.log.warn("Failed to evaluate cell: {}", .{eval_err});
+            self.val = try CellValue.makeError(allocator, "Failed to evaluate cell");
+            return Result.newNone();
+        };
+        // clear old value
+        self.val.deinit(allocator);
+        self.val = CellValue.makeValue(result);
+
+        return result;
+
+        // TODO: for each cell in support_graph
+    }
+};
+
+pub const Sheet = struct {
+    allocator: std.mem.Allocator,
+    map: Map,
+};
+
 fn testEval(allocator: std.mem.Allocator, source: []const u8, comptime T: type, expected: T, val_getter: fn (Result) error{ValueError}!T) !void {
-    var expr = try parser.parse(allocator, source);
-    defer expr.destroySelf(allocator);
-    var result = try eval(allocator, expr);
+    var cell_map = try Map.new(allocator);
+    defer cell_map.deinit(allocator);
+    var cell = Cell.new(source, &cell_map);
+    defer cell.deinit(allocator);
+
+    var result = try cell.evalSelf(allocator);
     defer result.deinit(allocator);
 
     var result_value = try val_getter(result);
