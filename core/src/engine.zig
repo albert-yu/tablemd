@@ -702,5 +702,6 @@ test "load" {
     var two = try sheet.eval(allocator, "A1 + 1");
     defer two.deinit(allocator);
 
-    try std.testing.expectEqual(getIntVal(two), 2);
+    var val = try getIntVal(two);
+    try std.testing.expectEqual(val, 2);
 }
