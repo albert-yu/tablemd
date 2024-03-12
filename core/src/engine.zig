@@ -215,241 +215,6 @@ const NumericResult = union(enum) {
     }
 };
 
-fn evalNumericArgs(allocator: std.mem.Allocator, args: []const *parser.Expr) anyerror!NumericResult {
-    var arg_list = try std.ArrayListUnmanaged(*Result).initCapacity(allocator, 1);
-    defer arg_list.deinit(allocator);
-    var use_float = false;
-
-    // evaluate all the numbers and store them in a list
-    for (args) |arg| {
-        const r = try eval(allocator, arg);
-        const allocated = try allocator.create(Result);
-        allocated.* = r;
-        try arg_list.append(allocator, allocated);
-        switch (r) {
-            .integer => {},
-            .float => {
-                use_float = true;
-            },
-            else => return error.InvalidNumericArgument,
-        }
-    }
-    defer {
-        for (arg_list.items) |r| {
-            r.deinit(allocator);
-            allocator.destroy(r);
-        }
-    }
-
-    // convert list to a NumericResult
-    var result: NumericResult = undefined;
-    if (use_float) {
-        result = NumericResult{
-            .floats = try allocator.alloc(lexer.float_t, arg_list.items.len),
-        };
-        for (arg_list.items, 0..) |r, i| {
-            switch (r.*) {
-                .integer => {
-                    result.floats[i] = @as(lexer.float_t, @floatFromInt(r.integer));
-                },
-                .float => {
-                    result.floats[i] = r.float;
-                },
-                else => unreachable,
-            }
-        }
-    } else {
-        result = NumericResult{
-            .integers = try allocator.alloc(lexer.int_t, arg_list.items.len),
-        };
-        for (arg_list.items, 0..) |r, i| {
-            result.integers[i] = r.integer;
-        }
-    }
-    return result;
-}
-
-fn evalFunc(allocator: std.mem.Allocator, name: []const u8, args: []const *parser.Expr) anyerror!Result {
-    const func = func_lookup.get(name);
-    if (func) |f| {
-        switch (f) {
-            .sum => {
-                const num_args = try evalNumericArgs(allocator, args);
-                defer num_args.deinit(allocator);
-
-                switch (num_args) {
-                    .integers => {
-                        var sum: lexer.int_t = 0;
-                        for (num_args.integers) |arg| {
-                            sum += arg;
-                        }
-                        return Result.newInteger(sum);
-                    },
-                    .floats => {
-                        var sum: lexer.float_t = 0;
-                        for (num_args.floats) |arg| {
-                            sum += arg;
-                        }
-                        return Result.newFloat(sum);
-                    },
-                }
-            },
-            .avg => {
-                const args_evaluated = try evalNumericArgs(allocator, args);
-                defer args_evaluated.deinit(allocator);
-                var sum: lexer.float_t = 0;
-                var count: lexer.float_t = 0;
-                switch (args_evaluated) {
-                    .integers => {
-                        var int_sum: lexer.int_t = 0;
-                        for (args_evaluated.integers) |arg| {
-                            int_sum += arg;
-                        }
-                        count = @as(lexer.float_t, @floatFromInt(args_evaluated.integers.len));
-                        sum = @as(lexer.float_t, @floatFromInt(int_sum));
-                    },
-                    .floats => {
-                        for (args_evaluated.floats) |arg| {
-                            sum += arg;
-                        }
-                        count = @as(lexer.float_t, @floatFromInt(args_evaluated.integers.len));
-                    },
-                }
-                return Result.newFloat(sum / count);
-            },
-            .product => {
-                const num_args = try evalNumericArgs(allocator, args);
-                defer num_args.deinit(allocator);
-                switch (num_args) {
-                    .integers => {
-                        var product: lexer.int_t = 1;
-                        for (num_args.integers) |arg| {
-                            product *= arg;
-                        }
-                        return Result.newInteger(product);
-                    },
-                    .floats => {
-                        var product: lexer.float_t = 1;
-                        for (num_args.floats) |arg| {
-                            product *= arg;
-                        }
-                        return Result.newFloat(product);
-                    },
-                }
-            },
-        }
-    } else {
-        return error.UnknownFunction;
-    }
-}
-
-pub fn eval(allocator: std.mem.Allocator, expr: *parser.Expr) anyerror!Result {
-    var result: Result = undefined;
-    switch (expr.*) {
-        .unknown => {
-            return error.UnknownExpression;
-        },
-        .literal => {
-            const literal = expr.literal;
-            switch (literal) {
-                .boolean => {
-                    result = Result.newBoolean(literal.boolean);
-                },
-                .integer => {
-                    result = Result.newInteger(literal.integer);
-                },
-                .float => {
-                    result = Result.newFloat(literal.float);
-                },
-                .string => {
-                    result = try Result.newString(allocator, literal.string);
-                },
-                else => {
-                    return error.UnhandledLiteral;
-                },
-            }
-        },
-        .unary => {
-            const unary = expr.unary;
-            var operand = try eval(allocator, unary.operand);
-            defer operand.deinit(allocator);
-            switch (unary.op) {
-                .neg => {
-                    switch (operand) {
-                        .integer => {
-                            result = Result.newInteger(-operand.integer);
-                        },
-                        .float => {
-                            result = Result.newFloat(-operand.float);
-                        },
-                        else => {
-                            std.log.warn("Negative operand must be float or integer", .{});
-                            return error.InvalidNegativeOperand;
-                        },
-                    }
-                },
-                .percent => {
-                    switch (operand) {
-                        .integer => {
-                            const as_float = @as(lexer.float_t, @floatFromInt(operand.integer));
-                            result = Result.newFloat(as_float / 100);
-                        },
-                        .float => {
-                            result = Result.newFloat(operand.float / 100.0);
-                        },
-                        else => {
-                            std.log.warn("Percent operand must be float or integer", .{});
-                            return error.InvalidPercentOperand;
-                        },
-                    }
-                },
-                else => {
-                    std.log.warn("Unhandled unary operator", .{});
-                    return error.UnhandledUnaryOperator;
-                },
-            }
-        },
-        .binary => {
-            const binary = expr.binary;
-            var left = try eval(allocator, binary.left);
-            defer left.deinit(allocator);
-            var right = try eval(allocator, binary.right);
-            defer right.deinit(allocator);
-
-            var use_ints = switch (left) {
-                .integer => switch (right) {
-                    .integer => true,
-                    else => false,
-                },
-                else => false,
-            };
-            // Ints are closed under addition, subtraction, and multiplication.
-            // But not division.
-            const op = binary.op;
-            if (op == .div) {
-                use_ints = false;
-            }
-            if (use_ints) {
-                result = try evalInts(op, left, right);
-            } else {
-                var left_float = try coerceIntToFloat(left);
-                defer left_float.deinit(allocator);
-                var right_float = try coerceIntToFloat(right);
-                defer right_float.deinit(allocator);
-                result = try evalFloats(op, left_float, right_float);
-            }
-        },
-        .variadic => {
-            const variadic = expr.variadic;
-            result = try evalFunc(allocator, variadic.func, variadic.args);
-        },
-        .grouping => {
-            result = try eval(allocator, expr.grouping.operand);
-        },
-    }
-    return result;
-}
-
 const CellValue = union(enum) {
     none: void,
     res: Result,
@@ -511,6 +276,134 @@ pub const Cell = struct {
 
     pub fn deinit(self: *Cell, allocator: std.mem.Allocator) void {
         self.val.deinit(allocator);
+    }
+
+    fn evalNumericArgs(self: Cell, allocator: std.mem.Allocator, args: []const *parser.Expr) anyerror!NumericResult {
+        var arg_list = try std.ArrayListUnmanaged(*Result).initCapacity(allocator, 1);
+        defer arg_list.deinit(allocator);
+        var use_float = false;
+
+        // evaluate all the numbers and store them in a list
+        for (args) |arg| {
+            const r = try self.evalExpr(allocator, arg);
+            const allocated = try allocator.create(Result);
+            allocated.* = r;
+            try arg_list.append(allocator, allocated);
+            switch (r) {
+                .integer => {},
+                .float => {
+                    use_float = true;
+                },
+                else => return error.InvalidNumericArgument,
+            }
+        }
+        defer {
+            for (arg_list.items) |r| {
+                r.deinit(allocator);
+                allocator.destroy(r);
+            }
+        }
+
+        // convert list to a NumericResult
+        var result: NumericResult = undefined;
+        if (use_float) {
+            result = NumericResult{
+                .floats = try allocator.alloc(lexer.float_t, arg_list.items.len),
+            };
+            for (arg_list.items, 0..) |r, i| {
+                switch (r.*) {
+                    .integer => {
+                        result.floats[i] = @as(lexer.float_t, @floatFromInt(r.integer));
+                    },
+                    .float => {
+                        result.floats[i] = r.float;
+                    },
+                    else => unreachable,
+                }
+            }
+        } else {
+            result = NumericResult{
+                .integers = try allocator.alloc(lexer.int_t, arg_list.items.len),
+            };
+            for (arg_list.items, 0..) |r, i| {
+                result.integers[i] = r.integer;
+            }
+        }
+        return result;
+    }
+
+    fn evalFunc(self: Cell, allocator: std.mem.Allocator, name: []const u8, args: []const *parser.Expr) anyerror!Result {
+        const func = func_lookup.get(name);
+        if (func) |f| {
+            switch (f) {
+                .sum => {
+                    const num_args = try self.evalNumericArgs(allocator, args);
+                    defer num_args.deinit(allocator);
+
+                    switch (num_args) {
+                        .integers => {
+                            var sum: lexer.int_t = 0;
+                            for (num_args.integers) |arg| {
+                                sum += arg;
+                            }
+                            return Result.newInteger(sum);
+                        },
+                        .floats => {
+                            var sum: lexer.float_t = 0;
+                            for (num_args.floats) |arg| {
+                                sum += arg;
+                            }
+                            return Result.newFloat(sum);
+                        },
+                    }
+                },
+                .avg => {
+                    const args_evaluated = try self.evalNumericArgs(allocator, args);
+                    defer args_evaluated.deinit(allocator);
+                    var sum: lexer.float_t = 0;
+                    var count: lexer.float_t = 0;
+                    switch (args_evaluated) {
+                        .integers => {
+                            var int_sum: lexer.int_t = 0;
+                            for (args_evaluated.integers) |arg| {
+                                int_sum += arg;
+                            }
+                            count = @as(lexer.float_t, @floatFromInt(args_evaluated.integers.len));
+                            sum = @as(lexer.float_t, @floatFromInt(int_sum));
+                        },
+                        .floats => {
+                            for (args_evaluated.floats) |arg| {
+                                sum += arg;
+                            }
+                            count = @as(lexer.float_t, @floatFromInt(args_evaluated.integers.len));
+                        },
+                    }
+                    return Result.newFloat(sum / count);
+                },
+                .product => {
+                    const num_args = try self.evalNumericArgs(allocator, args);
+                    defer num_args.deinit(allocator);
+                    switch (num_args) {
+                        .integers => {
+                            var product: lexer.int_t = 1;
+                            for (num_args.integers) |arg| {
+                                product *= arg;
+                            }
+                            return Result.newInteger(product);
+                        },
+                        .floats => {
+                            var product: lexer.float_t = 1;
+                            for (num_args.floats) |arg| {
+                                product *= arg;
+                            }
+                            return Result.newFloat(product);
+                        },
+                    }
+                },
+            }
+        } else {
+            return error.UnknownFunction;
+        }
     }
 
     pub fn evalExpr(self: Cell, allocator: std.mem.Allocator, expr: *parser.Expr) anyerror!Result {
@@ -627,7 +520,7 @@ pub const Cell = struct {
             },
             .variadic => {
                 const variadic = expr.variadic;
-                result = try evalFunc(allocator, variadic.func, variadic.args);
+                result = try self.evalFunc(allocator, variadic.func, variadic.args);
             },
             .grouping => {
                 result = try self.evalExpr(allocator, expr.grouping.operand);
@@ -649,6 +542,7 @@ pub const Cell = struct {
             self.val = try CellValue.makeError(allocator, "Failed to parse cell");
             return Result.newNone();
         };
+        defer expr.destroySelf(allocator);
         var result = self.evalExpr(allocator, expr) catch |eval_err| {
             std.log.warn("Failed to evaluate cell: {}", .{eval_err});
             self.val = try CellValue.makeError(allocator, "Failed to evaluate cell");

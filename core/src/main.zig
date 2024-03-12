@@ -15,6 +15,9 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
+
+    var sheet = try engine.Sheet.new(allocator);
+    defer sheet.deinit(allocator);
     var line_buf: [2048]u8 = undefined;
     while (true) {
         try stdout.print("> ", .{});
@@ -31,13 +34,14 @@ pub fn main() !void {
         if (line.len == 0) {
             continue;
         }
-        const expr = parser.parse(allocator, line) catch |err| {
-            try stdout.print("Parse error: {}\n", .{err});
-            continue;
-        };
-        defer expr.destroySelf(allocator);
 
-        const result = engine.eval(allocator, expr) catch |err| {
+        // const expr = parser.parse(allocator, line) catch |err| {
+        //     try stdout.print("Parse error: {}\n", .{err});
+        //     continue;
+        // };
+        // defer expr.destroySelf(allocator);
+
+        const result = sheet.eval(allocator, line) catch |err| {
             try stdout.print("Eval error: {}\n", .{err});
             continue;
         };
