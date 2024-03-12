@@ -475,6 +475,7 @@ pub const Cell = struct {
                         var maybe_cell: ?*Cell = self.map.get(row, col);
                         if (maybe_cell) |cell| {
                             var res = try cell.evalSelf(allocator);
+                            errdefer res.deinit(allocator);
                             switch (res) {
                                 .none => return error.CellHasNoValue,
                                 else => {
