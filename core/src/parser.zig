@@ -396,12 +396,7 @@ const Parser = struct {
             });
             return expr;
         }
-        if (self.match(&[_]lexer.TokenType{ .num_literal, .str_literal })) {
-            var expr = try Expr.createLiteral(allocator, self.previous().literal);
-            return expr;
-        }
-        if (self.matchOne(.cell_ref)) {
-            // TODO: need to copy?
+        if (self.match(&[_]lexer.TokenType{ .num_literal, .str_literal, .cell_ref })) {
             var expr = try Expr.createLiteral(allocator, self.previous().literal);
             return expr;
         }

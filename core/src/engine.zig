@@ -281,11 +281,14 @@ pub const Cell = struct {
 
     // TODO: support_graph
 
+    /// Input string is copied
+    ///
     /// IMPORTANT: cell_map is NOT owned by the cell,
     /// so the caller must free it.
-    pub fn new(raw: []const u8, cell_map: *Map) Cell {
+    pub fn new(allocator: std.mem.Allocator, raw: []const u8, cell_map: *Map) !Cell {
+        const raw_copy = try string_utils.copyString(allocator, raw);
         return Cell{
-            .raw = raw,
+            .raw = raw_copy,
             .val = CellValue.none,
             .map = cell_map,
         };
@@ -293,6 +296,7 @@ pub const Cell = struct {
 
     pub fn deinit(self: *Cell, allocator: std.mem.Allocator) void {
         self.val.deinit(allocator);
+        allocator.free(self.raw);
     }
 
     fn evalNumericArgs(self: Cell, allocator: std.mem.Allocator, args: []const *parser.Expr) anyerror!NumericResult {
@@ -434,13 +438,16 @@ pub const Cell = struct {
                         else => return error.TypeError,
                     };
 
-                    const second_arg = try self.evalExpr(allocator, args[1]);
-                    switch (second_arg) {
-                        .string => {},
+                    const second_arg = args[1];
+                    var input_s = switch (second_arg.*) {
+                        .literal => switch (second_arg.literal) {
+                            .string => second_arg.literal.string,
+                            else => return error.TypeError,
+                        },
                         else => return error.TypeError,
-                    }
+                    };
                     var new_cell = try allocator.create(Cell);
-                    new_cell.* = Cell.new(second_arg.string, self.map);
+                    new_cell.* = try Cell.new(allocator, input_s, self.map);
                     try self.map.set(allocator, cell_ref.row, cell_ref.col, new_cell);
                     _ = try new_cell.evalSelf(allocator);
                     return Result.newNone();
@@ -619,7 +626,7 @@ pub const Sheet = struct {
     }
 
     pub fn eval(self: *Sheet, allocator: std.mem.Allocator, source: []const u8) !Result {
-        var cell = Cell.new(source, &self.map);
+        var cell = try Cell.new(allocator, source, &self.map);
         defer cell.deinit(allocator);
         return cell.evalSelf(allocator);
     }
