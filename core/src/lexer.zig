@@ -113,6 +113,10 @@ fn isAlphaNumeric(c: u8) bool {
     return isDigit(c) or isAlpha(c);
 }
 
+fn isIdentifier(c: u8) bool {
+    return isAlphaNumeric(c) or c == '_';
+}
+
 fn interpretString(allocator: std.mem.Allocator, str: []const u8, quote_char: u8) ![]const u8 {
     var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, str.len);
     errdefer octets.deinit(allocator);
@@ -455,11 +459,10 @@ pub const Tokenizer = struct {
 
         // alpha-numeric keywords
         const save_tick = self.tick; // reset back to here
-        // isAlpha is sufficient
-        // since isDigit cannot be true here
-        if (isAlpha(c)) {
+        // isDigit cannot be true here, so implicity either alpha or _
+        if (isIdentifier(c)) {
             var char = c;
-            while (isAlphaNumeric(char) and !self.isEof()) {
+            while (isIdentifier(char) and !self.isEof()) {
                 char = self.advance();
             }
             // no longer alphanumeric
@@ -783,6 +786,30 @@ test "lexer basic test" {
         .{
             .type = .cell_ref,
             .str = "$R$5",
+        },
+        .{
+            .type = .r_paren,
+            .str = ")",
+        },
+    });
+
+    const load_fn_call = "__LOAD__(A1,\"Sheet1\")";
+    try testTokenizerInput(allocator, load_fn_call, &[_]ExpectedToken{
+        .{
+            .type = .func_call,
+            .str = "__LOAD__(",
+        },
+        .{
+            .type = .cell_ref,
+            .str = "A1",
+        },
+        .{
+            .type = .arg_sep,
+            .str = ",",
+        },
+        .{
+            .type = .str_literal,
+            .str = "\"Sheet1\"",
         },
         .{
             .type = .r_paren,
