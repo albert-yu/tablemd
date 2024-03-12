@@ -10,6 +10,7 @@ pub const Result = union(enum) {
     integer: lexer.int_t,
     float: lexer.float_t,
     string: []const u8,
+    cell_ref: lexer.CellRef,
 
     pub fn newNone() Result {
         return .{ .none = undefined };
@@ -84,6 +85,18 @@ pub const Result = union(enum) {
                     try string_builder.append(c);
                 }
                 try string_builder.append('"');
+            },
+            .cell_ref => {
+                // TODO: print as "A1" instead of "CELL(0, 0)"
+                try string_builder.appendSlice("CELL(");
+                const row_str = try std.fmt.allocPrint(allocator, "{d}", .{self.cell_ref.row});
+                defer allocator.free(row_str);
+                try string_builder.appendSlice(row_str);
+                try string_builder.appendSlice(", ");
+                const col_str = try std.fmt.allocPrint(allocator, "{d}", .{self.cell_ref.col});
+                defer allocator.free(col_str);
+                try string_builder.appendSlice(col_str);
+                try string_builder.appendSlice(")");
             },
         }
         return try string_builder.toOwnedSlice();
@@ -284,13 +297,22 @@ pub const Cell = struct {
 
     fn evalNumericArgs(self: Cell, allocator: std.mem.Allocator, args: []const *parser.Expr) anyerror!NumericResult {
         var arg_list = try std.ArrayListUnmanaged(*Result).initCapacity(allocator, 1);
-        defer arg_list.deinit(allocator);
+        defer {
+            for (arg_list.items) |r| {
+                r.deinit(allocator);
+                allocator.destroy(r);
+            }
+            arg_list.deinit(allocator);
+        }
         var use_float = false;
 
         // evaluate all the numbers and store them in a list
         for (args) |arg| {
             const r = try self.evalExpr(allocator, arg);
+            // TODO: need errdefer?
+            // errdefer r.deinit(allocator);
             const allocated = try allocator.create(Result);
+            // errdefer allocator.destroy(allocated);
             allocated.* = r;
             try arg_list.append(allocator, allocated);
             switch (r) {
@@ -299,12 +321,6 @@ pub const Cell = struct {
                     use_float = true;
                 },
                 else => return error.InvalidNumericArgument,
-            }
-        }
-        defer {
-            for (arg_list.items) |r| {
-                r.deinit(allocator);
-                allocator.destroy(r);
             }
         }
 
@@ -405,7 +421,25 @@ pub const Cell = struct {
                     }
                 },
                 .__load__ => {
-                    return error.UnknownFunction;
+                    if (args.len != 2) {
+                        std.log.warn("Expected 2 args for __load__, got {d}", .{args.len});
+                        return error.UnexpectedArgCount;
+                    }
+                    const first_arg = try self.evalExpr(allocator, args[0]);
+                    switch (first_arg) {
+                        .cell_ref => {},
+                        else => return error.TypeError,
+                    }
+                    const second_arg = try self.evalExpr(allocator, args[1]);
+                    switch (second_arg) {
+                        .string => {},
+                        else => return error.TypeError,
+                    }
+                    var new_cell = try allocator.create(Cell);
+                    new_cell.* = Cell.new(second_arg.string, self.map);
+                    try self.map.set(allocator, first_arg.cell_ref.row, first_arg.cell_ref.col, new_cell);
+                    _ = try new_cell.evalSelf(allocator);
+                    return Result.newNone();
                 },
             }
         } else {
@@ -413,6 +447,7 @@ pub const Cell = struct {
         }
     }
 
+    /// Should not mutate this cell
     pub fn evalExpr(self: Cell, allocator: std.mem.Allocator, expr: *parser.Expr) anyerror!Result {
         var result: Result = undefined;
         switch (expr.*) {
@@ -536,9 +571,8 @@ pub const Cell = struct {
         return result;
     }
 
-    /// Evaluates the cell's expression and stores the result in the cell.
-    /// Also returns the result.
-    /// Run-time errors are caught and stored in the cell.
+    /// Evaluates the cell's expression, stores, and returns the result in the cell.
+    /// Expected run-time errors are caught and stored in the cell.
     pub fn evalSelf(self: *Cell, allocator: std.mem.Allocator) !Result {
         if (self.raw.len == 0) {
             // empty cell is no-op
@@ -559,9 +593,9 @@ pub const Cell = struct {
         self.val.deinit(allocator);
         self.val = CellValue.makeValue(result);
 
-        return result;
-
         // TODO: for each cell in support_graph
+
+        return result;
     }
 };
 
