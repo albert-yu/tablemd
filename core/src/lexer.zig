@@ -556,14 +556,10 @@ pub const Tokenizer = struct {
             }
             if (isDigit(char)) {
                 const start_tick = self.tick - 1;
-                while (isDigit(char)) {
-                    if (self.isEOF()) {
-                        break;
-                    }
+                while (!self.isEOF() and isDigit(self.peek())) {
                     char = self.advance();
                 }
                 const row_str = self.input[start_tick..self.tick];
-                std.debug.print("row_str: {s}\n", .{row_str});
                 const row_index = try std.fmt.parseInt(usize, row_str, 10);
                 return Token{
                     .type = .cell_ref,
