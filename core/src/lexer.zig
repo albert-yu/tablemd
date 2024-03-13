@@ -3,11 +3,18 @@ const std = @import("std");
 pub const float_t = f64;
 pub const int_t = i64;
 
+/// For either a column or row
+const RefType = enum {
+    relative,
+    absolute,
+};
+
 /// Cell reference for indexing
 pub const CellRef = struct {
     row: usize,
     col: usize,
-    // TODO: absolute vs. relative
+    row_ref_type: RefType,
+    col_ref_type: RefType,
 };
 
 /// Tagged union of possible literal values
@@ -251,15 +258,7 @@ pub const Tokenizer = struct {
         return self.input[self.tick];
     }
 
-    /// peeks the next 3 characters, used
-    /// for cell ref (column part), for a total
-    /// length of 4, e.g. `$AZ$`
-    fn peek3(self: *Self) []const u8 {
-        var end = @min(self.input.len, self.tick + 3);
-        return self.input[self.tick..end];
-    }
-
-    fn isEof(self: *Self) bool {
+    fn isEOF(self: *Self) bool {
         return self.tick >= self.input.len;
     }
 
@@ -279,7 +278,7 @@ pub const Tokenizer = struct {
     /// if error occurs, caller should check tick
     pub fn next(self: *Self, allocator: std.mem.Allocator) !Token {
         const start = self.tick;
-        if (self.isEof()) {
+        if (self.isEOF()) {
             return Token{
                 .type = TokenType.eof,
                 .start = start,
@@ -294,7 +293,7 @@ pub const Tokenizer = struct {
         const c = self.advance();
 
         // two-character tokens
-        if (!self.isEof()) {
+        if (!self.isEOF()) {
             const left = c;
             const right = self.peek();
             const two_char_tok = getTwoCharToken(left, right);
@@ -335,7 +334,7 @@ pub const Tokenizer = struct {
             var tok_type = TokenType.str_literal;
             var repr_len: usize = 1;
             var char = c;
-            while (repr_len <= MAX_SHEET_NAME and !self.isEof()) {
+            while (repr_len <= MAX_SHEET_NAME and !self.isEOF()) {
                 const next_char = self.peek();
                 if (char == '\'' and next_char == '!') {
                     tok_type = TokenType.sheet_ref;
@@ -363,7 +362,7 @@ pub const Tokenizer = struct {
                 };
             }
             // keep going till end
-            while (!self.isEof()) {
+            while (!self.isEOF()) {
                 _ = self.advance();
                 repr_len += 1;
             }
@@ -386,7 +385,7 @@ pub const Tokenizer = struct {
             var octets = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 0);
             errdefer octets.deinit(allocator);
             var char = self.advance();
-            while (!self.isEof()) {
+            while (!self.isEOF()) {
                 repr_len += 1;
                 if (char == '"') {
                     const peeked = self.peek();
@@ -416,7 +415,7 @@ pub const Tokenizer = struct {
         if (is_digit or c == '.') {
             var seen_dot = c == '.';
             var char = c;
-            while ((is_digit or char == '.') and !self.isEof()) {
+            while ((is_digit or char == '.') and !self.isEOF()) {
                 const next_c = self.peek();
                 is_digit = isDigit(next_c);
                 if (!is_digit) {
@@ -462,7 +461,7 @@ pub const Tokenizer = struct {
         // isDigit cannot be true here, so implicity either alpha or _
         if (isIdentifier(c)) {
             var char = c;
-            while (isIdentifier(char) and !self.isEof()) {
+            while (isIdentifier(char) and !self.isEOF()) {
                 char = self.advance();
             }
             // no longer alphanumeric
@@ -518,57 +517,65 @@ pub const Tokenizer = struct {
         self.tick = save_tick;
 
         // cell refs
-        if (isAlphaUpper(c) or c == '$') {
-            const peeked3 = self.peek3();
-            var col_ref: [2]u8 = .{ 0, 0 };
-            var count_alpha: usize = if (c == '$') 0 else 1;
-            if (count_alpha == 1) {
-                col_ref[0] = c;
+        var col_ref_type: RefType = .relative;
+        var char = c;
+        if (char == '$') {
+            col_ref_type = .absolute;
+            if (self.isEOF()) {
+                return error.UnexpectedEOF;
             }
-            var ticks_to_advance: usize = 0;
-            for (peeked3) |char| {
-                if (count_alpha == 2 or ticks_to_advance == 3) {
-                    break;
+            char = self.advance();
+        }
+        if (isAlphaUpper(char)) {
+            const MAX_COL_REF_LEN = 2;
+            var col_ref: [MAX_COL_REF_LEN]u8 = .{ 0, 0 };
+            var count_alpha: usize = 0;
+            while (isAlphaUpper(char)) {
+                if (count_alpha == MAX_COL_REF_LEN) {
+                    // TODO: handle wider column refs
+                    return error.InvalidCellRef;
                 }
-                if (!isAlphaUpper(char) and char != '$') {
-                    break;
+                col_ref[count_alpha] = char;
+                count_alpha += 1;
+                if (self.isEOF()) {
+                    return error.UnexpectedEOF;
                 }
-                ticks_to_advance += 1;
-                if (isAlphaUpper(char)) {
-                    count_alpha += 1;
-                    col_ref[count_alpha - 1] = char;
-                }
+                char = self.advance();
             }
-            if (count_alpha == 1 or count_alpha == 2) {
-                var col_index: usize = switch (count_alpha) {
-                    1 => getAlphaOffset(col_ref[0]),
-                    2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
-                    else => unreachable,
-                };
-                // get row index
-                self.tick += ticks_to_advance;
-                const digit_start = self.tick;
-                if (!self.atEnd()) {
-                    var char = self.advance();
-                    var peeked = self.peek();
-                    while (isDigit(peeked) and !self.atEnd()) {
-                        char = self.advance();
-                        peeked = self.peek();
+            var col_index: usize = switch (count_alpha) {
+                1 => getAlphaOffset(col_ref[0]),
+                2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
+                else => unreachable,
+            };
+
+            // get row index
+            var row_ref_type: RefType = .relative;
+            if (char == '$' and !self.isEOF()) {
+                row_ref_type = .absolute;
+                char = self.advance();
+            }
+            if (isDigit(char)) {
+                const start_tick = self.tick - 1;
+                while (isDigit(char)) {
+                    if (self.isEOF()) {
+                        break;
                     }
+                    char = self.advance();
                 }
-                const end = self.tick;
-                const repr = self.input[start..end];
-                const row_str = self.input[digit_start..end];
-                const row_number = try std.fmt.parseUnsigned(usize, row_str, 10);
+                const row_str = self.input[start_tick..self.tick];
+                std.debug.print("row_str: {s}\n", .{row_str});
+                const row_index = try std.fmt.parseInt(usize, row_str, 10);
                 return Token{
                     .type = .cell_ref,
                     .start = start,
-                    .end = end,
-                    .repr = repr,
+                    .end = self.tick,
+                    .repr = self.input[start..self.tick],
                     .literal = .{
-                        .cell_ref = .{
-                            .row = row_number - 1,
+                        .cell_ref = CellRef{
                             .col = col_index,
+                            .row = row_index,
+                            .col_ref_type = col_ref_type,
+                            .row_ref_type = row_ref_type,
                         },
                     },
                 };

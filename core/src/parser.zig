@@ -656,5 +656,5 @@ test "invalid input leak" {
     try std.testing.expectError(error.TokenError, result);
 
     const result_2 = parse(allocator, "1 $");
-    try std.testing.expectError(error.UnexpectedCharacter, result_2);
+    try std.testing.expectError(error.UnexpectedEOF, result_2);
 }
