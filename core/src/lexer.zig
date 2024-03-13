@@ -634,6 +634,14 @@ fn testTokenizerString(allocator: std.mem.Allocator, input: []const u8, expected
 test "lexer basic test" {
     const allocator = std.testing.allocator;
 
+    const single_cell = "A1";
+    try testTokenizerInput(allocator, single_cell, &[_]ExpectedToken{
+        .{
+            .str = "A1",
+            .type = .cell_ref,
+        },
+    });
+
     const basic_cell_ref = "$A3=TRUE";
     try testTokenizerInput(allocator, basic_cell_ref, &[_]ExpectedToken{
         .{
