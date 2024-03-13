@@ -34,13 +34,6 @@ pub fn main() !void {
         if (line.len == 0) {
             continue;
         }
-
-        // const expr = parser.parse(allocator, line) catch |err| {
-        //     try stdout.print("Parse error: {}\n", .{err});
-        //     continue;
-        // };
-        // defer expr.destroySelf(allocator);
-
         const result = sheet.eval(allocator, line) catch |err| {
             try stdout.print("Eval error: {}\n", .{err});
             continue;
