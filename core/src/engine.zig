@@ -704,4 +704,9 @@ test "load" {
 
     var val = try getIntVal(two);
     try std.testing.expectEqual(val, 2);
+
+    var cell_alone = try sheet.eval(allocator, "A1");
+    defer cell_alone.deinit(allocator);
+    var val_alone = try getIntVal(cell_alone);
+    try std.testing.expectEqual(val_alone, 1);
 }
