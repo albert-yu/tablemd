@@ -665,7 +665,7 @@ fn testFloats(allocator: std.mem.Allocator, source: []const u8, expected: lexer.
 }
 
 test "integer evaluations" {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.testing.allocator;
     try testInts(allocator, "-2", -2);
     try testInts(allocator, "3 + 4", 7);
     try testInts(allocator, "9 * 7", 63);
@@ -676,14 +676,14 @@ test "integer evaluations" {
 }
 
 test "float evaluations" {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.testing.allocator;
     try testFloats(allocator, "-2.0", -2.0);
     try testFloats(allocator, "3.0 + 4.0", 7.0);
     try testFloats(allocator, "SUM(1, 2, 3.5)", 6.5);
 }
 
 test "precedence" {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.testing.allocator;
     try testInts(allocator, "3 + 4 * 5", 23);
     try testInts(allocator, "3 * 4 + 5", 17);
     try testInts(allocator, "3 * (4 + 5)", 27);
@@ -693,7 +693,7 @@ test "precedence" {
 }
 
 test "load" {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.testing.allocator;
     var sheet = try Sheet.new(allocator);
     defer sheet.deinit(allocator);
     var result_none = try sheet.eval(allocator, "__LOAD__(A1, \"1\")");
