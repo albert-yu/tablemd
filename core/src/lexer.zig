@@ -550,8 +550,11 @@ pub const Tokenizer = struct {
 
             // get row index
             var row_ref_type: RefType = .relative;
-            if (char == '$' and !self.isEOF()) {
+            if (char == '$') {
                 row_ref_type = .absolute;
+                if (self.isEOF()) {
+                    return error.UnexpectedEOF;
+                }
                 char = self.advance();
             }
             if (isDigit(char)) {
@@ -724,11 +727,11 @@ test "lexer basic test" {
         },
     });
 
-    const with_whitespace = "$Z$Q8989 -   100";
+    const with_whitespace = "$ZQ8989 -   100";
     try testTokenizerInput(allocator, with_whitespace, &[_]ExpectedToken{
         .{
             .type = .cell_ref,
-            .str = "$Z$Q8989",
+            .str = "$ZQ8989",
         },
         .{
             .type = .space,
