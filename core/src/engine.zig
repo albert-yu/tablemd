@@ -613,6 +613,7 @@ pub const Cell = struct {
 
 fn freeCell(allocator: std.mem.Allocator, cell: *Cell) void {
     cell.deinit(allocator);
+    allocator.destroy(cell);
 }
 
 pub const Sheet = struct {
