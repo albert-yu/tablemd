@@ -611,6 +611,10 @@ pub const Cell = struct {
     }
 };
 
+fn freeCell(allocator: std.mem.Allocator, cell: *Cell) void {
+    cell.deinit(allocator);
+}
+
 pub const Sheet = struct {
     map: Map,
 
@@ -622,7 +626,7 @@ pub const Sheet = struct {
     }
 
     pub fn deinit(self: *Sheet, allocator: std.mem.Allocator) void {
-        self.map.deinit(allocator);
+        self.map.deinit(allocator, freeCell);
     }
 
     pub fn eval(self: *Sheet, allocator: std.mem.Allocator, source: []const u8) !Result {

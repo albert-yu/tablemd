@@ -46,9 +46,14 @@ pub fn QT4(comptime T: type) type {
             };
         }
 
-        pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
+        pub fn deinit(self: Self, allocator: std.mem.Allocator, comptime free: fn (allocator: std.mem.Allocator, item: T) void) void {
             for (self.allocs_tile_3.items) |maybe_slice| {
                 if (maybe_slice) |slice| {
+                    for (slice) |maybe_item| {
+                        if (maybe_item) |item| {
+                            free(allocator, item);
+                        }
+                    }
                     allocator.free(slice);
                 }
             }
@@ -141,7 +146,7 @@ pub fn QT4(comptime T: type) type {
             if (maybe_tile_3) |tile| {
                 tile_3 = tile;
             } else {
-                tile_3 = try allocator.alloc(?T, W * H);
+                tile_3 = try allocateTile(?T, allocator);
                 try self.allocs_tile_3.append(tile_3);
                 tile_2[index_3] = tile_3;
             }
@@ -191,10 +196,15 @@ pub fn QT4(comptime T: type) type {
 
 const IntMap = QT4(i32);
 
+fn noopFree(allocator: std.mem.Allocator, i: i32) void {
+    _ = allocator;
+    _ = i;
+}
+
 test "QT4 integers" {
     var allocator = std.testing.allocator;
     var ints = try IntMap.new(allocator);
-    defer ints.deinit(allocator);
+    defer ints.deinit(allocator, noopFree);
 
     try ints.set(allocator, 0, 0, 1);
     try ints.set(allocator, 0, 1, 2);
@@ -217,7 +227,7 @@ fn freeString(allocator: std.mem.Allocator, s: []const u8) void {
 test "QT4 heap-allocated strings" {
     var allocator = std.testing.allocator;
     var strings = try StringMap.new(allocator);
-    defer strings.deinit(allocator);
+    defer strings.deinit(allocator, freeString);
 
     const row = 12345;
     const col = 12831;
