@@ -116,7 +116,7 @@ pub fn QT4(comptime T: type) type {
                 return;
             }
             var tile_1: []?[]?[]?T = undefined;
-            var maybe_tile_1 = self.root[index_1];
+            const maybe_tile_1 = self.root[index_1];
             if (maybe_tile_1) |tile| {
                 tile_1 = tile;
             } else {
@@ -129,7 +129,7 @@ pub fn QT4(comptime T: type) type {
                 return;
             }
             var tile_2: []?[]?T = undefined;
-            var maybe_tile_2 = tile_1[index_2];
+            const maybe_tile_2 = tile_1[index_2];
             if (maybe_tile_2) |tile| {
                 tile_2 = tile;
             } else {
@@ -160,11 +160,11 @@ pub fn QT4(comptime T: type) type {
         /// Assumes row and col point to allocated memory.
         fn setExistingToNull(self: *Self, row: usize, col: usize) void {
             const index_1 = compute_index(row, col, 3);
-            var tile_1 = self.root[index_1] orelse unreachable;
+            const tile_1 = self.root[index_1] orelse unreachable;
             const index_2 = compute_index(row, col, 2);
-            var tile_2 = tile_1[index_2] orelse unreachable;
+            const tile_2 = tile_1[index_2] orelse unreachable;
             const index_3 = compute_index(row, col, 1);
-            var tile_3 = tile_2[index_3] orelse unreachable;
+            const tile_3 = tile_2[index_3] orelse unreachable;
             const index_4 = compute_index(row, col, 0);
             tile_3[index_4] = null;
         }
@@ -172,7 +172,7 @@ pub fn QT4(comptime T: type) type {
         /// Does nothing if item not found. Calls `free` on the item.
         pub fn delete(self: *Self, allocator: std.mem.Allocator, row: usize, col: usize, comptime free: fn (allocator: std.mem.Allocator, T) void) void {
             // get the item and free it
-            var maybe_item = self.get(row, col);
+            const maybe_item = self.get(row, col);
             if (maybe_item) |item| {
                 free(allocator, item);
                 self.setExistingToNull(row, col);
@@ -184,7 +184,7 @@ pub fn QT4(comptime T: type) type {
         /// Returns null if item not found.
         /// Caller owns the returned item.
         pub fn pop(self: *Self, row: usize, col: usize) ?T {
-            var maybe_item = self.get(row, col);
+            const maybe_item = self.get(row, col);
             if (maybe_item) |item| {
                 self.setExistingToNull(row, col);
                 return item;
@@ -202,7 +202,7 @@ fn noopFree(allocator: std.mem.Allocator, i: i32) void {
 }
 
 test "QT4 integers" {
-    var allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
     var ints = try IntMap.new(allocator);
     defer ints.deinit(allocator, noopFree);
 

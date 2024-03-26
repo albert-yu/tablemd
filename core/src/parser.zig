@@ -60,7 +60,7 @@ pub const Expr = union(enum) {
 
     /// caller must free with `.destroySelf`
     pub fn createLiteral(allocator: std.mem.Allocator, literal: ExprLiteral) error{ OutOfMemory, TokenError }!*Expr {
-        var expr: *Expr = try allocator.create(Expr);
+        const expr: *Expr = try allocator.create(Expr);
         expr.* = Expr{
             .literal = switch (literal) {
                 .string => try copyStrLiteral(allocator, literal.string),
@@ -71,8 +71,8 @@ pub const Expr = union(enum) {
     }
 
     pub fn createUnaryOp(allocator: std.mem.Allocator, op: UnaryOp, operand: *Expr) error{ OutOfMemory, TokenError }!*Expr {
-        var expr = try allocator.create(Expr);
-        var unary = try allocator.create(ExprUnary);
+        const expr = try allocator.create(Expr);
+        const unary = try allocator.create(ExprUnary);
         unary.* = ExprUnary{
             .op = op,
             .operand = operand,
@@ -84,8 +84,8 @@ pub const Expr = union(enum) {
     }
 
     pub fn createBinaryOp(allocator: std.mem.Allocator, left: *Expr, op: BinaryOp, right: *Expr) error{ OutOfMemory, TokenError }!*Expr {
-        var expr: *Expr = try allocator.create(Expr);
-        var binary_inner = try allocator.create(ExprBinary);
+        const expr: *Expr = try allocator.create(Expr);
+        const binary_inner = try allocator.create(ExprBinary);
         binary_inner.* = ExprBinary{
             .op = op,
             .left = left,
@@ -98,8 +98,8 @@ pub const Expr = union(enum) {
     }
 
     pub fn createGrouping(allocator: std.mem.Allocator, operand: *Expr) error{ OutOfMemory, TokenError }!*Expr {
-        var expr: *Expr = try allocator.create(Expr);
-        var grouping_inner = try allocator.create(ExprGrouping);
+        const expr: *Expr = try allocator.create(Expr);
+        const grouping_inner = try allocator.create(ExprGrouping);
         grouping_inner.* = ExprGrouping{
             .operand = operand,
         };
@@ -110,8 +110,8 @@ pub const Expr = union(enum) {
     }
 
     pub fn createVariadic(allocator: std.mem.Allocator, expr_variadic: ExprVariadic) error{ OutOfMemory, TokenError }!*Expr {
-        var expr: *Expr = try allocator.create(Expr);
-        var variadic_inner = try allocator.create(ExprVariadic);
+        const expr: *Expr = try allocator.create(Expr);
+        const variadic_inner = try allocator.create(ExprVariadic);
         variadic_inner.* = expr_variadic;
         expr.* = Expr{
             .variadic = variadic_inner,
@@ -145,7 +145,7 @@ pub const Expr = union(enum) {
                 allocator.destroy(self.binary);
             },
             .variadic => {
-                var func = self.variadic.func;
+                const func = self.variadic.func;
                 allocator.free(func);
                 for (self.variadic.args) |arg| {
                     arg.destroySelf(allocator);
@@ -242,7 +242,7 @@ pub const Expr = union(enum) {
             },
             .variadic => {
                 try char_list.append(allocator, '(');
-                var func = self.variadic.func;
+                const func = self.variadic.func;
                 try char_list.appendSlice(allocator, func);
                 try char_list.append(allocator, ' ');
                 for (self.variadic.args, 0..) |arg, i| {
@@ -265,7 +265,7 @@ pub const Expr = union(enum) {
     pub fn toAstString(self: *Expr, allocator: std.mem.Allocator) ![]const u8 {
         var char_list = try std.ArrayListUnmanaged(u8).initCapacity(allocator, 8);
         try self.toAstStringInner(allocator, &char_list);
-        var result = try char_list.toOwnedSlice(allocator);
+        const result = try char_list.toOwnedSlice(allocator);
         return result;
     }
 };
@@ -349,17 +349,17 @@ const Parser = struct {
         var expr = try self.comparison(allocator);
 
         while (self.match(&[_]lexer.TokenType{ .neq, .eq })) {
-            var operator = self.previous();
-            var right = try self.comparison(allocator);
+            const operator = self.previous();
+            const right = try self.comparison(allocator);
 
-            var op = switch (operator.type) {
+            const op = switch (operator.type) {
                 .eq => BinaryOp.eq,
                 .neq => BinaryOp.neq,
                 else => unreachable,
             };
             // swap
-            var temp = expr;
-            var new_expr = try Expr.createBinaryOp(allocator, temp, op, right);
+            const temp = expr;
+            const new_expr = try Expr.createBinaryOp(allocator, temp, op, right);
             expr = new_expr;
         }
         return expr;
@@ -373,7 +373,7 @@ const Parser = struct {
         var args = try std.ArrayListUnmanaged(*Expr).initCapacity(allocator, 1);
         if (!self.matchOne(.r_paren)) {
             while (true) {
-                var arg = try self.expression(allocator);
+                const arg = try self.expression(allocator);
                 try args.append(allocator, arg);
                 if (!self.matchOne(.arg_sep)) {
                     break;
@@ -385,39 +385,39 @@ const Parser = struct {
 
     fn primary(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
         if (self.matchOne(.false)) {
-            var expr = try Expr.createLiteral(allocator, .{
+            const expr = try Expr.createLiteral(allocator, .{
                 .boolean = false,
             });
             return expr;
         }
         if (self.matchOne(.true)) {
-            var expr = try Expr.createLiteral(allocator, .{
+            const expr = try Expr.createLiteral(allocator, .{
                 .boolean = true,
             });
             return expr;
         }
         if (self.match(&[_]lexer.TokenType{ .num_literal, .str_literal, .cell_ref })) {
-            var expr = try Expr.createLiteral(allocator, self.previous().literal);
+            const expr = try Expr.createLiteral(allocator, self.previous().literal);
             return expr;
         }
         if (self.matchOne(.func_call)) {
-            var func = try string_utils.copyString(allocator, self.previous().literal.keyword);
+            const func = try string_utils.copyString(allocator, self.previous().literal.keyword);
             errdefer allocator.free(func);
-            var args = try self.arguments(allocator);
+            const args = try self.arguments(allocator);
             errdefer {
                 for (args) |arg| {
                     arg.destroySelf(allocator);
                 }
                 allocator.free(args);
             }
-            var expr = try Expr.createVariadic(allocator, .{
+            const expr = try Expr.createVariadic(allocator, .{
                 .func = func,
                 .args = args,
             });
             return expr;
         }
         if (self.matchOne(.l_paren)) {
-            var expr = try self.expression(allocator);
+            const expr = try self.expression(allocator);
 
             _ = try self.consume(.r_paren, "Expected ')' after expression.");
             return try Expr.createGrouping(allocator, expr);
@@ -435,9 +435,9 @@ const Parser = struct {
             .ref_op,
             .minus,
         })) {
-            var operator = self.previous();
-            var right = try self.unaryPre(allocator);
-            var op = switch (operator.type) {
+            const operator = self.previous();
+            const right = try self.unaryPre(allocator);
+            const op = switch (operator.type) {
                 .ref_op => UnaryOp.ref_op,
                 .minus => UnaryOp.neg,
                 // TODO: others
@@ -455,14 +455,14 @@ const Parser = struct {
         while (self.match(&[_]lexer.TokenType{
             .pow,
         })) {
-            var operator = self.previous();
+            const operator = self.previous();
             var right = try self.unaryPre(allocator);
             errdefer right.destroySelf(allocator);
-            var op = switch (operator.type) {
+            const op = switch (operator.type) {
                 .pow => BinaryOp.pow,
                 else => unreachable,
             };
-            var temp = expr;
+            const temp = expr;
             expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
@@ -476,15 +476,15 @@ const Parser = struct {
             .mult,
             .div,
         })) {
-            var operator = self.previous();
+            const operator = self.previous();
             var right = try self.exp(allocator);
             errdefer right.destroySelf(allocator);
-            var op = switch (operator.type) {
+            const op = switch (operator.type) {
                 .mult => BinaryOp.mult,
                 .div => BinaryOp.div,
                 else => unreachable,
             };
-            var temp = expr;
+            const temp = expr;
             expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
@@ -497,15 +497,15 @@ const Parser = struct {
             .minus,
             .plus,
         })) {
-            var operator = self.previous();
+            const operator = self.previous();
             var right = try self.factor(allocator);
             errdefer right.destroySelf(allocator);
-            var op = switch (operator.type) {
+            const op = switch (operator.type) {
                 .minus => BinaryOp.minus,
                 .plus => BinaryOp.plus,
                 else => unreachable,
             };
-            var temp = expr;
+            const temp = expr;
             expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
@@ -520,23 +520,23 @@ const Parser = struct {
             .lt,
             .lte,
         })) {
-            var operator = self.previous();
-            var right = try self.term(allocator);
-            var op = switch (operator.type) {
+            const operator = self.previous();
+            const right = try self.term(allocator);
+            const op = switch (operator.type) {
                 .gt => BinaryOp.gt,
                 .gte => BinaryOp.gte,
                 .lt => BinaryOp.lt,
                 .lte => BinaryOp.lte,
                 else => unreachable,
             };
-            var temp = expr;
+            const temp = expr;
             expr = try Expr.createBinaryOp(allocator, temp, op, right);
         }
         return expr;
     }
 
     pub fn parse(self: *Parser, allocator: std.mem.Allocator) error{ OutOfMemory, TokenError }!*Expr {
-        var expr = try self.expression(allocator);
+        const expr = try self.expression(allocator);
         return expr;
     }
 };
@@ -576,10 +576,10 @@ fn testParse(allocator: std.mem.Allocator, test_case: ParserTestCase) !void {
 
 test "print debug" {
     const allocator = std.testing.allocator;
-    var four = try Expr.createLiteral(allocator, .{
+    const four = try Expr.createLiteral(allocator, .{
         .integer = 4,
     });
-    var five = try Expr.createLiteral(allocator, .{
+    const five = try Expr.createLiteral(allocator, .{
         .integer = 5,
     });
     var expr = try Expr.createBinaryOp(allocator, five, .plus, four);
@@ -601,7 +601,7 @@ test "parse simple expressions" {
             try std.testing.expectEqual(BinaryOp.plus, expr.binary.op);
             const left = expr.binary.left;
             const right = expr.binary.right;
-            var parsed_right = switch (right.*) {
+            const parsed_right = switch (right.*) {
                 .literal => switch (right.literal) {
                     .integer => right.literal.integer,
                     else => -1,
@@ -611,7 +611,7 @@ test "parse simple expressions" {
             const expected_right: int_t = 4;
             try std.testing.expectEqual(expected_right, parsed_right);
 
-            var parsed_left = switch (left.*) {
+            const parsed_left = switch (left.*) {
                 .literal => switch (left.literal) {
                     .integer => left.literal.integer,
                     else => -1,

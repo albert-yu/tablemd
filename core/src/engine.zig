@@ -238,7 +238,7 @@ const CellValue = union(enum) {
     err: []const u8,
 
     pub fn makeError(allocator: std.mem.Allocator, err: []const u8) !CellValue {
-        var err_slice = try allocator.alloc(u8, err.len);
+        const err_slice = try allocator.alloc(u8, err.len);
         @memcpy(err_slice, err);
         return .{ .err = err_slice };
     }
@@ -430,7 +430,7 @@ pub const Cell = struct {
                         return error.UnexpectedArgCount;
                     }
                     const first_arg = args[0];
-                    var cell_ref = switch (first_arg.*) {
+                    const cell_ref = switch (first_arg.*) {
                         .literal => switch (first_arg.literal) {
                             .cell_ref => first_arg.literal.cell_ref,
                             else => return error.TypeError,
@@ -439,7 +439,7 @@ pub const Cell = struct {
                     };
 
                     const second_arg = args[1];
-                    var input_s = switch (second_arg.*) {
+                    const input_s = switch (second_arg.*) {
                         .literal => switch (second_arg.literal) {
                             .string => second_arg.literal.string,
                             else => return error.TypeError,
@@ -483,7 +483,7 @@ pub const Cell = struct {
                     .cell_ref => {
                         const row = literal.cell_ref.row;
                         const col = literal.cell_ref.col;
-                        var maybe_cell: ?*Cell = self.map.get(row, col);
+                        const maybe_cell: ?*Cell = self.map.get(row, col);
                         if (maybe_cell) |cell| {
                             var res = try cell.evalSelf(allocator);
                             errdefer res.deinit(allocator);
@@ -596,7 +596,7 @@ pub const Cell = struct {
             return Result.newNone();
         };
         defer expr.destroySelf(allocator);
-        var result = self.evalExpr(allocator, expr) catch |eval_err| {
+        const result = self.evalExpr(allocator, expr) catch |eval_err| {
             std.log.warn("Failed to evaluate cell: {}", .{eval_err});
             self.val = try CellValue.makeError(allocator, "Failed to evaluate cell");
             return Result.newNone();
@@ -620,7 +620,7 @@ pub const Sheet = struct {
     map: Map,
 
     pub fn new(allocator: std.mem.Allocator) !Sheet {
-        var cell_map = try Map.new(allocator);
+        const cell_map = try Map.new(allocator);
         return .{
             .map = cell_map,
         };
@@ -643,7 +643,7 @@ fn testEval(allocator: std.mem.Allocator, source: []const u8, comptime T: type, 
     var result = try sheet.eval(allocator, source);
     defer result.deinit(allocator);
 
-    var result_value = try val_getter(result);
+    const result_value = try val_getter(result);
     try std.testing.expectEqual(expected, result_value);
 }
 
@@ -707,11 +707,11 @@ test "load" {
     var two = try sheet.eval(allocator, "A1 + 1");
     defer two.deinit(allocator);
 
-    var val = try getIntVal(two);
+    const val = try getIntVal(two);
     try std.testing.expectEqual(val, 2);
 
     var cell_alone = try sheet.eval(allocator, "A1");
     defer cell_alone.deinit(allocator);
-    var val_alone = try getIntVal(cell_alone);
+    const val_alone = try getIntVal(cell_alone);
     try std.testing.expectEqual(val_alone, 1);
 }

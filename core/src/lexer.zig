@@ -479,9 +479,9 @@ pub const Tokenizer = struct {
                 };
             }
             if (char == '!') {
-                const value = try allocator.alloc(u8, repr.len);
+                const value = try allocator.alloc(u8, repr.len - 1);
                 // TODO: handle escape characters if any
-                std.mem.copy(u8, value, repr[0..(repr.len - 1)]);
+                @memcpy(value, repr[0..(repr.len - 1)]);
                 return Token{
                     .type = .sheet_ref,
                     .start = start,
@@ -542,7 +542,7 @@ pub const Tokenizer = struct {
                 }
                 char = self.advance();
             }
-            var col_index: usize = switch (count_alpha) {
+            const col_index: usize = switch (count_alpha) {
                 1 => getAlphaOffset(col_ref[0]),
                 2 => getDoubleAlphaOffset(col_ref[0], col_ref[1]),
                 else => unreachable,
@@ -592,7 +592,7 @@ pub const Tokenizer = struct {
         var tokens_arrlist = try std.ArrayListUnmanaged(Token).initCapacity(allocator, 2);
         errdefer tokens_arrlist.deinit(allocator);
         while (true) {
-            var token = try self.next(allocator);
+            const token = try self.next(allocator);
             if (token.type == .space) {
                 // skip spaces
                 continue;
@@ -633,7 +633,7 @@ fn testTokenizerString(allocator: std.mem.Allocator, input: []const u8, expected
     var token = try tokenizer.next(allocator);
     defer token.deinit(allocator);
     try std.testing.expectEqualStrings(expected_str, token.literal.string);
-    var expected_token_type = TokenType.str_literal;
+    const expected_token_type = TokenType.str_literal;
     try std.testing.expectEqual(expected_token_type, token.type);
 }
 
