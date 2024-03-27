@@ -15,7 +15,7 @@ const Sheet = struct {
     }
 
     pub fn deinit(self: *Sheet) void {
-        engine.Sheet.deinit(self.allocator);
+        self.inner.deinit(self.allocator);
     }
 
     pub fn eval(self: *Sheet, source: []const u8) ?engine.Result {
@@ -36,4 +36,10 @@ export fn newSheet() ?*Sheet {
     };
     allocated_sheet.* = sheet;
     return allocated_sheet;
+}
+
+export fn freeSheet(sheet: *Sheet) void {
+    const allocator = sheet.allocator;
+    sheet.deinit();
+    allocator.destroy(sheet);
 }
