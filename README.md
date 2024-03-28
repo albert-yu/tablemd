@@ -1,16 +1,11 @@
 # spreadsheet
 
-Install [`zig`](https://ziglang.org/learn/getting-started/#installing-zig) and [`wasmtime`](https://wasmtime.dev).
-
-```sh
-brew install zig
-brew install wasmtime
-```
+Install [`zig >=0.12`](https://ziglang.org/learn/getting-started/#installing-zig).
 
 Build and run.
 
 ```sh
-cd core
-zig build -Dtarget=wasm32-wasi
-wasmtime zig-out/bin/spreadsheet.wasm
+./scripts/build-wasm.sh
+cd server
+python3 -m http.server
 ```
