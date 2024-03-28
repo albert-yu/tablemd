@@ -11,10 +11,3 @@ python3 -m http.server
 ```
 
 Open `http://localhost:8000` in your browser.
-
-To run the REPL,
-
-```sh
-cd core
-zig build run
-```
