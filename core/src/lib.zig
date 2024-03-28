@@ -1,6 +1,8 @@
 const std = @import("std");
 const engine = @import("engine.zig");
 
+extern fn print(str: []const u8) void;
+
 /// Couples engine.Sheet with std.heap.page_allocator
 const Sheet = struct {
     inner: *engine.Sheet,
