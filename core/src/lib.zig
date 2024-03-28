@@ -32,6 +32,7 @@ export fn newSheet() ?*Sheet {
         return null;
     };
     const allocated_sheet = allocator.create(Sheet) catch {
+        sheet.deinit();
         return null;
     };
     allocated_sheet.* = sheet;
