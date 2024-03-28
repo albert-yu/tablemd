@@ -6,7 +6,7 @@ Build and run.
 
 ```sh
 ./scripts/build-wasm.sh
-cd server
+cd web
 python3 -m http.server
 ```
 

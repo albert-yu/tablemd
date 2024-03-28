@@ -18,4 +18,4 @@ zig-out/
 /docgen_tmp/
 
 # Ignore the build directory for the server
-server/build
+web/build
