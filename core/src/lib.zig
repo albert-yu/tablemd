@@ -3,19 +3,22 @@ const engine = @import("engine.zig");
 
 /// Couples engine.Sheet with std.heap.page_allocator
 const Sheet = struct {
-    inner: engine.Sheet,
+    inner: *engine.Sheet,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) !Sheet {
         const inner = try engine.Sheet.new(allocator);
+        const inner_ptr = try allocator.create(engine.Sheet);
+        inner_ptr.* = inner;
         return Sheet{
-            .inner = inner,
+            .inner = inner_ptr,
             .allocator = allocator,
         };
     }
 
-    pub fn deinit(self: *Sheet) void {
+    pub fn deinit(self: Sheet) void {
         self.inner.deinit(self.allocator);
+        self.allocator.destroy(self.inner);
     }
 
     pub fn eval(self: *Sheet, source: []const u8) ?engine.Result {
