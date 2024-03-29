@@ -7,7 +7,10 @@ try {
     },
   });
   const newSheet = result.instance.exports.newSheet;
-  newSheet();
+  const freeSheet = result.instance.exports.freeSheet;
+  const v = newSheet();
+  console.log("v", v);
+  freeSheet(v);
 } catch (err) {
   console.log(err);
 }

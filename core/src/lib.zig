@@ -1,7 +1,7 @@
 const std = @import("std");
 const engine = @import("engine.zig");
 
-extern fn print(str: []const u8) void;
+extern fn print(str: ?[*:0]const u8) void;
 
 /// Couples engine.Sheet with std.heap.page_allocator
 const Sheet = struct {
@@ -48,4 +48,6 @@ export fn freeSheet(sheet: *Sheet) void {
     const allocator = sheet.allocator;
     sheet.deinit();
     allocator.destroy(sheet);
+    const s = "freed";
+    print(s.ptr);
 }
