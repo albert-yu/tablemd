@@ -3,7 +3,7 @@ const engine = @import("engine.zig");
 
 extern fn print_char(c: u8) void;
 
-/// Couples engine.Sheet with std.heap.page_allocator
+/// Couples engine.Sheet with std.heap.wasm_allocator
 const Sheet = struct {
     inner: *engine.Sheet,
     allocator: std.mem.Allocator,
