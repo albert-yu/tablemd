@@ -32,7 +32,7 @@ const Sheet = struct {
 };
 
 export fn newSheet() ?*Sheet {
-    const allocator = std.heap.page_allocator;
+    const allocator = std.heap.wasm_allocator;
     const sheet = Sheet.init(allocator) catch {
         return null;
     };
