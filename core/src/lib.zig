@@ -12,37 +12,6 @@ var width: u32 = 0;
 var height: u32 = 0;
 var offset: u32 = 0;
 
-/// Exported memory
-var memory: [*]u8 = undefined;
-
-fn set(x: u32, y: u32, v: u32) void {
-    const store_size = 4; // 32 / 8
-    const idx = (offset + y * width + x) * store_size;
-    print_u32(idx);
-    // wasm is little-endian
-    const b1: u8 = @truncate(v & 0xff);
-    const b2: u8 = @truncate((v >> 8) & 0xff);
-    const b3: u8 = @truncate((v >> 16) & 0xff);
-    const b4: u8 = @truncate((v >> 24) & 0xff);
-    memory[idx] = b1;
-    memory[idx + 1] = b2;
-    memory[idx + 2] = b3;
-    memory[idx + 3] = b4;
-}
-
-export fn init(w: u32, h: u32) void {
-    width = w;
-    height = h;
-    offset = w * h;
-
-    // fill memory with black pixels
-    for (0..h) |y| {
-        for (0..w) |x| {
-            set(x, y, 0);
-        }
-    }
-}
-
 /// Wrapper around `print` to make it easier to use
 fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
@@ -72,6 +41,21 @@ const App = struct {
 
     pub fn getAllocator(self: App) std.mem.Allocator {
         return self.allocator;
+    }
+
+    fn set(self: *App, x: u32, y: u32, v: u32) void {
+        const store_size = 4; // 32 / 8
+        const idx = (offset + y * width + x) * store_size;
+        print_u32(idx);
+        // wasm is little-endian
+        const b1: u8 = @truncate(v & 0xff);
+        const b2: u8 = @truncate((v >> 8) & 0xff);
+        const b3: u8 = @truncate((v >> 16) & 0xff);
+        const b4: u8 = @truncate((v >> 24) & 0xff);
+        self.canvas_buffer[idx] = b1;
+        self.canvas_buffer[idx + 1] = b2;
+        self.canvas_buffer[idx + 2] = b3;
+        self.canvas_buffer[idx + 3] = b4;
     }
 };
 
