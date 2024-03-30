@@ -4,7 +4,33 @@ const engine = @import("engine.zig");
 /// Don't use directly, use consoleLog instead
 extern fn print(ptr: [*]const u8, len: u32) void;
 
-extern var memory: *u8;
+/// Exported memory
+extern var memory: [*]u8;
+
+var width: u32 = 0;
+var height: u32 = 0;
+var offset: u32 = 0;
+
+fn set(x: u32, y: u32, v: u32) void {
+    const idx = offset + y * width + x;
+    const store_size = 4; // 32 / 8
+    const slice = memory[idx..(idx + store_size)][0..store_size];
+    // wasm is little-endian
+    std.mem.writeInt(u32, slice, v, .little);
+}
+
+export fn init(w: u32, h: u32) void {
+    width = w;
+    height = h;
+    offset = w * h;
+
+    // fill memory with black pixels
+    for (0..h) |y| {
+        for (0..w) |x| {
+            set(x, y, 0);
+        }
+    }
+}
 
 /// Wrapper around `print` to make it easier to use
 fn consoleLog(str: []const u8) void {

@@ -12,7 +12,7 @@ ctx.imageSmoothingEnabled = false;
 
 // Compute the size of and instantiate the module's memory
 const memory = new WebAssembly.Memory({
-  initial: ((byteSize + 0xffff) & ~0xffff) >>> 16
+  initial: ((byteSize + 0xffff) & ~0xffff) >>> 16,
 });
 
 try {
@@ -20,7 +20,7 @@ try {
   const bytes = await response.arrayBuffer();
   const result = await WebAssembly.instantiate(bytes, {
     env: {
-      memory,
+      memory: memory,
       print: (ptr, len) => {
         const bytes = new Uint8Array(memory.buffer, ptr, len);
         const str = new TextDecoder("utf-8").decode(bytes);
@@ -33,7 +33,7 @@ try {
   const freeSheet = exports.freeSheet;
   const v = newSheet();
   console.log("v", v);
-  // const memory = result.instance.exports.memory;
+  exports.init(width, height);
   freeSheet(v);
 } catch (err) {
   console.log(err);
