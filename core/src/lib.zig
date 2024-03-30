@@ -1,17 +1,19 @@
 const std = @import("std");
 const engine = @import("engine.zig");
 
+const Sheet = engine.Sheet;
+
 /// Don't use directly, use consoleLog instead
 extern fn print(ptr: [*]const u8, len: u32) void;
 
 extern fn print_u32(value: u32) void;
 
-/// Exported memory
-extern var memory: [*]u8;
-
 var width: u32 = 0;
 var height: u32 = 0;
 var offset: u32 = 0;
+
+/// Exported memory
+var memory: [*]u8 = undefined;
 
 fn set(x: u32, y: u32, v: u32) void {
     const store_size = 4; // 32 / 8
@@ -46,50 +48,50 @@ fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
 }
 
-/// Couples engine.Sheet with std.heap.wasm_allocator
-const Sheet = struct {
-    inner: *engine.Sheet,
+/// Represents the running application
+const App = struct {
+    sheets: []Sheet,
     allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !Sheet {
-        const inner = try engine.Sheet.new(allocator);
-        const inner_ptr = try allocator.create(engine.Sheet);
-        inner_ptr.* = inner;
-        return Sheet{
-            .inner = inner_ptr,
+    canvas_buffer: []u8,
+    pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
+        const sheets = try allocator.alloc(Sheet, sheet_count);
+        errdefer allocator.free(sheets);
+        const canvas_size = canvas_height * canvas_width;
+        const canvas_buffer = try allocator.alloc(u8, canvas_size);
+        return App{
+            .sheets = sheets,
             .allocator = allocator,
+            .canvas_buffer = canvas_buffer,
         };
     }
 
-    pub fn deinit(self: Sheet) void {
-        self.inner.deinit(self.allocator);
-        self.allocator.destroy(self.inner);
+    pub fn deinit(self: App) void {
+        self.allocator.free(self.sheets);
+        self.allocator.free(self.canvas_buffer);
     }
 
-    pub fn eval(self: *Sheet, source: []const u8) ?engine.Result {
-        const result = self.inner.eval(self.allocator, source) catch {
-            return null;
-        };
-        return result;
+    pub fn getAllocator(self: App) std.mem.Allocator {
+        return self.allocator;
     }
 };
 
-export fn newSheet() ?*Sheet {
+/// Returns null if failed to allocate
+export fn app_init(canvas_width: usize, canvas_height: usize, sheet_count: usize) ?*App {
     const allocator = std.heap.wasm_allocator;
-    const sheet = Sheet.init(allocator) catch {
+    const app = App.init(allocator, canvas_height, canvas_width, sheet_count) catch {
         return null;
     };
-    const allocated_sheet = allocator.create(Sheet) catch {
-        sheet.deinit();
+    const allocated_app = allocator.create(App) catch {
+        app.deinit();
         return null;
     };
-    allocated_sheet.* = sheet;
-    return allocated_sheet;
+    allocated_app.* = app;
+    return allocated_app;
 }
 
-export fn freeSheet(sheet: *Sheet) void {
-    const allocator = sheet.allocator;
-    sheet.deinit();
-    allocator.destroy(sheet);
-    consoleLog("Sheet freed");
+export fn app_deinit(app: *App) void {
+    const allocator = app.getAllocator();
+    app.deinit();
+    allocator.destroy(app);
+    consoleLog("App freed");
 }
