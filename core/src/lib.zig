@@ -20,6 +20,8 @@ const App = struct {
     canvas_buffer: []u8,
     canvas_width: usize,
     canvas_height: usize,
+    rows: usize,
+    cols: usize,
 
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
@@ -33,6 +35,8 @@ const App = struct {
         }
 
         return App{
+            .rows = 10,
+            .cols = 5,
             .canvas_width = canvas_width,
             .canvas_height = canvas_height,
             .sheets = sheets,
@@ -62,20 +66,18 @@ const App = struct {
         const canvas_width = self.canvas_width;
         const canvas_height = self.canvas_height;
         // gray
-        const grid_color = 0x000000ff;
-        const cell_height = 10;
-        const cell_width = cell_height * 2;
+        const grid_color = 0xff0000ff;
+        const cell_height = canvas_height / self.rows;
+        const cell_width = canvas_width / self.cols;
 
-        const size = canvas_width * canvas_height;
-        for (0..size) |i| {
+        for (self.canvas_buffer, 0..) |_, i| {
+            if (i % 4 != 0) {
+                continue;
+            }
             const x = i % canvas_width;
             const y = i / canvas_width;
-            const x_mod_w = x % cell_width;
-            const y_mod_h = y % cell_height;
-            const draw_x = x_mod_w == 0 or x_mod_w == 1;
-            const draw_y = y_mod_h == 0 or y_mod_h == 1;
-            if (draw_x or draw_y) {
-                self.set(x, y, grid_color);
+            if (x % cell_width == 0 or y % cell_height == 0) {
+                self.setIdx(i, grid_color);
             }
         }
     }
