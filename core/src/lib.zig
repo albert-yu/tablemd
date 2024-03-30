@@ -70,8 +70,12 @@ const App = struct {
         for (0..size) |i| {
             const x = i % canvas_width;
             const y = i / canvas_width;
-            if (x % cell_width == 0 or y % cell_height == 0) {
-                self.setIdx(i, grid_color);
+            const x_mod_w = x % cell_width;
+            const y_mod_h = y % cell_height;
+            const draw_x = x_mod_w == 0 or x_mod_w == 1;
+            const draw_y = y_mod_h == 0 or y_mod_h == 1;
+            if (draw_x or draw_y) {
+                self.set(x, y, grid_color);
             }
         }
     }
