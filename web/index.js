@@ -1,6 +1,3 @@
-// Global state for the current string being built up
-let currentStr = "";
-
 // Set up the canvas with a 2D rendering context
 const canvas = document.querySelector("#canvas");
 const ctx = canvas.getContext("2d");
@@ -24,15 +21,10 @@ try {
   const result = await WebAssembly.instantiate(bytes, {
     env: {
       memory,
-      print_char: (s) => {
-        if (s === 0) {
-          // sentinel value, terminate
-          console.log(currentStr);
-          currentStr = "";
-        } else {
-          const char = String.fromCharCode(s);
-          currentStr += char;
-        }
+      print: (ptr, len) => {
+        const bytes = new Uint8Array(memory.buffer, ptr, len);
+        const str = new TextDecoder("utf-8").decode(bytes);
+        console.log(str);
       },
     },
   });

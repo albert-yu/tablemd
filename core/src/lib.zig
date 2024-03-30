@@ -1,9 +1,15 @@
 const std = @import("std");
 const engine = @import("engine.zig");
 
-extern fn print_char(c: u8) void;
+/// Don't use directly, use consoleLog instead
+extern fn print(ptr: [*]const u8, len: u32) void;
 
 extern var memory: *u8;
+
+/// Wrapper around `print` to make it easier to use
+fn consoleLog(str: []const u8) void {
+    print(str.ptr, str.len);
+}
 
 /// Couples engine.Sheet with std.heap.wasm_allocator
 const Sheet = struct {
@@ -46,17 +52,9 @@ export fn newSheet() ?*Sheet {
     return allocated_sheet;
 }
 
-fn printString(s: []const u8) void {
-    for (s) |c| {
-        print_char(c);
-    }
-    print_char(0);
-}
-
 export fn freeSheet(sheet: *Sheet) void {
     const allocator = sheet.allocator;
     sheet.deinit();
     allocator.destroy(sheet);
-    const s = "freed";
-    printString(s);
+    consoleLog("Sheet freed");
 }
