@@ -58,10 +58,25 @@ const App = struct {
         return self.canvas_buffer;
     }
 
-    fn set(self: *App, x: u32, y: u32, v: u32) void {
-        const store_size = 4; // 32 / 8
-        const idx = (y * self.canvas_width + x) * store_size;
-        print_u32(idx);
+    pub fn drawGrid(self: *App) void {
+        const canvas_width = self.canvas_width;
+        const canvas_height = self.canvas_height;
+        // gray
+        const grid_color = 0x000000ff;
+        const cell_height = 10;
+        const cell_width = cell_height * 2;
+
+        const size = canvas_width * canvas_height;
+        for (0..size) |i| {
+            const x = i % canvas_width;
+            const y = i / canvas_width;
+            if (x % cell_width == 0 or y % cell_height == 0) {
+                self.setIdx(i, grid_color);
+            }
+        }
+    }
+
+    fn setIdx(self: *App, idx: usize, v: u32) void {
         // wasm is little-endian
         const b1: u8 = @truncate(v & 0xff);
         const b2: u8 = @truncate((v >> 8) & 0xff);
@@ -72,12 +87,18 @@ const App = struct {
         self.canvas_buffer[idx + 2] = b3;
         self.canvas_buffer[idx + 3] = b4;
     }
+
+    fn set(self: *App, x: u32, y: u32, v: u32) void {
+        const store_size = 4; // 32 / 8
+        const idx = (y * self.canvas_width + x) * store_size;
+        self.setIdx(idx, v);
+    }
 };
 
 /// Returns null if failed to allocate
 export fn app_init(canvas_width: usize, canvas_height: usize, sheet_count: usize) ?*App {
     const allocator = std.heap.wasm_allocator;
-    const app = App.init(allocator, canvas_height, canvas_width, sheet_count) catch {
+    const app = App.init(allocator, canvas_width, canvas_height, sheet_count) catch {
         return null;
     };
     const allocated_app = allocator.create(App) catch {
@@ -85,6 +106,7 @@ export fn app_init(canvas_width: usize, canvas_height: usize, sheet_count: usize
         return null;
     };
     allocated_app.* = app;
+    allocated_app.drawGrid();
     return allocated_app;
 }
 
