@@ -12,11 +12,17 @@ var height: u32 = 0;
 var offset: u32 = 0;
 
 fn set(x: u32, y: u32, v: u32) void {
-    const idx = offset + y * width + x;
     const store_size = 4; // 32 / 8
-    const slice = memory[idx..(idx + store_size)][0..store_size];
+    const idx = (offset + y * width + x) * store_size;
     // wasm is little-endian
-    std.mem.writeInt(u32, slice, v, .little);
+    const b1: u8 = @truncate(v & 0xff);
+    const b2: u8 = @truncate((v >> 8) & 0xff);
+    const b3: u8 = @truncate((v >> 16) & 0xff);
+    const b4: u8 = @truncate((v >> 24) & 0xff);
+    memory[idx] = b1;
+    memory[idx + 1] = b2;
+    memory[idx + 2] = b3;
+    memory[idx + 3] = b4;
 }
 
 export fn init(w: u32, h: u32) void {
