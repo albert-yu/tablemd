@@ -21,6 +21,9 @@ try {
   const result = await WebAssembly.instantiate(bytes, {
     env: {
       memory: memory,
+      print_u32: (x) => {
+        console.log(x);
+      },
       print: (ptr, len) => {
         const bytes = new Uint8Array(memory.buffer, ptr, len);
         const str = new TextDecoder("utf-8").decode(bytes);

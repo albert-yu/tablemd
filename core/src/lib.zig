@@ -4,6 +4,8 @@ const engine = @import("engine.zig");
 /// Don't use directly, use consoleLog instead
 extern fn print(ptr: [*]const u8, len: u32) void;
 
+extern fn print_u32(value: u32) void;
+
 /// Exported memory
 extern var memory: [*]u8;
 
@@ -14,6 +16,7 @@ var offset: u32 = 0;
 fn set(x: u32, y: u32, v: u32) void {
     const store_size = 4; // 32 / 8
     const idx = (offset + y * width + x) * store_size;
+    print_u32(idx);
     // wasm is little-endian
     const b1: u8 = @truncate(v & 0xff);
     const b2: u8 = @truncate((v >> 8) & 0xff);
