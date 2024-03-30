@@ -1,13 +1,43 @@
 <!doctype html>
 
 <html>
-    <head>
-        <title>Home</title>
-    </head>
-    <body>
-        <h1>Welcome to the Home Page</h1>
-        <p>This is the home page of the website.</p>
-        <canvas id="canvas" width="100%" heigth="100%"></canvas>
-        <script type="module" src="index.js"></script>
-    </body>
+
+<head>
+    <title>Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        p {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        canvas {
+            display: block;
+            margin: auto;
+            margin-top: 50px;
+            border: 1px solid black;
+            width: 500px;
+            height: 500px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Spreadsheet</h1>
+    <p>Tiny spreadsheet</p>
+    <canvas id="canvas"></canvas>
+    <script type="module" src="index.js"></script>
+</body>
+
 </html>
