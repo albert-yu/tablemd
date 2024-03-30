@@ -35,7 +35,7 @@ try {
   const deinitApp = exports.app_deinit;
   const app = initApp(width, height, 1);
   memory = exports.memory;
-  const canvasBufferOffset = exports.get_canvas_buffer_offset();
+  const canvasBufferOffset = exports.get_canvas_buffer_ptr(app);
   const canvasData = new Uint32Array(memory.buffer, canvasBufferOffset, size);
   const imageData = ctx.createImageData(width, height);
   const argb = new Uint32Array(imageData.data.buffer);

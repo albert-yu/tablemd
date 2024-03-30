@@ -20,12 +20,18 @@ const App = struct {
     canvas_buffer: []u8,
     canvas_width: usize,
     canvas_height: usize,
+
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
         errdefer allocator.free(sheets);
         const canvas_size = canvas_height * canvas_width * 4;
         const canvas_buffer = try allocator.alloc(u8, canvas_size);
-        @memset(canvas_buffer, 0);
+
+        // set all pixels to white
+        for (canvas_buffer, 0..) |_, i| {
+            canvas_buffer[i] = 255;
+        }
+
         return App{
             .canvas_width = canvas_width,
             .canvas_height = canvas_height,
@@ -42,6 +48,10 @@ const App = struct {
 
     pub fn getAllocator(self: App) std.mem.Allocator {
         return self.allocator;
+    }
+
+    pub fn getCanvasElementAt(self: App, index: usize) u8 {
+        return self.canvas_buffer[index];
     }
 
     pub fn getCanvasBuffer(self: *App) []u8 {
@@ -85,6 +95,6 @@ export fn app_deinit(app: *App) void {
     consoleLog("App freed");
 }
 
-export fn get_canvas_buffer_offset(app: *App) [*]u8 {
+export fn get_canvas_buffer_ptr(app: *App) [*]u8 {
     return app.getCanvasBuffer().ptr;
 }
