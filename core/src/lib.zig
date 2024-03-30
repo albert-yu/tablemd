@@ -25,7 +25,7 @@ const App = struct {
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
         errdefer allocator.free(sheets);
-        const canvas_size = canvas_height * canvas_width;
+        const canvas_size = canvas_height * canvas_width * 4;
         const canvas_buffer = try allocator.alloc(u8, canvas_size);
         return App{
             .sheets = sheets,
