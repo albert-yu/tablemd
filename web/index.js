@@ -8,9 +8,9 @@ try {
   const canvas = document.querySelector("#canvas");
   const ctx = canvas.getContext("2d");
   const bcr = canvas.getBoundingClientRect();
-
-  const width = bcr.width;
-  const height = bcr.height;
+  const BORDER_WIDTH = 1; // from CSS
+  const width = bcr.width - BORDER_WIDTH * 2;
+  const height = bcr.height - BORDER_WIDTH * 2;
   const size = width * height;
   // const byteSize = (2 * size) << 2;
 
@@ -36,8 +36,11 @@ try {
   const app = initApp(width, height, 1);
   memory = exports.memory;
   const canvasBufferOffset = exports.get_canvas_buffer_offset();
-  const canvasData = new Uint8Array(memory.buffer, canvasBufferOffset, size);
-  console.log("canvasData", canvasData);
+  const canvasData = new Uint32Array(memory.buffer, canvasBufferOffset, size);
+  const imageData = ctx.createImageData(width, height);
+  const argb = new Uint32Array(imageData.data.buffer);
+  argb.set(canvasData);
+  ctx.putImageData(imageData, 0, 0);
 
   deinitApp(app);
 } catch (err) {
