@@ -5,7 +5,7 @@ try {
    */
   let memory = undefined;
   // Set up the canvas with a 2D rendering context
-  const canvas = document.querySelector("#canvas");
+  const canvas = document.querySelector("canvas");
   const ctx = canvas.getContext("2d");
   const bcr = canvas.getBoundingClientRect();
   const BORDER_WIDTH = 1; // from CSS
