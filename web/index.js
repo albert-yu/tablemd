@@ -11,7 +11,7 @@ try {
 
   const width = bcr.width;
   const height = bcr.height;
-  // const size = width * height;
+  const size = width * height;
   // const byteSize = (2 * size) << 2;
 
   ctx.imageSmoothingEnabled = false;
@@ -35,6 +35,9 @@ try {
   const deinitApp = exports.app_deinit;
   const app = initApp(width, height, 1);
   memory = exports.memory;
+  const canvasBufferOffset = exports.get_canvas_buffer_offset();
+  const canvasData = new Uint8Array(memory.buffer, canvasBufferOffset, size);
+  console.log("canvasData", canvasData);
 
   deinitApp(app);
 } catch (err) {

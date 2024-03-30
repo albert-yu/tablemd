@@ -8,10 +8,6 @@ extern fn print(ptr: [*]const u8, len: u32) void;
 
 extern fn print_u32(value: u32) void;
 
-var width: u32 = 0;
-var height: u32 = 0;
-var offset: u32 = 0;
-
 /// Wrapper around `print` to make it easier to use
 fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
@@ -22,12 +18,17 @@ const App = struct {
     sheets: []Sheet,
     allocator: std.mem.Allocator,
     canvas_buffer: []u8,
+    canvas_width: usize,
+    canvas_height: usize,
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
         errdefer allocator.free(sheets);
         const canvas_size = canvas_height * canvas_width * 4;
         const canvas_buffer = try allocator.alloc(u8, canvas_size);
+        @memset(canvas_buffer, 0);
         return App{
+            .canvas_width = canvas_width,
+            .canvas_height = canvas_height,
             .sheets = sheets,
             .allocator = allocator,
             .canvas_buffer = canvas_buffer,
@@ -43,9 +44,13 @@ const App = struct {
         return self.allocator;
     }
 
+    pub fn getCanvasBuffer(self: *App) []u8 {
+        return self.canvas_buffer;
+    }
+
     fn set(self: *App, x: u32, y: u32, v: u32) void {
         const store_size = 4; // 32 / 8
-        const idx = (offset + y * width + x) * store_size;
+        const idx = (y * self.canvas_width + x) * store_size;
         print_u32(idx);
         // wasm is little-endian
         const b1: u8 = @truncate(v & 0xff);
@@ -78,4 +83,8 @@ export fn app_deinit(app: *App) void {
     app.deinit();
     allocator.destroy(app);
     consoleLog("App freed");
+}
+
+export fn get_canvas_buffer_offset(app: *App) [*]u8 {
+    return app.getCanvasBuffer().ptr;
 }
