@@ -12,7 +12,7 @@ try {
   const width = bcr.width - BORDER_WIDTH * 2;
   const height = bcr.height - BORDER_WIDTH * 2;
   const size = width * height;
-  // const byteSize = (2 * size) << 2;
+  const byteSize = size * 4;
 
   ctx.imageSmoothingEnabled = false;
 
@@ -36,10 +36,12 @@ try {
   const app = initApp(width, height, 1);
   memory = exports.memory;
   const canvasBufferOffset = exports.get_canvas_buffer_ptr(app);
-  const canvasData = new Uint32Array(memory.buffer, canvasBufferOffset, size);
-  const imageData = ctx.createImageData(width, height);
-  const argb = new Uint32Array(imageData.data.buffer);
-  argb.set(canvasData);
+  const canvasData = new Uint8ClampedArray(
+    memory.buffer,
+    canvasBufferOffset,
+    byteSize,
+  );
+  const imageData = new ImageData(canvasData, width, height);
   ctx.putImageData(imageData, 0, 0);
 
   deinitApp(app);

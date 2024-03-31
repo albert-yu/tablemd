@@ -70,12 +70,11 @@ const App = struct {
         const cell_height = canvas_height / self.rows;
         const cell_width = canvas_width / self.cols;
 
-        for (self.canvas_buffer, 0..) |_, i| {
-            if (i % 4 != 0) {
-                continue;
-            }
-            const x = i % canvas_width;
-            const y = i / canvas_width;
+        var i: usize = 0;
+        while (i < self.canvas_buffer.len) : (i += 4) {
+            const px_i = i / 4;
+            const x = px_i % canvas_width;
+            const y = px_i / canvas_width;
             if (x % cell_width == 0 or y % cell_height == 0) {
                 self.setIdx(i, grid_color);
             }
