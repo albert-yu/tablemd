@@ -8,9 +8,8 @@ try {
   const canvas = document.querySelector("canvas");
   const ctx = canvas.getContext("2d");
   const bcr = canvas.getBoundingClientRect();
-  const BORDER_WIDTH = 1; // from CSS
-  const width = bcr.width - BORDER_WIDTH * 2;
-  const height = bcr.height - BORDER_WIDTH * 2;
+  const width = bcr.width;
+  const height = bcr.height;
   const size = width * height;
   const byteSize = size * 4;
 
