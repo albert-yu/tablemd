@@ -65,7 +65,6 @@ const App = struct {
     pub fn drawGrid(self: *App) void {
         const canvas_width = self.canvas_width;
         const canvas_height = self.canvas_height;
-        // gray
         const grid_color = 0xff0000ff;
         const cell_height = canvas_height / self.rows;
         const cell_width = canvas_width / self.cols;
@@ -76,17 +75,17 @@ const App = struct {
             const x = px_i % canvas_width;
             const y = px_i / canvas_width;
             if (x % cell_width == 0 or y % cell_height == 0) {
-                self.setIdx(i, grid_color);
+                self.setDword(i, grid_color);
             }
         }
     }
 
-    fn setIdx(self: *App, idx: usize, v: u32) void {
+    fn setDword(self: *App, idx: usize, dword: u32) void {
         // wasm is little-endian
-        const b1: u8 = @truncate(v & 0xff);
-        const b2: u8 = @truncate((v >> 8) & 0xff);
-        const b3: u8 = @truncate((v >> 16) & 0xff);
-        const b4: u8 = @truncate((v >> 24) & 0xff);
+        const b1: u8 = @truncate(dword & 0xff);
+        const b2: u8 = @truncate((dword >> 8) & 0xff);
+        const b3: u8 = @truncate((dword >> 16) & 0xff);
+        const b4: u8 = @truncate((dword >> 24) & 0xff);
         self.canvas_buffer[idx] = b1;
         self.canvas_buffer[idx + 1] = b2;
         self.canvas_buffer[idx + 2] = b3;
@@ -96,7 +95,7 @@ const App = struct {
     fn set(self: *App, x: u32, y: u32, v: u32) void {
         const store_size = 4; // 32 / 8
         const idx = (y * self.canvas_width + x) * store_size;
-        self.setIdx(idx, v);
+        self.setDword(idx, v);
     }
 };
 

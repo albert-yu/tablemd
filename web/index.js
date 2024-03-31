@@ -41,7 +41,7 @@ try {
     canvasBufferOffset,
     byteSize,
   );
-  const imageData = new ImageData(canvasData, width, height);
+  const imageData = new ImageData(canvasData, width);
   ctx.putImageData(imageData, 0, 0);
 
   deinitApp(app);
