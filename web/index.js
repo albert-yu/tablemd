@@ -1,3 +1,8 @@
+const getColorIndicesForCoord = (x, y, width) => {
+  const red = y * (width * 4) + x * 4;
+  return [red, red + 1, red + 2, red + 3];
+};
+
 try {
   /**
    * This gets assigned later
@@ -7,9 +12,13 @@ try {
   // Set up the canvas with a 2D rendering context
   const canvas = document.querySelector("canvas");
   const ctx = canvas.getContext("2d");
-  const bcr = canvas.getBoundingClientRect();
-  const width = bcr.width;
-  const height = bcr.height;
+  // const bcr = canvas.getBoundingClientRect();
+  // const width = bcr.width;
+  // const height = bcr.height;
+  const width = 500;
+  const height = 500;
+  canvas.height = height;
+  canvas.width = width;
   const size = width * height;
   const byteSize = size * 4;
 
