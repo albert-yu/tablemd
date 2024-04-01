@@ -65,17 +65,15 @@ const App = struct {
     pub fn drawGrid(self: *App) void {
         const canvas_width = self.canvas_width;
         const canvas_height = self.canvas_height;
-        const grid_color = 0xff0000ff;
+        const grid_color = 0x000000ff;
         const cell_height = canvas_height / self.rows;
         const cell_width = canvas_width / self.cols;
 
-        var i: usize = 0;
-        while (i < self.canvas_buffer.len) : (i += 4) {
-            const px_i = i / 4;
-            const x = px_i % canvas_width;
-            const y = px_i / canvas_width;
-            if (x % cell_width == 0 or y % cell_height == 0) {
-                self.setDword(i, grid_color);
+        for (0..canvas_height) |y| {
+            for (0..canvas_width) |x| {
+                if (x % cell_width == 0 or y % cell_height == 0) {
+                    self.set(x, y, grid_color);
+                }
             }
         }
     }
@@ -86,10 +84,10 @@ const App = struct {
         const b2: u8 = @truncate((dword >> 8) & 0xff);
         const b3: u8 = @truncate((dword >> 16) & 0xff);
         const b4: u8 = @truncate((dword >> 24) & 0xff);
-        self.canvas_buffer[idx] = b1;
-        self.canvas_buffer[idx + 1] = b2;
-        self.canvas_buffer[idx + 2] = b3;
-        self.canvas_buffer[idx + 3] = b4;
+        self.canvas_buffer[idx] = b4;
+        self.canvas_buffer[idx + 1] = b3;
+        self.canvas_buffer[idx + 2] = b2;
+        self.canvas_buffer[idx + 3] = b1;
     }
 
     fn set(self: *App, x: u32, y: u32, v: u32) void {
