@@ -80,20 +80,20 @@ const App = struct {
 
     fn setDword(self: *App, idx: usize, dword: u32) void {
         // wasm is little-endian
-        const b1: u8 = @truncate(dword & 0xff);
-        const b2: u8 = @truncate((dword >> 8) & 0xff);
-        const b3: u8 = @truncate((dword >> 16) & 0xff);
-        const b4: u8 = @truncate((dword >> 24) & 0xff);
-        self.canvas_buffer[idx] = b4;
-        self.canvas_buffer[idx + 1] = b3;
-        self.canvas_buffer[idx + 2] = b2;
-        self.canvas_buffer[idx + 3] = b1;
+        const alpha: u8 = @truncate(dword & 0xff);
+        const blue: u8 = @truncate((dword >> 8) & 0xff);
+        const green: u8 = @truncate((dword >> 16) & 0xff);
+        const red: u8 = @truncate((dword >> 24) & 0xff);
+        self.canvas_buffer[idx] = red;
+        self.canvas_buffer[idx + 1] = green;
+        self.canvas_buffer[idx + 2] = blue;
+        self.canvas_buffer[idx + 3] = alpha;
     }
 
-    fn set(self: *App, x: u32, y: u32, v: u32) void {
+    fn set(self: *App, x: u32, y: u32, rgba: u32) void {
         const store_size = 4; // 32 / 8
         const idx = (y * self.canvas_width + x) * store_size;
-        self.setDword(idx, v);
+        self.setDword(idx, rgba);
     }
 };
 
