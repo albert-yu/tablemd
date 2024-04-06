@@ -58,7 +58,12 @@ try {
     exports.app_highlight_clicked_cell(app, offsetX, offsetY);
     render();
   };
+  const clearGrid = () => {
+    exports.app_clear_grid(app);
+    render();
+  };
   canvas.addEventListener("click", handleClickCell);
+  canvas.addEventListener("blur", clearGrid);
   render();
 
   // deinitApp(app);
