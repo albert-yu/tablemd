@@ -90,11 +90,13 @@ const App = struct {
         const cell_width = self.canvas_width / self.cols;
         const grid_color = 0xff0000ff;
 
-        for (0..cell_height) |i| {
-            for (0..cell_width) |j| {
-                const idx = ((cell.y * cell_height + i) * self.canvas_width + cell.x * cell_width + j) * 4;
-                setDword(self.canvas_buffer, idx, grid_color);
-                // self.set(cell.x * i, cell.y * j, grid_color);
+        for (0..(cell_height + 1)) |i| {
+            for (0..(cell_width + 1)) |j| {
+                if (j % cell_width == 0 or i % cell_height == 0) {
+                    const idx = ((cell.y * cell_height + i) * self.canvas_width + cell.x * cell_width + j) * 4;
+                    setDword(self.canvas_buffer, idx, grid_color);
+                    // self.set(cell.x * j, cell.y * i, grid_color);
+                }
             }
         }
     }
@@ -149,5 +151,6 @@ export fn get_canvas_buffer_ptr(app: *App) [*]u8 {
 }
 
 export fn app_highlight_clicked_cell(app: *App, x: u32, y: u32) void {
+    app.drawGrid();
     app.highlightClickedCell(x, y);
 }
