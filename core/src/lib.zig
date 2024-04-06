@@ -13,6 +13,11 @@ fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
 }
 
+const Point2D = struct {
+    x: u32,
+    y: u32,
+};
+
 fn setDword(buffer: []u8, idx: usize, dword: u32) void {
     // wasm is little-endian
     const alpha: u8 = @truncate(dword & 0xff);
@@ -70,6 +75,30 @@ const App = struct {
         return self.canvas_buffer;
     }
 
+    fn getClickedCell(self: *App, x: u32, y: u32) Point2D {
+        const cell_height = self.canvas_height / self.rows;
+        const cell_width = self.canvas_width / self.cols;
+        return Point2D{
+            .x = x / cell_width,
+            .y = y / cell_height,
+        };
+    }
+
+    pub fn highlightClickedCell(self: *App, x: u32, y: u32) void {
+        const cell = self.getClickedCell(x, y);
+        const cell_height = self.canvas_height / self.rows;
+        const cell_width = self.canvas_width / self.cols;
+        const grid_color = 0xff0000ff;
+
+        for (0..cell_height) |i| {
+            for (0..cell_width) |j| {
+                const idx = ((cell.y * cell_height + i) * self.canvas_width + cell.x * cell_width + j) * 4;
+                setDword(self.canvas_buffer, idx, grid_color);
+                // self.set(cell.x * i, cell.y * j, grid_color);
+            }
+        }
+    }
+
     pub fn drawGrid(self: *App) void {
         const canvas_width = self.canvas_width;
         const canvas_height = self.canvas_height;
@@ -117,4 +146,8 @@ export fn app_deinit(app: *App) void {
 
 export fn get_canvas_buffer_ptr(app: *App) [*]u8 {
     return app.getCanvasBuffer().ptr;
+}
+
+export fn app_highlight_clicked_cell(app: *App, x: u32, y: u32) void {
+    app.highlightClickedCell(x, y);
 }
