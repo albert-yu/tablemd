@@ -66,10 +66,6 @@ const App = struct {
         return self.allocator;
     }
 
-    pub fn getCanvasElementAt(self: App, index: usize) u8 {
-        return self.canvas_buffer[index];
-    }
-
     pub fn getCanvasBuffer(self: *App) []u8 {
         return self.canvas_buffer;
     }
