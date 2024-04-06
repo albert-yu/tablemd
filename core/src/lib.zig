@@ -13,6 +13,18 @@ fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
 }
 
+fn setDword(buffer: []u8, idx: usize, dword: u32) void {
+    // wasm is little-endian
+    const alpha: u8 = @truncate(dword & 0xff);
+    const blue: u8 = @truncate((dword >> 8) & 0xff);
+    const green: u8 = @truncate((dword >> 16) & 0xff);
+    const red: u8 = @truncate((dword >> 24) & 0xff);
+    buffer[idx] = red;
+    buffer[idx + 1] = green;
+    buffer[idx + 2] = blue;
+    buffer[idx + 3] = alpha;
+}
+
 /// Represents the running application
 const App = struct {
     sheets: []Sheet,
@@ -78,22 +90,10 @@ const App = struct {
         }
     }
 
-    fn setDword(self: *App, idx: usize, dword: u32) void {
-        // wasm is little-endian
-        const alpha: u8 = @truncate(dword & 0xff);
-        const blue: u8 = @truncate((dword >> 8) & 0xff);
-        const green: u8 = @truncate((dword >> 16) & 0xff);
-        const red: u8 = @truncate((dword >> 24) & 0xff);
-        self.canvas_buffer[idx] = red;
-        self.canvas_buffer[idx + 1] = green;
-        self.canvas_buffer[idx + 2] = blue;
-        self.canvas_buffer[idx + 3] = alpha;
-    }
-
     fn set(self: *App, x: u32, y: u32, rgba: u32) void {
         const store_size = 4; // 32 / 8
         const idx = (y * self.canvas_width + x) * store_size;
-        self.setDword(idx, rgba);
+        setDword(self.canvas_buffer, idx, rgba);
     }
 };
 
