@@ -53,12 +53,12 @@ try {
     ctx.putImageData(imageData, 0, 0);
   };
 
-  const handleClick = (e) => {
+  const handleClickCell = (e) => {
     const { offsetX, offsetY } = e;
     exports.app_highlight_clicked_cell(app, offsetX, offsetY);
     render();
   };
-  canvas.addEventListener("click", handleClick);
+  canvas.addEventListener("click", handleClickCell);
   render();
 
   // deinitApp(app);

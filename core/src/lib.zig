@@ -13,9 +13,9 @@ fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
 }
 
-const Point2D = struct {
-    x: u32,
-    y: u32,
+const CellCoords = struct {
+    col: u32,
+    row: u32,
 };
 
 fn setDword(buffer: []u8, idx: usize, dword: u32) void {
@@ -39,6 +39,7 @@ const App = struct {
     canvas_height: usize,
     rows: usize,
     cols: usize,
+    current_cell: ?CellCoords,
 
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
@@ -52,13 +53,14 @@ const App = struct {
         }
 
         return App{
-            .rows = 10,
+            .rows = 20,
             .cols = 5,
             .canvas_width = canvas_width,
             .canvas_height = canvas_height,
             .sheets = sheets,
             .allocator = allocator,
             .canvas_buffer = canvas_buffer,
+            .current_cell = null,
         };
     }
 
@@ -75,17 +77,22 @@ const App = struct {
         return self.canvas_buffer;
     }
 
-    fn getClickedCell(self: *App, x: u32, y: u32) Point2D {
+    fn getClickedCell(self: *App, x: u32, y: u32) CellCoords {
         const cell_height = self.canvas_height / self.rows;
         const cell_width = self.canvas_width / self.cols;
-        return Point2D{
-            .x = x / cell_width,
-            .y = y / cell_height,
+        return CellCoords{
+            .col = x / cell_width,
+            .row = y / cell_height,
         };
+    }
+
+    fn updateCurrentCell(self: *App, cell: ?CellCoords) void {
+        self.current_cell = cell;
     }
 
     pub fn highlightClickedCell(self: *App, x: u32, y: u32) void {
         const cell = self.getClickedCell(x, y);
+        self.updateCurrentCell(cell);
         const cell_height = self.canvas_height / self.rows;
         const cell_width = self.canvas_width / self.cols;
         const grid_color = 0xff0000ff;
@@ -93,9 +100,8 @@ const App = struct {
         for (0..(cell_height + 1)) |i| {
             for (0..(cell_width + 1)) |j| {
                 if (j % cell_width == 0 or i % cell_height == 0) {
-                    const idx = ((cell.y * cell_height + i) * self.canvas_width + cell.x * cell_width + j) * 4;
+                    const idx = ((cell.row * cell_height + i) * self.canvas_width + cell.col * cell_width + j) * 4;
                     setDword(self.canvas_buffer, idx, grid_color);
-                    // self.set(cell.x * j, cell.y * i, grid_color);
                 }
             }
         }
@@ -148,6 +154,10 @@ export fn app_deinit(app: *App) void {
 
 export fn get_canvas_buffer_ptr(app: *App) [*]u8 {
     return app.getCanvasBuffer().ptr;
+}
+
+export fn app_clear_grid(app: *App) void {
+    app.drawGrid();
 }
 
 export fn app_highlight_clicked_cell(app: *App, x: u32, y: u32) void {
