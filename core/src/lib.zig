@@ -19,7 +19,6 @@ const CellCoords = struct {
 };
 
 fn setDword(buffer: []u8, idx: usize, dword: u32) void {
-    // wasm is little-endian
     const alpha: u8 = @truncate(dword & 0xff);
     const blue: u8 = @truncate((dword >> 8) & 0xff);
     const green: u8 = @truncate((dword >> 16) & 0xff);
