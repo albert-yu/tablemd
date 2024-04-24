@@ -1,6 +1,10 @@
 if (!navigator.gpu) {
   throw new Error("WebGPU not supported on this browser.");
 }
+
+/**
+ * @type {GPURequestAdapter}
+ */
 const adapter = await navigator.gpu.requestAdapter();
 if (!adapter) {
   throw new Error("No adapter found.");
@@ -15,7 +19,15 @@ const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 500;
 
 const device = await adapter.requestDevice();
+
+/**
+ * @type {WebGPUCanvasContext}
+ */
 const context = canvas.getContext("webgpu");
+
+/**
+ * @type {"rgba8unorm" | "bgra8unorm"}
+ */
 const canvasFormat = navigator.gpu.getPreferredCanvasFormat(adapter);
 
 context.configure({
