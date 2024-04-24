@@ -1,3 +1,11 @@
+if (!navigator.gpu) {
+  throw new Error("WebGPU not supported on this browser.");
+}
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) {
+  throw new Error("No adapter found.");
+}
+
 const getColorIndicesForCoord = (x, y, width) => {
   const red = y * (width * 4) + x * 4;
   return [red, red + 1, red + 2, red + 3];
@@ -5,6 +13,15 @@ const getColorIndicesForCoord = (x, y, width) => {
 
 const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 500;
+
+const device = await adapter.requestDevice();
+const context = canvas.getContext("webgpu");
+const canvasFormat = navigator.gpu.getPreferredCanvasFormat(adapter);
+
+context.configure({
+  device: device,
+  format: canvasFormat,
+});
 
 try {
   /**
