@@ -16,6 +16,3 @@ zig-out/
 /build/
 /build-*/
 /docgen_tmp/
-
-# Ignore the build directory for the server
-web/build
