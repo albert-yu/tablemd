@@ -15,18 +15,17 @@ if (!adapter) {
 const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 500;
 
-const device = await adapter.requestDevice();
-
-  // Set up the canvas with a 2D rendering context
+// const device = await adapter.requestDevice();
+// 
 const canvas = document.querySelector("canvas")!;
-const context = canvas.getContext("webgpu")!;
-
-const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-
-context.configure({
-  device: device,
-  format: canvasFormat,
-});
+// const context = canvas.getContext("webgpu")!;
+// 
+// const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+// 
+// context.configure({
+//   device: device,
+//   format: canvasFormat,
+// });
 
 try {
   let memory: WebAssembly.Memory | undefined = undefined;
@@ -38,7 +37,7 @@ try {
 
   ctx.imageSmoothingEnabled = false;
 
-  const response = await fetch("build/core.wasm");
+  const response = await fetch("core.wasm");
   const bytes = await response.arrayBuffer();
   const _result = await WebAssembly.instantiate(bytes, {
     env: {
