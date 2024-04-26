@@ -3,6 +3,6 @@ Bun.build({
   entrypoints: ['./src/client/main.ts', "./src/client/index.html"],
   outdir: './build',
   minify: true,
-  sourcemap: 'external',
+  sourcemap: 'inline',
   plugins:[html()],
 });
