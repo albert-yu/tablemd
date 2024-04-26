@@ -1,8 +1,8 @@
-const file = Bun.file("./src/client/index.html");
-Bun.write("./build/index.html", file);
+import html from 'bun-plugin-html';
 Bun.build({
-  entrypoints: ['./src/client/main.ts'],
+  entrypoints: ['./src/client/main.ts', "./src/client/index.html"],
   outdir: './build',
   minify: true,
-  sourcemap: 'inline',
+  sourcemap: 'external',
+  plugins:[html()],
 });
