@@ -16,12 +16,12 @@ const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 500;
 
 // const device = await adapter.requestDevice();
-// 
+//
 const canvas = document.querySelector("canvas")!;
 // const context = canvas.getContext("webgpu")!;
-// 
+//
 // const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-// 
+//
 // context.configure({
 //   device: device,
 //   format: canvasFormat,

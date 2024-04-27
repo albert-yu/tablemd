@@ -5,7 +5,8 @@
   "devDependencies": {
     "@types/bun": "1.1.0",
     "@webgpu/types": "0.1.40",
-    "bun-plugin-html": "^2.0.0"
+    "bun-plugin-html": "2.0.0",
+    "prettier": "3.2.5"
   },
   "peerDependencies": {
     "typescript": "5.4.5"
