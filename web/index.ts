@@ -1,4 +1,3 @@
-const { stat } = require("fs").promises;
 const BASE_PATH = "./build";
 Bun.serve({
   port: 8080,
