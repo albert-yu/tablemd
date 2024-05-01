@@ -2,13 +2,12 @@ import type { BunPlugin } from "bun";
 
 const wgsl = (): BunPlugin => ({
   name: "WGSL loader",
-  setup(build) {
+  async setup(build) {
     build.onLoad({ filter: /\.wgsl$/ }, async (args) => {
       const source = await Bun.file(args.path).text();
-      const code = JSON.stringify(source);
       return {
-        exports: { default: code },
-        loader: "object",
+        contents: source,
+        loader: "text",
       };
     });
   },
