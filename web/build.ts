@@ -1,6 +1,7 @@
-import html from "bun-plugin-html";
 import wgsl from "./bun-plugins/wgsl";
 import { parseArgs } from "util";
+
+const OUT_DIR = "./build";
 
 const { values } = parseArgs({
   args: Bun.argv,
@@ -18,10 +19,12 @@ const env = values.env || "development";
 const minify = env === "production";
 const sourcemap = env === "development" ? "inline" : "none";
 
+await Bun.write(OUT_DIR + "/index.html", Bun.file("./src/client/index.html"));
+
 Bun.build({
-  entrypoints: ["./src/client/main.ts", "./src/client/index.html"],
-  outdir: "./build",
+  entrypoints: ["./src/client/main.ts"],
+  outdir: OUT_DIR,
   minify: minify,
   sourcemap: sourcemap,
-  plugins: [html(), wgsl()],
+  plugins: [wgsl()],
 });
