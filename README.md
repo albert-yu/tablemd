@@ -7,7 +7,9 @@ Build and run.
 ```sh
 ./scripts/build-wasm.sh
 cd web
-python3 -m http.server
+bun install
+bun build.ts
+bun index.ts
 ```
 
-Open `http://localhost:8000` in your browser.
+Open `http://localhost:8080` in your browser.
