@@ -1,4 +1,5 @@
 import html from "bun-plugin-html";
+import wgsl from "./bun-plugins/wgsl";
 import { parseArgs } from "util";
 
 const { values } = parseArgs({
@@ -22,5 +23,5 @@ Bun.build({
   outdir: "./build",
   minify: minify,
   sourcemap: sourcemap,
-  plugins: [html()],
+  plugins: [html(), wgsl()],
 });
