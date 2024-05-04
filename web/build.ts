@@ -1,7 +1,10 @@
 import wgsl from "./bun-plugins/wgsl";
 import { parseArgs } from "util";
+import path from "path";
 
-const OUT_DIR = "./build";
+const currentDir = import.meta.dir;
+
+const OUT_DIR = path.join(currentDir, "./build");
 
 const { values } = parseArgs({
   args: Bun.argv,
@@ -19,10 +22,13 @@ const env = values.env || "development";
 const minify = env === "production";
 const sourcemap = env === "development" ? "inline" : "none";
 
-await Bun.write(OUT_DIR + "/index.html", Bun.file("./src/client/index.html"));
+await Bun.write(
+  OUT_DIR + "/index.html",
+  Bun.file(path.join(currentDir, "./src/client/index.html")),
+);
 
 Bun.build({
-  entrypoints: ["./src/client/main.ts"],
+  entrypoints: [path.join(currentDir, "./src/client/main.ts")],
   outdir: OUT_DIR,
   minify: minify,
   sourcemap: sourcemap,
