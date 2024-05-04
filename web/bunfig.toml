@@ -1,0 +1,4 @@
+# preload = ["./bun-plugins/wgsl.ts"]
+
+# [loader]
+# ".wgsl" = "text"
