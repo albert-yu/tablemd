@@ -1,11 +1,9 @@
 {
   "name": "spreadsheet",
   "version": "0.0.1",
-  "workspaces": [
-    "web"
-  ],
+  "workspaces": ["web"],
   "scripts": {
     "build-dev": "./scripts/build-wasm.sh && bun run web/build.ts",
-    "run": "bun run web/index.ts"
+    "dev": "bun run web/index.ts"
   }
 }
