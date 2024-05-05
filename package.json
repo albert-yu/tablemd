@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "workspaces": ["web"],
   "scripts": {
-    "build-dev": "./scripts/build-wasm.sh && bun run web/build.ts",
-    "dev": "bun --hot run web/index.ts"
+    "build-dev": "./scripts/build-wasm.sh && bun web/build.ts",
+    "dev": "bun --hot run web/index.ts",
+    "build-prod": "./scripts/build-wasm.sh -OReleaseSmall && bun web/build.ts --env production"
   }
 }
