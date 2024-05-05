@@ -7,6 +7,7 @@ Install [Bun](https://bun.sh), a fast all-in-one JavaScript runtime.
 Build and run.
 
 ```sh
+bun install
 bun build-dev # build for development
 bun dev # start the web server
 ```
