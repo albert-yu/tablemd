@@ -4,6 +4,6 @@
   "workspaces": ["web"],
   "scripts": {
     "build-dev": "./scripts/build-wasm.sh && bun run web/build.ts",
-    "dev": "bun run web/index.ts"
+    "dev": "bun --hot run web/index.ts"
   }
 }
