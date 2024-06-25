@@ -25,7 +25,7 @@ pub fn build(b: *std.Build) void {
         .name = "spreadsheet",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -59,25 +59,25 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const run_lexer_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/lexer.zig" },
+        .root_source_file = b.path("src/lexer.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const run_parser_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/parser.zig" },
+        .root_source_file = b.path("src/parser.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const run_engine_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/engine.zig" },
+        .root_source_file = b.path("src/engine.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     const run_map_tests = addUnitTest(b, .{
-        .root_source_file = .{ .path = "src/map.zig" },
+        .root_source_file = b.path("src/map.zig"),
         .target = target,
         .optimize = optimize,
     });
