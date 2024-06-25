@@ -213,7 +213,7 @@ const BuiltInFunc = enum {
     product,
 };
 
-const func_lookup = std.ComptimeStringMap(BuiltInFunc, .{
+const func_lookup = std.StaticStringMap(BuiltInFunc).initComptime(.{
     .{ "__LOAD__", .__load__ },
     .{ "SUM", .sum },
     .{ "AVG", .avg },
