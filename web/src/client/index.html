@@ -4,11 +4,16 @@
   <head>
     <title>Home</title>
     <style>
+      html {
+        height: 100%;
+        margin: 0;
+      }
       body {
         font-family: Arial, sans-serif;
         margin: 0;
         padding: 0;
         background-color: #f0f0f0;
+        height: 100%;
       }
 
       h1 {
@@ -20,14 +25,20 @@
         text-align: center;
         margin-top: 20px;
       }
-
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+      }
       canvas {
-        display: block;
+        display: flex;
+        flex-grow: 1;
         margin: auto;
         margin-top: 50px;
-        /* border: 1px solid black; */
-        width: 500px;
-        height: 500px;
+        width: 100%;
+        height: 100%;
       }
     </style>
   </head>
@@ -35,7 +46,9 @@
   <body>
     <h1>Spreadsheet</h1>
     <p>Tiny spreadsheet</p>
-    <canvas tabindex="0"></canvas>
+    <div class="container">
+      <canvas tabindex="0"></canvas>
+    </div>
     <script type="module" src="main.js"></script>
   </body>
 </html>
