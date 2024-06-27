@@ -9,5 +9,8 @@
   },
   "peerDependencies": {
     "typescript": "5.4.5"
+  },
+  "dependencies": {
+    "wgpu-matrix": "^3.0.1"
   }
 }
