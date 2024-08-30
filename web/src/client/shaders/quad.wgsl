@@ -33,3 +33,14 @@ fn vert(@builtin(instance_index) instance_index: u32, @builtin(vertex_index) ver
     let pos = t * xy;
     return VertexOutput(pos, qp);
 }
+
+// Fragment
+const center: vec2<f32> = vec2<f32>(0.0, 0.0);
+@fragment
+fn frag(input: VertexOutput) -> @location(0) vec4<f32> {
+    if distance(input.quad_position, center) > 0.5 {
+      discard;
+    }
+    let opacity = 0.5;
+    return vec4<f32>(0.0, 0.0, 0.0, opacity);
+}

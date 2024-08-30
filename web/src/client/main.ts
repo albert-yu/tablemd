@@ -1,5 +1,8 @@
-import triangleVertWGSL from "./shaders/triangle.vert.wgsl";
-import redFragWGSL from "./shaders/red.frag.wgsl";
+import code from "./shaders/quad.wgsl";
+import d3 from "d3";
+// @ts-expect-error
+import d3Tile from "d3-tile";
+
 
 async function main() {
   if (!navigator.gpu) {
@@ -14,6 +17,9 @@ async function main() {
   const CANVAS_WIDTH = 500;
   const CANVAS_HEIGHT = 500;
 
+  const w = CANVAS_WIDTH;
+  const h = CANVAS_HEIGHT;
+
   const device = await adapter.requestDevice();
   //
   const canvas = document.querySelector("canvas")!;
@@ -22,28 +28,117 @@ async function main() {
   const devicePixelRatio = window.devicePixelRatio;
   canvas.width = canvas.clientWidth * devicePixelRatio;
   canvas.height = canvas.clientHeight * devicePixelRatio;
-  const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+  const format = navigator.gpu.getPreferredCanvasFormat();
 
   context.configure({
     device,
-    format: presentationFormat,
-    alphaMode: "premultiplied",
+    format: format,
+    // alphaMode: "premultiplied",
+  });
+
+  const data = [
+    new Float32Array([
+      -0.7591585516929626, -0.48502081632614136, -0.0848984345793724,
+    ]),
+    new Float32Array([
+      -0.3773568272590637, -0.4091539978981018, -0.4189233183860779,
+    ]),
+  ];
+
+  const square_box = Math.min(w, h);
+  const d = { x: data[0], y: data[1] };
+  const scales: Partial<Record<"x" | "y", any>> = {};
+  for (const [name, dim] of [
+    ["x", w],
+    ["y", h],
+  ] as const) {
+    let buffer = (dim - square_box) / 2;
+    scales[name] = d3
+      .scaleLinear()
+      .domain(d3.extent(d[name]) as [number, number])
+      .range([buffer, dim - buffer]);
+  }
+
+  const [xbuf, ybuf] = data.map((arr) => {
+    let buffer = device.createBuffer({
+      size: arr.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      mappedAtCreation: true,
+    });
+    new Float32Array(buffer.getMappedRange()).set(arr);
+    buffer.unmap();
+    return buffer;
+  });
+
+  const xyLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "read-only-storage" },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "read-only-storage" },
+      },
+    ],
+  });
+
+  const uniforms = new Float32Array(50);
+  const uZoom = uniforms.subarray(0, 16);
+  const uWindowScale = uniforms.subarray(16, 32);
+  const uUntransform = uniforms.subarray(32, 48);
+  const ubuffer = device.createBuffer({
+    size: uniforms.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  {
+    const mats = window_transform(scales.x, scales.y, w, h);
+    uWindowScale.set(mats[0]);
+    uUntransform.set(mats[1]);
+  }
+
+  let ulayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX,
+        buffer: { type: "uniform" },
+      },
+    ],
+  });
+
+  const module = device.createShaderModule({
+    code: code,
   });
 
   const pipeline = device.createRenderPipeline({
-    layout: "auto",
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [xyLayout, ulayout],
+    }),
     vertex: {
-      module: device.createShaderModule({
-        code: triangleVertWGSL,
-      }),
+      module: module,
+      entryPoint: "vert",
     },
     fragment: {
-      module: device.createShaderModule({
-        code: redFragWGSL,
-      }),
+      module: module,
       targets: [
         {
-          format: presentationFormat,
+          format: format,
+          blend: {
+            color: {
+              srcFactor: "src-alpha",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+            alpha: {
+              srcFactor: "src-alpha",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+          },
         },
       ],
     },
@@ -52,31 +147,72 @@ async function main() {
     },
   });
 
+  const xyGroup = device.createBindGroup({
+    layout: xyLayout,
+    entries: [
+      { binding: 0, resource: { buffer: xbuf } },
+      { binding: 1, resource: { buffer: ybuf } },
+    ],
+  });
+
+  const uGroup = device.createBindGroup({
+    layout: ulayout,
+    entries: [{ binding: 0, resource: { buffer: ubuffer } }],
+  });
+
   function frame() {
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
-
     const renderPassDescriptor: GPURenderPassDescriptor = {
       colorAttachments: [
         {
           view: textureView,
-          clearValue: [0, 0, 0, 1],
+          clearValue: [1, 1, 1, 1],
           loadOp: "clear",
           storeOp: "store",
         },
       ],
     };
-
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(pipeline);
-    passEncoder.draw(3);
+    passEncoder.setBindGroup(0, xyGroup);
+    passEncoder.setBindGroup(1, uGroup);
+    passEncoder.draw(6, data[0].length);
     passEncoder.end();
 
     device.queue.submit([commandEncoder.finish()]);
-    requestAnimationFrame(frame);
+    // requestAnimationFrame(frame);
   }
 
   requestAnimationFrame(frame);
+
+  const tiler = d3Tile.tile().extent([0, 0], [w, h]);
+
+  function zoomed({ k, x, y }: { k: number; x: number; y: number }) {
+    const _tile = tiler({ k, x, y });
+    let mat = [
+      [k, 0, 0, 0],
+      [0, k, 0, 0],
+      [0, 0, 1, 0],
+      [x, y, 0, 1],
+    ];
+    uZoom.set(mat.flat());
+    device.queue.writeBuffer(ubuffer, 0, uniforms);
+    requestAnimationFrame(frame);
+  }
+
+  const zoom = d3
+    .zoom()
+    .scaleExtent([0.1, 10000])
+    .extent([
+      [0, 0],
+      [w, h]
+    ])
+    .on("zoom", (event) => zoomed(event.transform));
+
+  // @ts-expect-error
+  d3.select(context.canvas).call(zoom);
+  zoomed(d3.zoomIdentity)
 
   try {
     let memory: WebAssembly.Memory | undefined = undefined;
@@ -137,6 +273,55 @@ async function main() {
   } catch (err) {
     console.log(err);
   }
+}
+
+function window_transform(
+  x_scale: any,
+  y_scale: any,
+  width: number,
+  height: number
+) {
+  // A function that creates the two matrices a webgl shader needs, in addition to the zoom state,
+  // to stay aligned with canvas and d3 zoom.
+
+  // width and height are svg parameters; x and y scales project from the data x and y into the
+  // the webgl space.
+
+  // Given two d3 scales in coordinate space, create two matrices that project from the original
+  // space into [-1, 1] webgl space.
+
+  // return the magnitude of a scale.
+  let gap = (arr: any) => arr[1] - arr[0];
+  let x_mid = d3.mean(x_scale.domain())!;
+  let y_mid = d3.mean(y_scale.domain())!;
+
+  let xmulti = gap(x_scale.range()) / gap(x_scale.domain());
+  let ymulti = gap(y_scale.range()) / gap(y_scale.domain());
+
+  // translates from data space to scaled space.
+  const m1 = [
+    [xmulti, 0, 0, 0],
+    [0, ymulti, 0, 0],
+    [0, 0, 1, 0],
+    [
+      -xmulti * x_mid + d3.mean(x_scale.range())!,
+      -ymulti * y_mid + d3.mean(y_scale.range())!,
+      0,
+      1,
+    ],
+  ];
+
+  // translate from scaled space to webgl space.
+  // The '2' here is because webgl space runs from -1 to 1; the shift at the end is to
+  // shift from [0, 2] to [-1, 1]
+  const m2 = [
+    [2 / width, 0, 0, 0], // First column
+    [0, -2 / height, 0, 0], // Second column
+    [0, 0, 1, 0], // Third column (unchanged for z-axis in 2D transformations)
+    [-1, 1, 0, 1], // Fourth column, with translations adjusted for WebGL space
+  ];
+
+  return [m1.flat(), m2.flat()];
 }
 
 await main();
