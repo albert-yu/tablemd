@@ -3,7 +3,6 @@ const d3 = await import("d3");
 // @ts-expect-error missing types
 const d3Tile = await import("d3-tile");
 
-
 async function main() {
   if (!navigator.gpu) {
     throw new Error("WebGPU not supported on this browser.");
@@ -36,13 +35,11 @@ async function main() {
     // alphaMode: "premultiplied",
   });
 
+  const N = 1e6;
+
   const data = [
-    new Float32Array([
-      -0.7591585516929626, -0.48502081632614136, -0.0848984345793724,
-    ]),
-    new Float32Array([
-      -0.3773568272590637, -0.4091539978981018, -0.4189233183860779,
-    ]),
+    Float32Array.from({ length: N }).map((_) => (Math.random() - 0.5) * 2),
+    Float32Array.from({ length: N }).map((_) => (Math.random() - 0.5) * 2),
   ];
 
   const square_box = Math.min(w, h);
@@ -206,13 +203,13 @@ async function main() {
     .scaleExtent([0.1, 10000])
     .extent([
       [0, 0],
-      [w, h]
+      [w, h],
     ])
     .on("zoom", (event) => zoomed(event.transform));
 
   // @ts-expect-error
   d3.select(context.canvas).call(zoom);
-  zoomed(d3.zoomIdentity)
+  zoomed(d3.zoomIdentity);
 
   try {
     let memory: WebAssembly.Memory | undefined = undefined;
