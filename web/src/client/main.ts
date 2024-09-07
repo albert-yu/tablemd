@@ -1,7 +1,8 @@
 import code from "./shaders/quad.wgsl";
-import d3 from "d3";
-// @ts-expect-error
-import d3Tile from "d3-tile";
+const d3 = require("d3");
+const d3Tile = require("d3-tile");
+
+console.log('d3', d3.version);
 
 
 async function main() {
