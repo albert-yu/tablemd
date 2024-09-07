@@ -35,11 +35,11 @@ async function main() {
     // alphaMode: "premultiplied",
   });
 
-  const N = 1e6;
+  const N = 100;
 
   const data = [
-    Float32Array.from({ length: N }).map((_) => (Math.random() - 0.5) * 2),
-    Float32Array.from({ length: N }).map((_) => (Math.random() - 0.5) * 2),
+    Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
+    Float32Array.from({ length: N * N }).map((_, j) => Math.floor(j / N) / N),
   ];
 
   const square_box = Math.min(w, h);
