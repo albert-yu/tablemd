@@ -1,8 +1,7 @@
 import code from "./shaders/quad.wgsl";
-const d3 = require("d3");
-const d3Tile = require("d3-tile");
-
-console.log('d3', d3.version);
+const d3 = await import("d3");
+// @ts-expect-error missing types
+const d3Tile = await import("d3-tile");
 
 
 async function main() {
