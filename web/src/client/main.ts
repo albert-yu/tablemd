@@ -1,7 +1,5 @@
 import code from "./shaders/quad.wgsl";
 const d3 = await import("d3");
-// @ts-expect-error missing types
-const d3Tile = await import("d3-tile");
 
 async function main() {
   if (!navigator.gpu) {
@@ -183,10 +181,7 @@ async function main() {
 
   requestAnimationFrame(frame);
 
-  const tiler = d3Tile.tile().extent([0, 0], [w, h]);
-
   function zoomed({ k, x, y }: { k: number; x: number; y: number }) {
-    const _tile = tiler({ k, x, y });
     let mat = [
       [k, 0, 0, 0],
       [0, k, 0, 0],
