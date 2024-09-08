@@ -195,7 +195,7 @@ async function main() {
 
   const zoom = d3
     .zoom()
-    .scaleExtent([0.1, 10000])
+    .scaleExtent([1, 100])
     .extent([
       [0, 0],
       [w, h],
@@ -204,7 +204,7 @@ async function main() {
 
   // @ts-expect-error
   d3.select(context.canvas).call(zoom);
-  zoomed(d3.zoomIdentity);
+  zoomed({ k: 1, x: 0, y: 0 });
 
   try {
     let memory: WebAssembly.Memory | undefined = undefined;
