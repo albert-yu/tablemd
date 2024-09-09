@@ -188,6 +188,7 @@ async function main() {
       [0, 0, 1, 0],
       [x, y, 0, 1],
     ];
+    console.log({ k, x, y });
     uZoom.set(mat.flat());
     device.queue.writeBuffer(ubuffer, 0, uniforms);
     requestAnimationFrame(frame);
@@ -200,17 +201,23 @@ async function main() {
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
 
-    const delta = Math.sign(event.deltaY);
-    const speed = 1.03;
+    // negative is zoom out
+    const dir = Math.sign(event.deltaY);
+    if (dir >= 0 && scale <= 1) {
+      return;
+    }
+    if (dir < 0 && scale >= 100) {
+      return;
+    }
+    const speed = 1.01;
 
     // Calculate the zoom based on the mouse position
     const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
-    const zoomFactor = delta < 0 ? speed : 1 / speed;
+    const zoomFactor = Math.pow(speed, -dir);
 
-    // Zoom in
     scale *= zoomFactor;
     translateX -= (mouseX * (zoomFactor - 1)) / scale;
     translateY -= (mouseY * (zoomFactor - 1)) / scale;
