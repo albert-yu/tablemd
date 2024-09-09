@@ -193,17 +193,65 @@ async function main() {
     requestAnimationFrame(frame);
   }
 
-  const zoom = d3
-    .zoom()
-    .scaleExtent([1, 100])
-    .extent([
-      [0, 0],
-      [w, h],
-    ])
-    .on("zoom", (event) => zoomed(event.transform));
+  let scale = 1;
+  let translateX = 0;
+  let translateY = 0;
 
-  // @ts-expect-error
-  d3.select(context.canvas).call(zoom);
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+
+    const delta = Math.sign(event.deltaY);
+    const speed = 1.03;
+
+    // Calculate the zoom based on the mouse position
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    const zoomFactor = delta < 0 ? speed : 1 / speed;
+
+    // Zoom in
+    scale *= zoomFactor;
+    translateX -= (mouseX * (zoomFactor - 1)) / scale;
+    translateY -= (mouseY * (zoomFactor - 1)) / scale;
+
+    zoomed({ k: scale, x: translateX, y: translateY });
+  });
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+
+  canvas.addEventListener("mousedown", (event) => {
+    isDragging = true;
+    startX = event.clientX - translateX;
+    startY = event.clientY - translateY;
+  });
+
+  canvas.addEventListener("mousemove", (event) => {
+    if (!isDragging) {
+      return;
+    }
+    translateX = event.clientX - startX;
+    translateY = event.clientY - startY;
+    zoomed({ k: scale, x: translateX, y: translateY });
+  });
+
+  canvas.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+
+  // const zoom = d3
+  //   .zoom()
+  //   .scaleExtent([1, 100])
+  //   .extent([
+  //     [0, 0],
+  //     [w, h],
+  //   ])
+  //   .on("zoom", (event) => zoomed(event.transform));
+  //
+  // // @ts-expect-error
+  // d3.select(context.canvas).call(zoom);
   zoomed({ k: 1, x: 0, y: 0 });
 
   try {
