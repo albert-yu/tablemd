@@ -209,7 +209,7 @@ async function main() {
     if (dir < 0 && scale >= 100) {
       return;
     }
-    const speed = 1.01;
+    const speed = 1.005;
 
     // Calculate the zoom based on the mouse position
     const rect = canvas.getBoundingClientRect();
@@ -219,8 +219,8 @@ async function main() {
     const zoomFactor = Math.pow(speed, -dir);
 
     scale *= zoomFactor;
-    translateX -= (mouseX * (zoomFactor - 1)) / scale;
-    translateY -= (mouseY * (zoomFactor - 1)) / scale;
+    translateX -= mouseX * (zoomFactor - 1) * scale;
+    translateY -= mouseY * (zoomFactor - 1) * scale;
 
     zoomed({ k: scale, x: translateX, y: translateY });
   });
