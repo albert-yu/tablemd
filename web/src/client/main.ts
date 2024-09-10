@@ -209,12 +209,11 @@ async function main() {
     if (dir < 0 && scale >= 100) {
       return;
     }
-    const speed = 1.005;
+    const speed = 1.01;
 
     // Calculate the zoom based on the mouse position
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
+    const mouseX = event.clientX - canvas.offsetLeft;
+    const mouseY = event.clientY - canvas.offsetTop;
 
     const zoomFactor = Math.pow(speed, -dir);
 
