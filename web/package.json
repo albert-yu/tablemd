@@ -1,13 +1,14 @@
 {
   "name": "web",
   "module": "index.ts",
-  "type": "module",
   "devDependencies": {
     "@types/bun": "1.1.0",
+    "@types/d3": "7.4.3",
     "@webgpu/types": "0.1.40",
     "prettier": "3.2.5"
   },
   "peerDependencies": {
     "typescript": "5.4.5"
-  }
+  },
+  "type": "module"
 }
