@@ -23,8 +23,8 @@ async function main() {
     throw new Error("No adapter found.");
   }
 
-  const CANVAS_WIDTH = 500;
-  const CANVAS_HEIGHT = 500;
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 800;
 
   const w = CANVAS_WIDTH;
   const h = CANVAS_HEIGHT;
