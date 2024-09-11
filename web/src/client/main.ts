@@ -1,6 +1,17 @@
 import { ZoomHandler } from "./ZoomHandler";
 import code from "./shaders/quad.wgsl";
-const d3 = await import("d3");
+
+type Interval = [number, number];
+
+type ScaleDomainAndRange = {
+  domain: Interval;
+  range: Interval;
+};
+
+type Scales = {
+  x: ScaleDomainAndRange;
+  y: ScaleDomainAndRange;
+};
 
 async function main() {
   if (!navigator.gpu) {
@@ -43,19 +54,19 @@ async function main() {
 
   const square_box = Math.min(w, h);
   const d = { x: data[0], y: data[1] };
-  const scales: Partial<Record<"x" | "y", any>> = {};
-  for (const [name, dim] of [
+  const dims = [
     ["x", w],
     ["y", h],
-  ] as const) {
-    let buffer = (dim - square_box) / 2;
-    const domain = extent(d[name]);
-    console.log({ name, domain });
-    scales[name] = d3
-      .scaleLinear()
-      .domain(domain)
-      .range([buffer, dim - buffer]);
-  }
+  ] as const;
+
+  const scales = Object.fromEntries(
+    dims.map(([name, dim]) => {
+      let buffer = (dim - square_box) / 2;
+      const domain = extent(d[name]);
+      const range = [buffer, dim - buffer];
+      return [name, { domain, range }];
+    }),
+  ) as Scales;
 
   const [xbuf, ybuf] = data.map((arr) => {
     let buffer = device.createBuffer({
@@ -93,7 +104,7 @@ async function main() {
   });
 
   {
-    const mats = window_transform(scales.x, scales.y, w, h);
+    const mats = window_transform(scales, w, h);
     console.log(mats);
     uWindowScale.set(mats[0]);
     uUntransform.set(mats[1]);
@@ -262,6 +273,66 @@ async function main() {
   }
 }
 
+function window_transform(scales: Scales, width: number, height: number) {
+  // A function that creates the two matrices a webgl shader needs, in addition to the zoom state,
+  // to stay aligned with canvas and d3 zoom.
+
+  // width and height are svg parameters; x and y scales project from the data x and y into the
+  // the webgl space.
+
+  // Given two d3 scales in coordinate space, create two matrices that project from the original
+  // space into [-1, 1] webgl space.
+
+  // return the magnitude of a scale.
+  let gap = (arr: any) => arr[1] - arr[0];
+  const x_domain = scales.x.domain;
+  const y_domain = scales.y.domain;
+  const x_range = scales.x.range;
+  const y_range = scales.y.range;
+  let x_domain_mid = mean(x_domain);
+  let y_domain_mid = mean(y_domain);
+  const x_range_mid = mean(x_range);
+  const y_range_mid = mean(y_range);
+
+  console.log({
+    x_domain,
+    y_domain,
+    x_mid: x_domain_mid,
+    y_mid: y_domain_mid,
+    x_range,
+    y_range,
+    x_range_mid,
+    y_range_mid,
+  });
+  let xmulti = gap(x_range) / gap(x_domain);
+  let ymulti = gap(y_range) / gap(y_domain);
+
+  // translates from data space to scaled space.
+  const m1 = [
+    [xmulti, 0, 0, 0],
+    [0, ymulti, 0, 0],
+    [0, 0, 1, 0],
+    [
+      -xmulti * x_domain_mid + x_range_mid,
+      -ymulti * y_domain_mid + y_range_mid,
+      0,
+      1,
+    ],
+  ];
+
+  // translate from scaled space to webgl space.
+  // The '2' here is because webgl space runs from -1 to 1; the shift at the end is to
+  // shift from [0, 2] to [-1, 1]
+  const m2 = [
+    [2 / width, 0, 0, 0], // First column
+    [0, -2 / height, 0, 0], // Second column
+    [0, 0, 1, 0], // Third column (unchanged for z-axis in 2D transformations)
+    [-1, 1, 0, 1], // Fourth column, with translations adjusted for WebGL space
+  ];
+
+  return [m1.flat(), m2.flat()];
+}
+
 /**
  * Returns [min, max].
  *
@@ -290,56 +361,8 @@ function extent(values: Float32Array): [number, number] {
   return [min!, max!];
 }
 
-function window_transform(
-  x_scale: any,
-  y_scale: any,
-  width: number,
-  height: number,
-) {
-  // A function that creates the two matrices a webgl shader needs, in addition to the zoom state,
-  // to stay aligned with canvas and d3 zoom.
-
-  // width and height are svg parameters; x and y scales project from the data x and y into the
-  // the webgl space.
-
-  // Given two d3 scales in coordinate space, create two matrices that project from the original
-  // space into [-1, 1] webgl space.
-
-  // return the magnitude of a scale.
-  let gap = (arr: any) => arr[1] - arr[0];
-  const x_domain = x_scale.domain();
-  const y_domain = y_scale.domain();
-  let x_mid = d3.mean(x_domain)!;
-  let y_mid = d3.mean(y_domain)!;
-
-  console.log({ x_domain, y_domain, x_mid, y_mid });
-  let xmulti = gap(x_scale.range()) / gap(x_scale.domain());
-  let ymulti = gap(y_scale.range()) / gap(y_scale.domain());
-
-  // translates from data space to scaled space.
-  const m1 = [
-    [xmulti, 0, 0, 0],
-    [0, ymulti, 0, 0],
-    [0, 0, 1, 0],
-    [
-      -xmulti * x_mid + d3.mean(x_scale.range())!,
-      -ymulti * y_mid + d3.mean(y_scale.range())!,
-      0,
-      1,
-    ],
-  ];
-
-  // translate from scaled space to webgl space.
-  // The '2' here is because webgl space runs from -1 to 1; the shift at the end is to
-  // shift from [0, 2] to [-1, 1]
-  const m2 = [
-    [2 / width, 0, 0, 0], // First column
-    [0, -2 / height, 0, 0], // Second column
-    [0, 0, 1, 0], // Third column (unchanged for z-axis in 2D transformations)
-    [-1, 1, 0, 1], // Fourth column, with translations adjusted for WebGL space
-  ];
-
-  return [m1.flat(), m2.flat()];
+function mean([low, hi]: Interval) {
+  return (hi - low) / 2;
 }
 
 await main();
