@@ -105,7 +105,6 @@ async function main() {
 
   {
     const mats = window_transform(scales, w, h);
-    console.log(mats);
     uWindowScale.set(mats[0]);
     uUntransform.set(mats[1]);
   }
@@ -293,17 +292,6 @@ function window_transform(scales: Scales, width: number, height: number) {
   let y_domain_mid = mean(y_domain);
   const x_range_mid = mean(x_range);
   const y_range_mid = mean(y_range);
-
-  console.log({
-    x_domain,
-    y_domain,
-    x_mid: x_domain_mid,
-    y_mid: y_domain_mid,
-    x_range,
-    y_range,
-    x_range_mid,
-    y_range_mid,
-  });
   let xmulti = gap(x_range) / gap(x_domain);
   let ymulti = gap(y_range) / gap(y_domain);
 
