@@ -14,11 +14,11 @@ export class ZoomHandler {
   x: number = 0;
   y: number = 0;
   canvas: HTMLElement;
-  scaleExtent: ScaleExtent;
+  private scaleExtent: ScaleExtent;
 
-  constructor(canvas: HTMLCanvasElement, opts?: { scaleExtent?: ScaleExtent }) {
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.scaleExtent = opts?.scaleExtent ?? [1, 100];
+    this.scaleExtent = [1, 100];
   }
 
   addZoomListener(listener: ZoomCallback) {
