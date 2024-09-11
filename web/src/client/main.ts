@@ -283,7 +283,6 @@ function window_transform(scales: Scales, width: number, height: number) {
   // space into [-1, 1] webgl space.
 
   // return the magnitude of a scale.
-  let gap = (arr: any) => arr[1] - arr[0];
   const x_domain = scales.x.domain;
   const y_domain = scales.y.domain;
   const x_range = scales.x.range;
@@ -351,6 +350,10 @@ function extent(values: Float32Array): [number, number] {
 
 function mean([low, hi]: Interval) {
   return (hi - low) / 2;
+}
+
+function gap(arr: Interval) {
+  return arr[1] - arr[0];
 }
 
 await main();
