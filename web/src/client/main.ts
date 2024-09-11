@@ -262,6 +262,12 @@ async function main() {
   }
 }
 
+/**
+ * Returns [min, max].
+ *
+ * Adapted from
+ * https://github.com/d3/d3-array/blob/be0ae0d2b36ab91b833294ad2cfc5d5905acbd0f/src/extent.js#L1
+ */
 function extent(values: Float32Array): [number, number] {
   let min: number | undefined = undefined;
   let max: number | undefined = undefined;
