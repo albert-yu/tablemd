@@ -49,9 +49,11 @@ async function main() {
     ["y", h],
   ] as const) {
     let buffer = (dim - square_box) / 2;
+    const domain = extent(d[name]);
+    console.log({ name, domain });
     scales[name] = d3
       .scaleLinear()
-      .domain(d3.extent(d[name]) as [number, number])
+      .domain(domain)
       .range([buffer, dim - buffer]);
   }
 
@@ -92,6 +94,7 @@ async function main() {
 
   {
     const mats = window_transform(scales.x, scales.y, w, h);
+    console.log(mats);
     uWindowScale.set(mats[0]);
     uUntransform.set(mats[1]);
   }
@@ -259,6 +262,28 @@ async function main() {
   }
 }
 
+function extent(values: Float32Array): [number, number] {
+  let min: number | undefined = undefined;
+  let max: number | undefined = undefined;
+  for (const value of values) {
+    if (value != null) {
+      if (min === undefined) {
+        if (value >= value) {
+          min = max = value;
+        }
+      } else {
+        if (min > value) {
+          min = value;
+        }
+        if (max! < value) {
+          max = value;
+        }
+      }
+    }
+  }
+  return [min!, max!];
+}
+
 function window_transform(
   x_scale: any,
   y_scale: any,
@@ -276,9 +301,12 @@ function window_transform(
 
   // return the magnitude of a scale.
   let gap = (arr: any) => arr[1] - arr[0];
-  let x_mid = d3.mean(x_scale.domain())!;
-  let y_mid = d3.mean(y_scale.domain())!;
+  const x_domain = x_scale.domain();
+  const y_domain = y_scale.domain();
+  let x_mid = d3.mean(x_domain)!;
+  let y_mid = d3.mean(y_domain)!;
 
+  console.log({ x_domain, y_domain, x_mid, y_mid });
   let xmulti = gap(x_scale.range()) / gap(x_scale.domain());
   let ymulti = gap(y_scale.range()) / gap(y_scale.domain());
 
