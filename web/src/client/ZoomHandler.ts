@@ -33,7 +33,7 @@ export class ZoomHandler {
           this.k * Math.pow(2, defaultWheelDelta(event)),
         ),
       );
-      const newMouse = getMousePoint(event);
+      const newMouse = this.getMousePoint(event);
       if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
         mouse[0] = newMouse;
         mouse[1] = this.invert(newMouse);
@@ -74,6 +74,13 @@ export class ZoomHandler {
     });
   }
 
+  private getMousePoint(event: WheelEvent): Point2D {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+  }
   /**
    * Adapted from
    * https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/transform.js#L24
@@ -95,13 +102,6 @@ function defaultWheelDelta(event: WheelEvent) {
     (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002) *
     (event.ctrlKey ? 10 : 1)
   );
-}
-
-function getMousePoint(event: WheelEvent): Point2D {
-  return {
-    x: event.clientX,
-    y: event.clientY,
-  };
 }
 
 function pointsAreEqual(p0: Point2D, p1: Point2D): boolean {
