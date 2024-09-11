@@ -205,7 +205,6 @@ async function main() {
   //     [w, h],
   //   ])
   //   .on("zoom", (event) => zoomed(event.transform));
-
   // // @ts-expect-error
   // d3.select(context.canvas).call(zoom);
   zoomed({ k: 1, x: 0, y: 0 });
