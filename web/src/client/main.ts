@@ -207,9 +207,12 @@ async function main() {
     requestAnimationFrame(frame);
   }
 
-  const zoom = new ZoomHandler(canvas);
+  const DEFAULT_SCALE = 4;
+  const zoom = new ZoomHandler(canvas, {
+    k: DEFAULT_SCALE,
+  });
   zoom.addZoomListener(zoomed);
-  zoomed({ k: 1, x: 0, y: 0 });
+  zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
 
   try {
     let memory: WebAssembly.Memory | undefined = undefined;

@@ -5,19 +5,28 @@ type Point2D = {
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type ScaleExtent = [number, number];
 
+type ZoomHandlerOptions = {
+  k?: number;
+  x?: number;
+  y?: number;
+};
+
 /**
  * Handles scroll and pan
  * Adapted from https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/zoom.js#L234
  */
 export class ZoomHandler {
-  k: number = 1;
-  x: number = 0;
-  y: number = 0;
+  k: number;
+  x: number;
+  y: number;
   canvas: HTMLElement;
   private scaleExtent: ScaleExtent;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, opts?: ZoomHandlerOptions) {
     this.canvas = canvas;
+    this.k = opts?.k ?? 1;
+    this.x = opts?.x ?? 0;
+    this.y = opts?.y ?? 0;
     this.scaleExtent = [1, 100];
   }
 
