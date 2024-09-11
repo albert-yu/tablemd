@@ -1,3 +1,4 @@
+import { ZoomHandler } from "./ZoomHandler";
 import code from "./shaders/quad.wgsl";
 const d3 = await import("d3");
 
@@ -194,59 +195,8 @@ async function main() {
     requestAnimationFrame(frame);
   }
 
-  let scale = 1;
-  let translateX = 0;
-  let translateY = 0;
-
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-
-    // negative is zoom out
-    const dir = Math.sign(event.deltaY);
-    if (dir >= 0 && scale <= 1) {
-      return;
-    }
-    if (dir < 0 && scale >= 100) {
-      return;
-    }
-    const speed = 1.01;
-
-    // Calculate the zoom based on the mouse position
-    const mouseX = event.clientX - canvas.offsetLeft;
-    const mouseY = event.clientY - canvas.offsetTop;
-
-    const zoomFactor = Math.pow(speed, -dir);
-
-    scale *= zoomFactor;
-    translateX -= mouseX * (zoomFactor - 1) * scale;
-    translateY -= mouseY * (zoomFactor - 1) * scale;
-
-    zoomed({ k: scale, x: translateX, y: translateY });
-  });
-
-  let isDragging = false;
-  let startX = 0;
-  let startY = 0;
-
-  canvas.addEventListener("mousedown", (event) => {
-    isDragging = true;
-    startX = event.clientX - translateX;
-    startY = event.clientY - translateY;
-  });
-
-  canvas.addEventListener("mousemove", (event) => {
-    if (!isDragging) {
-      return;
-    }
-    translateX = event.clientX - startX;
-    translateY = event.clientY - startY;
-    zoomed({ k: scale, x: translateX, y: translateY });
-  });
-
-  canvas.addEventListener("mouseup", () => {
-    isDragging = false;
-  });
-
+  const zoom = new ZoomHandler(canvas);
+  zoom.addZoomListener(zoomed);
   // const zoom = d3
   //   .zoom()
   //   .scaleExtent([1, 100])
@@ -255,7 +205,7 @@ async function main() {
   //     [w, h],
   //   ])
   //   .on("zoom", (event) => zoomed(event.transform));
-  //
+
   // // @ts-expect-error
   // d3.select(context.canvas).call(zoom);
   zoomed({ k: 1, x: 0, y: 0 });
@@ -325,7 +275,7 @@ function window_transform(
   x_scale: any,
   y_scale: any,
   width: number,
-  height: number
+  height: number,
 ) {
   // A function that creates the two matrices a webgl shader needs, in addition to the zoom state,
   // to stay aligned with canvas and d3 zoom.
