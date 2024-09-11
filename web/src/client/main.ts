@@ -189,7 +189,6 @@ async function main() {
       [0, 0, 1, 0],
       [x, y, 0, 1],
     ];
-    console.log({ k, x, y });
     uZoom.set(mat.flat());
     device.queue.writeBuffer(ubuffer, 0, uniforms);
     requestAnimationFrame(frame);
@@ -197,16 +196,6 @@ async function main() {
 
   const zoom = new ZoomHandler(canvas);
   zoom.addZoomListener(zoomed);
-  // const zoom = d3
-  //   .zoom()
-  //   .scaleExtent([1, 100])
-  //   .extent([
-  //     [0, 0],
-  //     [w, h],
-  //   ])
-  //   .on("zoom", (event) => zoomed(event.transform));
-  // // @ts-expect-error
-  // d3.select(context.canvas).call(zoom);
   zoomed({ k: 1, x: 0, y: 0 });
 
   try {
