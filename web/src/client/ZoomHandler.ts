@@ -22,14 +22,7 @@ export class ZoomHandler {
   }
 
   addZoomListener(listener: ZoomCallback) {
-    let mouse0: Point2D = {
-      x: 0,
-      y: 0,
-    };
-    let mouse1: Point2D = {
-      x: 0,
-      y: 0,
-    };
+    let mouse: [Point2D, Point2D] | undefined = undefined;
 
     this.canvas.addEventListener("wheel", (event) => {
       event.preventDefault();
@@ -41,11 +34,13 @@ export class ZoomHandler {
         ),
       );
       const newMouse = getMousePoint(event);
-      if (!pointsAreEqual(mouse0, newMouse)) {
-        mouse1 = this.invert(newMouse);
-        mouse0 = newMouse;
+      if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
+        mouse[0] = newMouse;
+        mouse[1] = this.invert(newMouse);
+      } else if (!mouse) {
+        mouse = [newMouse, this.invert(newMouse)];
       }
-      const translated = translate(k, mouse0, mouse1);
+      const translated = translate(k, mouse[0], mouse[1]);
       this.x = translated.x;
       this.y = translated.y;
       this.k = k;
@@ -72,6 +67,9 @@ export class ZoomHandler {
     });
 
     this.canvas.addEventListener("mouseup", () => {
+      isDragging = false;
+    });
+    this.canvas.addEventListener("mouseleave", () => {
       isDragging = false;
     });
   }
