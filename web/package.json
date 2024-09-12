@@ -3,7 +3,6 @@
   "module": "index.ts",
   "devDependencies": {
     "@types/bun": "1.1.0",
-    "@types/d3": "7.4.3",
     "@webgpu/types": "0.1.40",
     "prettier": "3.2.5"
   },
