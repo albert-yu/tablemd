@@ -1,53 +1,56 @@
 <!doctype html>
 
 <html>
-  <head>
-    <title>Home</title>
-    <style>
-      html {
-        height: 100%;
-        margin: 0;
-      }
 
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f0f0f0;
-        height: 100%;
-      }
+<head>
+  <title>Home</title>
+  <style>
+    html {
+      height: 100%;
+      margin: 0;
+    }
 
-      h1 {
-        text-align: center;
-        margin-top: 50px;
-      }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+      height: 100%;
+    }
 
-      p {
-        text-align: center;
-        margin-top: 20px;
-      }
+    h1 {
+      text-align: center;
+      margin-top: 50px;
+    }
 
-      .container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-      }
+    p {
+      text-align: center;
+      margin-top: 20px;
+    }
 
-      canvas {
-        margin: auto;
-        margin-top: 50px;
-        width: 800px;
-        height: 800px;
-      }
-    </style>
-  </head>
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
 
-  <body>
-    <div class="container">
-      <canvas tabindex="0"></canvas>
-    </div>
-    <script type="module" src="main.js"></script>
-  </body>
+    canvas {
+      border-radius: 0.5rem;
+      margin: auto;
+      margin-top: 50px;
+      width: 800px;
+      height: 800px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <canvas tabindex="0"></canvas>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+
 </html>
