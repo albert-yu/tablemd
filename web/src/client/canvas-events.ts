@@ -103,6 +103,9 @@ export class CanvasEventHandler {
   }
 
   /**
+   * Maps the point from DOM space back
+   * to canvas space
+   *
    * Adapted from
    * https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/transform.js#L24
    */
