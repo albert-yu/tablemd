@@ -29,6 +29,7 @@
 
       .container {
         display: flex;
+        padding: 2rem;
         flex-direction: column;
         align-items: center;
         justify-content: center;
@@ -38,15 +39,24 @@
       canvas {
         border-radius: 0.5rem;
         margin: auto;
-        margin-top: 50px;
+        margin-top: 2rem;
         width: 800px;
         height: 800px;
+      }
+      .radio-group {
+        margin-top: 2rem;
       }
     </style>
   </head>
 
   <body>
     <div class="container">
+      <div class="radio-group">
+        <label for="pan">Pan</label>
+        <input id="pan" type="radio" value="pan" checked />
+        <label for="select">Select</label>
+        <input id="select" type="radio" value="select" />
+      </div>
       <canvas tabindex="0"></canvas>
     </div>
     <script type="module" src="main.js"></script>
