@@ -212,6 +212,7 @@ async function main() {
     k: DEFAULT_SCALE,
   });
   zoom.addZoomListener(zoomed);
+  zoom.addClickListener((p) => console.log(p));
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
 
   try {

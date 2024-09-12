@@ -2,8 +2,10 @@ type Point2D = {
   x: number;
   y: number;
 };
-type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type Interval = [number, number];
+
+type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
+type ClickCallback = (args: Point2D) => void;
 
 type ZoomHandlerOptions = {
   k?: number;
@@ -31,6 +33,14 @@ export class ZoomHandler {
     this.scaleExtent = opts?.scaleExtent ?? [1, 100];
   }
 
+  addClickListener(listener: ClickCallback) {
+    this.canvas.addEventListener("click", (e) => {
+      const point = this.getMousePoint(e);
+      const realPoint = this.invert(point);
+      listener(realPoint);
+    });
+  }
+
   addZoomListener(listener: ZoomCallback) {
     let mouse: [Point2D, Point2D] | undefined = undefined;
 
@@ -40,8 +50,8 @@ export class ZoomHandler {
         this.scaleExtent[0],
         Math.min(
           this.scaleExtent[1],
-          this.k * Math.pow(2, defaultWheelDelta(event))
-        )
+          this.k * Math.pow(2, defaultWheelDelta(event)),
+        ),
       );
       const newMouse = this.getMousePoint(event);
       if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
@@ -84,13 +94,14 @@ export class ZoomHandler {
     });
   }
 
-  private getMousePoint(event: WheelEvent): Point2D {
+  private getMousePoint(event: MouseEvent): Point2D {
     const rect = this.canvas.getBoundingClientRect();
     return {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
     };
   }
+
   /**
    * Adapted from
    * https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/transform.js#L24
