@@ -9,6 +9,7 @@ type ZoomHandlerOptions = {
   k?: number;
   x?: number;
   y?: number;
+  scaleExtent?: ScaleExtent;
 };
 
 /**
@@ -27,7 +28,7 @@ export class ZoomHandler {
     this.k = opts?.k ?? 1;
     this.x = opts?.x ?? 0;
     this.y = opts?.y ?? 0;
-    this.scaleExtent = [1, 100];
+    this.scaleExtent = opts?.scaleExtent ?? [1, 100];
   }
 
   addZoomListener(listener: ZoomCallback) {
@@ -39,8 +40,8 @@ export class ZoomHandler {
         this.scaleExtent[0],
         Math.min(
           this.scaleExtent[1],
-          this.k * Math.pow(2, defaultWheelDelta(event)),
-        ),
+          this.k * Math.pow(2, defaultWheelDelta(event))
+        )
       );
       const newMouse = this.getMousePoint(event);
       if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
