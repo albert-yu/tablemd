@@ -34,17 +34,24 @@ export class CanvasEventHandler {
   }
 
   addClickListener(listener: ClickCallback) {
-    this.canvas.addEventListener("click", (e) => {
+    const onClick = (e: MouseEvent) => {
       const point = this.getMousePoint(e);
       const realPoint = this.invert(point);
       listener(realPoint);
-    });
+    };
+    this.canvas.addEventListener("click", onClick);
+    return () => {
+      this.canvas.removeEventListener("click", onClick);
+    };
   }
 
+  /**
+   * Adds callback to zoom events, returns cleanup function
+   */
   addZoomListener(listener: ZoomCallback) {
     let mouse: [Point2D, Point2D] | undefined = undefined;
 
-    this.canvas.addEventListener("wheel", (event) => {
+    const wheelListener = (event: WheelEvent) => {
       event.preventDefault();
       const k = Math.max(
         this.scaleExtent[0],
@@ -65,33 +72,54 @@ export class CanvasEventHandler {
       this.y = translated.y;
       this.k = k;
       listener({ k, x: translated.x, y: translated.y });
-    });
+    };
 
     let isDragging = false;
     let startX = 0;
     let startY = 0;
 
-    this.canvas.addEventListener("mousedown", (event) => {
+    const downListener = (event: MouseEvent) => {
       isDragging = true;
       startX = event.clientX - this.x;
       startY = event.clientY - this.y;
-    });
+    };
 
-    this.canvas.addEventListener("mousemove", (event) => {
+    const moveListener = (event: MouseEvent) => {
       if (!isDragging) {
         return;
       }
       this.x = event.clientX - startX;
       this.y = event.clientY - startY;
       listener({ k: this.k, x: this.x, y: this.y });
-    });
+    };
 
-    this.canvas.addEventListener("mouseup", () => {
+    const upListener = () => {
       isDragging = false;
-    });
-    this.canvas.addEventListener("mouseleave", () => {
+    };
+    const leaveListener = () => {
       isDragging = false;
-    });
+    };
+
+    const listenerMap = {
+      wheel: wheelListener,
+      mousedown: downListener,
+      mousemove: moveListener,
+      mouseup: upListener,
+      mouseleave: leaveListener,
+    } as const;
+    const events = Object.keys(listenerMap);
+
+    for (const event of events) {
+      // @ts-expect-error
+      this.canvas.addEventListener(event, listenerMap[event]);
+    }
+
+    return () => {
+      for (const event of events) {
+        // @ts-expect-error
+        this.canvas.removeEventListener(event, listenerMap[event]);
+      }
+    };
   }
 
   private getMousePoint(event: MouseEvent): Point2D {
