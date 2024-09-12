@@ -3,7 +3,6 @@ type Point2D = {
   y: number;
 };
 type Interval = [number, number];
-type CanvasMode = "pan" | "select";
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type ClickCallback = (args: Point2D) => void;
 
@@ -16,6 +15,8 @@ type AddListenerArgs =
       mode: "select";
       listener: ClickCallback;
     };
+
+type CanvasMode = AddListenerArgs["mode"];
 
 type ZoomHandlerOptions = {
   k?: number;
