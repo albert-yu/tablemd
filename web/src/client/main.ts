@@ -1,4 +1,4 @@
-import { CanvasEventHandler } from "./canvas-events";
+import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import code from "./shaders/quad.wgsl";
 
 type Interval = [number, number];
@@ -209,9 +209,10 @@ async function main() {
   }
 
   const DEFAULT_SCALE = 4;
+  let mode: CanvasMode = getCanvasSelectMode() ?? "pan";
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
-    mode: "pan",
+    mode,
   });
   zoom.addListener({ mode: "pan", listener: zoomed });
   zoom.addListener({
@@ -220,6 +221,9 @@ async function main() {
       console.log(p);
     },
   });
+  (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
+    zoom.mode = radio.value as CanvasMode;
+  };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
 
   try {
@@ -365,6 +369,13 @@ function mean([low, hi]: Interval) {
 
 function gap(arr: Interval) {
   return arr[1] - arr[0];
+}
+
+function getCanvasSelectMode() {
+  const checked = document.querySelector<HTMLInputElement>(
+    'input[name="canvas-input-mode"]:checked',
+  )?.value as CanvasMode | undefined;
+  return checked;
 }
 
 await main();

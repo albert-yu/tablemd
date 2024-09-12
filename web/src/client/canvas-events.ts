@@ -16,7 +16,7 @@ type AddListenerArgs =
       listener: ClickCallback;
     };
 
-type CanvasMode = AddListenerArgs["mode"];
+export type CanvasMode = AddListenerArgs["mode"];
 
 type ZoomHandlerOptions = {
   k?: number;
