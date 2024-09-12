@@ -30,44 +30,54 @@
       .container {
         display: flex;
         padding: 2rem;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
         justify-content: center;
+        gap: 1rem;
         height: 100%;
       }
 
       canvas {
         border-radius: 0.5rem;
-        margin: auto;
-        margin-top: 2rem;
+        /* margin: auto; */
         width: 800px;
         height: 800px;
       }
+
       .radio-group {
+        display: flex;
+        flex-direction: column;
         margin-top: 2rem;
+      }
+      .radio-group > div {
+        width: 100%;
       }
     </style>
   </head>
 
   <body>
     <div class="container">
-      <div class="radio-group">
-        <label for="pan">Pan</label>
-        <input
-          name="canvas-input-mode"
-          id="pan"
-          type="radio"
-          value="pan"
-          checked
-        />
-        <label for="select">Select</label>
-        <input
-          name="canvas-input-mode"
-          id="select"
-          type="radio"
-          value="select"
-        />
-      </div>
+      <fieldset class="radio-group">
+        <div>
+          <input
+            name="canvas-input-mode"
+            id="pan"
+            type="radio"
+            value="pan"
+            checked
+          />
+          <label for="pan">Pan</label>
+        </div>
+        <div>
+          <input
+            name="canvas-input-mode"
+            id="select"
+            type="radio"
+            value="select"
+          />
+          <label for="select">Select</label>
+        </div>
+      </fieldset>
       <canvas tabindex="0"></canvas>
     </div>
     <script type="module" src="main.js"></script>
