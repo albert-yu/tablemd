@@ -18,7 +18,7 @@ type ZoomHandlerOptions = {
  * Handles scroll and pan
  * Adapted from https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/zoom.js#L234
  */
-export class ZoomHandler {
+export class CanvasEventHandler {
   k: number;
   x: number;
   y: number;

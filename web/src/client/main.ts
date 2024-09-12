@@ -1,4 +1,4 @@
-import { ZoomHandler } from "./ZoomHandler";
+import { CanvasEventHandler } from "./canvas-events";
 import code from "./shaders/quad.wgsl";
 
 type Interval = [number, number];
@@ -208,7 +208,7 @@ async function main() {
   }
 
   const DEFAULT_SCALE = 4;
-  const zoom = new ZoomHandler(canvas, {
+  const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
   });
   zoom.addZoomListener(zoomed);
