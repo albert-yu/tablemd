@@ -211,9 +211,15 @@ async function main() {
   const DEFAULT_SCALE = 4;
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
+    mode: "pan",
   });
-  zoom.addZoomListener(zoomed);
-  zoom.addClickListener((p) => console.log(p));
+  zoom.addListener({ mode: "pan", listener: zoomed });
+  zoom.addListener({
+    mode: "select",
+    listener: (p) => {
+      console.log(p);
+    },
+  });
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
 
   try {

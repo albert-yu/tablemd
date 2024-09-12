@@ -3,15 +3,26 @@ type Point2D = {
   y: number;
 };
 type Interval = [number, number];
-
+type CanvasMode = "pan" | "select";
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type ClickCallback = (args: Point2D) => void;
+
+type AddListenerArgs =
+  | {
+      mode: "pan";
+      listener: ZoomCallback;
+    }
+  | {
+      mode: "select";
+      listener: ClickCallback;
+    };
 
 type ZoomHandlerOptions = {
   k?: number;
   x?: number;
   y?: number;
   scaleExtent?: Interval;
+  mode?: CanvasMode;
 };
 
 /**
@@ -24,6 +35,7 @@ export class CanvasEventHandler {
   y: number;
   canvas: HTMLElement;
   private scaleExtent: Interval;
+  mode: CanvasMode;
 
   constructor(canvas: HTMLCanvasElement, opts?: ZoomHandlerOptions) {
     this.canvas = canvas;
@@ -31,10 +43,23 @@ export class CanvasEventHandler {
     this.x = opts?.x ?? 0;
     this.y = opts?.y ?? 0;
     this.scaleExtent = opts?.scaleExtent ?? [1, 100];
+    this.mode = opts?.mode ?? "pan";
   }
 
-  addClickListener(listener: ClickCallback) {
+  addListener(args: AddListenerArgs): () => void {
+    switch (args.mode) {
+      case "pan":
+        return this.addZoomListener(args.listener);
+      case "select":
+        return this.addClickListener(args.listener);
+    }
+  }
+
+  private addClickListener(listener: ClickCallback) {
     const onClick = (e: MouseEvent) => {
+      if (this.mode !== "select") {
+        return;
+      }
       const point = this.getMousePoint(e);
       const realPoint = this.invert(point);
       listener(realPoint);
@@ -48,10 +73,13 @@ export class CanvasEventHandler {
   /**
    * Adds callback to zoom events, returns cleanup function
    */
-  addZoomListener(listener: ZoomCallback) {
+  private addZoomListener(listener: ZoomCallback) {
     let mouse: [Point2D, Point2D] | undefined = undefined;
 
     const wheelListener = (event: WheelEvent) => {
+      if (this.mode !== "pan") {
+        return;
+      }
       event.preventDefault();
       const k = Math.max(
         this.scaleExtent[0],
@@ -79,12 +107,18 @@ export class CanvasEventHandler {
     let startY = 0;
 
     const downListener = (event: MouseEvent) => {
+      if (this.mode !== "pan") {
+        return;
+      }
       isDragging = true;
       startX = event.clientX - this.x;
       startY = event.clientY - this.y;
     };
 
     const moveListener = (event: MouseEvent) => {
+      if (this.mode !== "pan") {
+        return;
+      }
       if (!isDragging) {
         return;
       }
@@ -94,9 +128,15 @@ export class CanvasEventHandler {
     };
 
     const upListener = () => {
+      if (this.mode !== "pan") {
+        return;
+      }
       isDragging = false;
     };
     const leaveListener = () => {
+      if (this.mode !== "pan") {
+        return;
+      }
       isDragging = false;
     };
 
