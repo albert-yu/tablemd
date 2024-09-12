@@ -196,13 +196,14 @@ async function main() {
   requestAnimationFrame(frame);
 
   function zoomed({ k, x, y }: { k: number; x: number; y: number }) {
+    // prettier-ignore
     let mat = [
-      [k, 0, 0, 0],
-      [0, k, 0, 0],
-      [0, 0, 1, 0],
-      [x, y, 0, 1],
+      k, 0, 0, 0,
+      0, k, 0, 0,
+      0, 0, 1, 0,
+      x, y, 0, 1,
     ];
-    uZoom.set(mat.flat());
+    uZoom.set(mat);
     device.queue.writeBuffer(ubuffer, 0, uniforms);
     requestAnimationFrame(frame);
   }
@@ -299,29 +300,29 @@ function window_transform(scales: Scales, width: number, height: number) {
   let ymulti = gap(y_range) / gap(y_domain);
 
   // translates from data space to scaled space.
+  // prettier-ignore
   const m1 = [
-    [xmulti, 0, 0, 0],
-    [0, ymulti, 0, 0],
-    [0, 0, 1, 0],
-    [
-      -xmulti * x_domain_mid + x_range_mid,
-      -ymulti * y_domain_mid + y_range_mid,
-      0,
-      1,
-    ],
+    xmulti, 0, 0, 0,
+    0, ymulti, 0, 0,
+    0, 0, 1, 0,
+    -xmulti * x_domain_mid + x_range_mid,
+    -ymulti * y_domain_mid + y_range_mid,
+    0,
+    1,
   ];
 
   // translate from scaled space to webgl space.
   // The '2' here is because webgl space runs from -1 to 1; the shift at the end is to
   // shift from [0, 2] to [-1, 1]
+  // prettier-ignore
   const m2 = [
-    [2 / width, 0, 0, 0], // First column
-    [0, -2 / height, 0, 0], // Second column
-    [0, 0, 1, 0], // Third column (unchanged for z-axis in 2D transformations)
-    [-1, 1, 0, 1], // Fourth column, with translations adjusted for WebGL space
+    2 / width, 0, 0, 0, // First column
+    0, -2 / height, 0, 0, // Second column
+    0, 0, 1, 0, // Third column (unchanged for z-axis in 2D transformations)
+    -1, 1, 0, 1, // Fourth column, with translations adjusted for WebGL space
   ];
 
-  return [m1.flat(), m2.flat()];
+  return [m1, m2];
 }
 
 /**
