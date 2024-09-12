@@ -3,13 +3,13 @@ type Point2D = {
   y: number;
 };
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
-type ScaleExtent = [number, number];
+type Interval = [number, number];
 
 type ZoomHandlerOptions = {
   k?: number;
   x?: number;
   y?: number;
-  scaleExtent?: ScaleExtent;
+  scaleExtent?: Interval;
 };
 
 /**
@@ -21,7 +21,7 @@ export class ZoomHandler {
   x: number;
   y: number;
   canvas: HTMLElement;
-  private scaleExtent: ScaleExtent;
+  private scaleExtent: Interval;
 
   constructor(canvas: HTMLCanvasElement, opts?: ZoomHandlerOptions) {
     this.canvas = canvas;
