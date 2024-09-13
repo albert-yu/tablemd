@@ -13,6 +13,11 @@ type Scales = {
   y: ScaleDomainAndRange;
 };
 
+const cursorStyle = {
+  select: "auto",
+  pan: "grab",
+} as const;
+
 async function main() {
   if (!navigator.gpu) {
     throw new Error("WebGPU not supported on this browser.");
@@ -222,7 +227,9 @@ async function main() {
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
-    zoom.mode = radio.value as CanvasMode;
+    const value = radio.value as CanvasMode;
+    zoom.mode = value;
+    canvas.style.cursor = cursorStyle[value];
   };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
 
