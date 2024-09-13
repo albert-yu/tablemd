@@ -79,25 +79,37 @@ export class CanvasEventHandler {
 
     const wheelListener = (event: WheelEvent) => {
       event.preventDefault();
-      const k = Math.max(
-        this.scaleExtent[0],
-        Math.min(
-          this.scaleExtent[1],
-          this.k * Math.pow(2, defaultWheelDelta(event)),
-        ),
-      );
-      const newMouse = this.getMousePoint(event);
-      if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
-        mouse[0] = newMouse;
-        mouse[1] = this.invert(newMouse);
-      } else if (!mouse) {
-        mouse = [newMouse, this.invert(newMouse)];
+      if (event.ctrlKey) {
+        // zoom
+        const k = Math.max(
+          this.scaleExtent[0],
+          Math.min(
+            this.scaleExtent[1],
+            this.k * Math.pow(2, zoomWheelDelta(event)),
+          ),
+        );
+        const newMouse = this.getMousePoint(event);
+        if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
+          mouse[0] = newMouse;
+          mouse[1] = this.invert(newMouse);
+        } else if (!mouse) {
+          mouse = [newMouse, this.invert(newMouse)];
+        }
+        const translated = translate(k, mouse[0], mouse[1]);
+        this.x = translated.x;
+        this.y = translated.y;
+        this.k = k;
+        listener({ k, x: translated.x, y: translated.y });
+      } else {
+        // pan with scroll
+        const dirX = -event.deltaX;
+        const diry = -event.deltaY;
+        // slow down the scroll a bit
+        const factor = 0.8;
+        this.x += dirX * factor;
+        this.y += diry * factor;
+        listener({ k: this.k, x: this.x, y: this.y });
       }
-      const translated = translate(k, mouse[0], mouse[1]);
-      this.x = translated.x;
-      this.y = translated.y;
-      this.k = k;
-      listener({ k, x: translated.x, y: translated.y });
     };
 
     let isDragging = false;
@@ -186,7 +198,7 @@ export class CanvasEventHandler {
 /**
  * https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/zoom.js#L34
  */
-function defaultWheelDelta(event: WheelEvent) {
+function zoomWheelDelta(event: WheelEvent) {
   return (
     -event.deltaY *
     (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002) *
