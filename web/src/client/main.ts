@@ -214,9 +214,9 @@ async function main() {
     k: DEFAULT_SCALE,
     mode,
   });
-  zoom.addListener({ mode: "pan", listener: zoomed });
+  zoom.addListener({ event: "zoom", listener: zoomed });
   zoom.addListener({
-    mode: "select",
+    event: "click",
     listener: (p) => {
       console.log(p);
     },

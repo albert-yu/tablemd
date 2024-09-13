@@ -8,15 +8,15 @@ type ClickCallback = (args: Point2D) => void;
 
 type AddListenerArgs =
   | {
-      mode: "pan";
+      event: "zoom";
       listener: ZoomCallback;
     }
   | {
-      mode: "select";
+      event: "click";
       listener: ClickCallback;
     };
 
-export type CanvasMode = AddListenerArgs["mode"];
+export type CanvasMode = "pan" | "select";
 
 type ZoomHandlerOptions = {
   k?: number;
@@ -48,10 +48,10 @@ export class CanvasEventHandler {
   }
 
   addListener(args: AddListenerArgs): () => void {
-    switch (args.mode) {
-      case "pan":
+    switch (args.event) {
+      case "zoom":
         return this.addZoomListener(args.listener);
-      case "select":
+      case "click":
         return this.addClickListener(args.listener);
     }
   }
