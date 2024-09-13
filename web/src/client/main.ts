@@ -224,10 +224,14 @@ async function main() {
     event: "click",
     listener: (p) => {
       // p is given relative to canvas dimensions.
-      // need to map it back to grid space (N x N)
+      // Need to map it back to grid space (N x N)
       const gridX = (N * p.x) / w;
       const gridY = (N * p.y) / h;
       console.log({ x: gridX, y: gridY });
+
+      // Suppose each spreadsheet cell is 2 grid cells wide by 1 cell tall.
+      // Then, we'd have N / 2 columns and N rows.
+      // TODO: We need to figure out which area was clicked
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
