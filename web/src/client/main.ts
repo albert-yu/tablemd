@@ -209,7 +209,7 @@ async function main() {
   }
 
   const DEFAULT_SCALE = 4;
-  let mode: CanvasMode = getCanvasSelectMode() ?? "pan";
+  let mode: CanvasMode = getCanvasSelectMode() ?? "select";
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
     mode,
