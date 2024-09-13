@@ -1,6 +1,6 @@
 # spreadsheet
 
-Install [`zig >=0.12`](https://ziglang.org/learn/getting-started/#installing-zig).
+Install [`zig >=0.13`](https://ziglang.org/learn/getting-started/#installing-zig).
 
 Install [Bun](https://bun.sh), a fast all-in-one JavaScript runtime.
 
