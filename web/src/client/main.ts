@@ -223,7 +223,11 @@ async function main() {
   zoom.addListener({
     event: "click",
     listener: (p) => {
-      console.log(p);
+      // p is given relative to canvas dimensions.
+      // need to map it back to grid space (N x N)
+      const gridX = (N * p.x) / w;
+      const gridY = (N * p.y) / h;
+      console.log({ x: gridX, y: gridY });
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
