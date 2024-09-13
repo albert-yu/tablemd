@@ -78,9 +78,6 @@ export class CanvasEventHandler {
     let mouse: [Point2D, Point2D] | undefined = undefined;
 
     const wheelListener = (event: WheelEvent) => {
-      if (this.mode !== "pan") {
-        return;
-      }
       event.preventDefault();
       const k = Math.max(
         this.scaleExtent[0],
