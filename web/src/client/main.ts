@@ -1,5 +1,6 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import code from "./shaders/quad.wgsl";
+import quadWGSL from "./shaders/quad.wgsl";
+import cellWGSL from "./shaders/cell.wgsl";
 
 type Interval = [number, number];
 
@@ -125,10 +126,10 @@ async function main() {
   });
 
   const module = device.createShaderModule({
-    code: code,
+    code: quadWGSL,
   });
 
-  const pipeline = device.createRenderPipeline({
+  const gridPipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [xyLayout, ulayout],
     }),
@@ -174,6 +175,24 @@ async function main() {
     entries: [{ binding: 0, resource: { buffer: ubuffer } }],
   });
 
+  const cellPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: {
+      module: device.createShaderModule({
+        code: cellWGSL,
+      })
+    },
+    fragment: {
+      module: device.createShaderModule({
+        code: cellWGSL,
+      }),
+      targets: [{ format: format }]
+    },
+    primitive: {
+      topology: 'triangle-list',
+    },
+  })
+
   function frame() {
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
@@ -188,10 +207,12 @@ async function main() {
       ],
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(pipeline);
+    passEncoder.setPipeline(gridPipeline);
     passEncoder.setBindGroup(0, xyGroup);
     passEncoder.setBindGroup(1, uGroup);
     passEncoder.draw(6, data[0].length);
+    passEncoder.setPipeline(cellPipeline);
+    passEncoder.draw(3);
     passEncoder.end();
 
     device.queue.submit([commandEncoder.finish()]);
@@ -234,7 +255,7 @@ async function main() {
       // TODO: We need to figure out which area was clicked
     },
   });
-  (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
+  (globalThis as any)["updateMode"] = function(radio: HTMLInputElement) {
     const value = radio.value as CanvasMode;
     zoom.mode = value;
     canvas.style.cursor = cursorStyle[value];
