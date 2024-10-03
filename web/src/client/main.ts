@@ -175,17 +175,17 @@ async function main() {
     entries: [{ binding: 0, resource: { buffer: ubuffer } }],
   });
 
+  const cellShaderModule = device.createShaderModule({
+    code: cellWGSL,
+  })
+
   const cellPipeline = device.createRenderPipeline({
     layout: 'auto',
     vertex: {
-      module: device.createShaderModule({
-        code: cellWGSL,
-      })
+      module: cellShaderModule,
     },
     fragment: {
-      module: device.createShaderModule({
-        code: cellWGSL,
-      }),
+      module: cellShaderModule,
       targets: [{ format: format }]
     },
     primitive: {
