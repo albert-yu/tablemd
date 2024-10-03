@@ -215,7 +215,7 @@ async function main() {
     passEncoder.draw(6, data[0].length);
     passEncoder.setPipeline(cellPipeline);
     passEncoder.setBindGroup(0, uGroup);
-    passEncoder.draw(3);
+    passEncoder.draw(6);
     passEncoder.end();
 
     device.queue.submit([commandEncoder.finish()]);

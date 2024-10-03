@@ -12,14 +12,14 @@ fn vert(
 ) -> @builtin(position) vec4f {
     let t = uni.untransform * uni.zoom * uni.window_scale;
     let k = uni.zoom[0][0];
-    let size = exp(log(k) * 0.1) / 10.0;
+    let size = exp(log(k) * 0.01) / 10.0;
     let t_pos = array(
         vec2f(-0.5, -0.5),
         vec2f(0.5, -0.5),
         vec2f(0.5, 0.5),
-        // vec2f(-0.5, -0.5),
-        // vec2f(0.5, 0.5),
-        // vec2f(-0.5, 0.5),
+        vec2f(-0.5, -0.5),
+        vec2f(0.5, 0.5),
+        vec2f(-0.5, 0.5),
     );
     let pos = vec4f(size * t_pos[vertex_index], 0.0, 1.0) + vec4f(0.5, 0.5, 1.0, 1.0);
     return t * pos;
