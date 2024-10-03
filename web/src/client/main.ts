@@ -180,7 +180,9 @@ async function main() {
   })
 
   const cellPipeline = device.createRenderPipeline({
-    layout: 'auto',
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [ulayout],
+    }),
     vertex: {
       module: cellShaderModule,
     },
@@ -212,6 +214,7 @@ async function main() {
     passEncoder.setBindGroup(1, uGroup);
     passEncoder.draw(6, data[0].length);
     passEncoder.setPipeline(cellPipeline);
+    passEncoder.setBindGroup(0, uGroup);
     passEncoder.draw(3);
     passEncoder.end();
 
