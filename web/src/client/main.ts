@@ -125,7 +125,7 @@ async function main() {
     ],
   });
 
-  const module = device.createShaderModule({
+  const quadModule = device.createShaderModule({
     code: quadWGSL,
   });
 
@@ -134,11 +134,11 @@ async function main() {
       bindGroupLayouts: [xyLayout, ulayout],
     }),
     vertex: {
-      module: module,
+      module: quadModule,
       entryPoint: "vert",
     },
     fragment: {
-      module: module,
+      module: quadModule,
       targets: [
         {
           format: format,
