@@ -177,7 +177,7 @@ async function main() {
 
   const cellShaderModule = device.createShaderModule({
     code: cellWGSL,
-  })
+  });
 
   const cellPipeline = device.createRenderPipeline({
     layout: device.createPipelineLayout({
@@ -188,12 +188,12 @@ async function main() {
     },
     fragment: {
       module: cellShaderModule,
-      targets: [{ format: format }]
+      targets: [{ format: format }],
     },
     primitive: {
-      topology: 'triangle-list',
+      topology: "triangle-list",
     },
-  })
+  });
 
   function frame() {
     const commandEncoder = device.createCommandEncoder();
@@ -258,7 +258,7 @@ async function main() {
       // TODO: We need to figure out which area was clicked
     },
   });
-  (globalThis as any)["updateMode"] = function(radio: HTMLInputElement) {
+  (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
     const value = radio.value as CanvasMode;
     zoom.mode = value;
     canvas.style.cursor = cursorStyle[value];
