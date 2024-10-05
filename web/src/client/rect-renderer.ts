@@ -11,6 +11,9 @@ const SAMPLE_COUNT = 4;
 // high thousands).
 const RECTANGLE_BUFFER_SIZE = 16 * 1024;
 
+/**
+ * Copied from https://codesandbox.io/p/sandbox/7qt3v6?file=%2Findex.ts%3A61%2C5-61%2C14
+ */
 export class RectRenderer {
   rectangleData: Float32Array = new Float32Array(RECTANGLE_BUFFER_SIZE);
   rectangleCount = 0;
