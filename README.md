@@ -12,4 +12,10 @@ bun build-dev # build for development
 bun dev # start the web server
 ```
 
+`bun dev` just serves the files in the build output, so you could just
+
+```sh
+python3 -m http.server -d web/build 8080
+```
+
 Open `http://localhost:8080` in your browser.
