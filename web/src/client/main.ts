@@ -4,6 +4,7 @@ import cellWGSL from "./shaders/cell.wgsl";
 import { RectRenderer } from "./rect-renderer";
 import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
+import { SAMPLE_COUNT } from "./constants";
 
 type Interval = [number, number];
 
@@ -133,6 +134,7 @@ async function main() {
   });
 
   const gridPipeline = device.createRenderPipeline({
+    label: "Grid render pipeline",
     layout: device.createPipelineLayout({
       bindGroupLayouts: [xyLayout, ulayout],
     }),
@@ -160,6 +162,7 @@ async function main() {
         },
       ],
     },
+    multisample: { count: SAMPLE_COUNT },
     primitive: {
       topology: "triangle-list",
     },
@@ -183,6 +186,7 @@ async function main() {
   });
 
   const cellPipeline = device.createRenderPipeline({
+    label: "Cell render pipeline",
     layout: device.createPipelineLayout({
       bindGroupLayouts: [ulayout],
     }),
@@ -196,12 +200,13 @@ async function main() {
     primitive: {
       topology: "triangle-list",
     },
+    multisample: { count: SAMPLE_COUNT },
   });
 
   const colorTexture = device.createTexture({
     label: "color",
     size: { width: canvas.width, height: canvas.height },
-    sampleCount: 4,
+    sampleCount: SAMPLE_COUNT,
     format: "bgra8unorm",
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
@@ -213,15 +218,37 @@ async function main() {
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
   );
+  const texture = device.createTexture({
+    label: "ok",
+    size: { width: canvas.width, height: canvas.height },
+    sampleCount: 4,
+    format: "bgra8unorm",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+  });
+  const textureView = texture.createView({ label: "okoko" });
 
   function frame() {
-    const commandEncoder = device.createCommandEncoder();
-    const textureView = context.getCurrentTexture().createView();
+    const commandEncoder = device.createCommandEncoder({
+      label: "command encoder",
+    });
     const renderPassDescriptor: GPURenderPassDescriptor = {
+      label: "main render pass",
+      // colorAttachments: [
+      //   {
+      //     view: textureView,
+      //     clearValue: [1, 1, 1, 1],
+      //     loadOp: "clear",
+      //     storeOp: "store",
+      //   },
+      // ],
       colorAttachments: [
         {
-          view: textureView,
-          clearValue: [1, 1, 1, 1],
+          view: colorTextureView,
+          resolveTarget: context
+            .getCurrentTexture()
+            .createView({ label: "antialiased resolve target" }),
+          // This is background color.
+          clearValue: { r: 1, g: 1, b: 1, a: 1 },
           loadOp: "clear",
           storeOp: "store",
         },
@@ -235,8 +262,6 @@ async function main() {
     passEncoder.setPipeline(cellPipeline);
     passEncoder.setBindGroup(0, uGroup);
     passEncoder.draw(6);
-    passEncoder.end();
-    device.queue.submit([commandEncoder.finish()]);
 
     ui.rectangle(
       new Vec4(1, 0.5, 1, 1),
@@ -260,7 +285,9 @@ async function main() {
       0.25,
     );
 
-    ui.render();
+    ui.render(passEncoder);
+    passEncoder.end();
+    device.queue.submit([commandEncoder.finish()]);
     // requestAnimationFrame(frame);
   }
 
