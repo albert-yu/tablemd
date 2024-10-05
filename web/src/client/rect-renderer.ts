@@ -3,8 +3,6 @@ import type { Vec4 } from "./Vec4";
 import { invariant } from "./invariant";
 import rectangleShader from "./shaders/rectangle.wgsl";
 
-const width = window.innerWidth;
-const height = window.innerHeight;
 const SAMPLE_COUNT = 4;
 
 // First number is the size of Rectangle struct (with padding).
@@ -28,6 +26,8 @@ export class RectRenderer {
     private device: GPUDevice,
     private readonly context: GPUCanvasContext,
     private colorTextureView: GPUTextureView,
+    private width: number,
+    private height: number,
   ) {
     const rectangleModule = device.createShaderModule({
       code: rectangleShader,
@@ -142,8 +142,8 @@ export class RectRenderer {
     this.rectangleData[this.rectangleCount * struct + 11] = corners.w;
     this.rectangleData[this.rectangleCount * struct + 12] = size.x;
     this.rectangleData[this.rectangleCount * struct + 13] = size.y;
-    this.rectangleData[this.rectangleCount * struct + 14] = width;
-    this.rectangleData[this.rectangleCount * struct + 15] = height;
+    this.rectangleData[this.rectangleCount * struct + 14] = this.width;
+    this.rectangleData[this.rectangleCount * struct + 15] = this.height;
 
     this.rectangleCount += 1;
   }
@@ -174,8 +174,8 @@ export class RectRenderer {
     renderPass.setViewport(
       0,
       0,
-      width * window.devicePixelRatio,
-      height * window.devicePixelRatio,
+      this.width * window.devicePixelRatio,
+      this.height * window.devicePixelRatio,
       0,
       1,
     );

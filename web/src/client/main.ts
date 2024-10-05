@@ -1,6 +1,9 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import quadWGSL from "./shaders/quad.wgsl";
 import cellWGSL from "./shaders/cell.wgsl";
+import { RectRenderer } from "./rect-renderer";
+import { Vec2 } from "./Vec2";
+import { Vec4 } from "./Vec4";
 
 type Interval = [number, number];
 
@@ -195,6 +198,22 @@ async function main() {
     },
   });
 
+  const colorTexture = device.createTexture({
+    label: "color",
+    size: { width: canvas.width, height: canvas.height },
+    sampleCount: 4,
+    format: "bgra8unorm",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+  });
+  const colorTextureView = colorTexture.createView({ label: "color" });
+  const ui = new RectRenderer(
+    device,
+    context,
+    colorTextureView,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+  );
+
   function frame() {
     const commandEncoder = device.createCommandEncoder();
     const textureView = context.getCurrentTexture().createView();
@@ -217,8 +236,31 @@ async function main() {
     passEncoder.setBindGroup(0, uGroup);
     passEncoder.draw(6);
     passEncoder.end();
-
     device.queue.submit([commandEncoder.finish()]);
+
+    ui.rectangle(
+      new Vec4(1, 0.5, 1, 1),
+      new Vec2(400, 400),
+      new Vec2(100, 100),
+      new Vec4(10, 10, 10, 10),
+      20,
+    );
+    ui.rectangle(
+      new Vec4(0.5, 0.25, 0.5, 1),
+      new Vec2(400, 400),
+      new Vec2(100, 100),
+      new Vec4(10, 10, 10, 10),
+      0.25,
+    );
+    ui.rectangle(
+      new Vec4(1, 0.5, 1, 1),
+      new Vec2(401, 401),
+      new Vec2(98, 98),
+      new Vec4(9, 9, 9, 9),
+      0.25,
+    );
+
+    ui.render();
     // requestAnimationFrame(frame);
   }
 
