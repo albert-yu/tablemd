@@ -1,3 +1,4 @@
+@group(0) @binding(0) var<storage> data: UniformStorage;
 @group(1) @binding(0) var<uniform> uni: Uniforms;
 
 struct Uniforms {
@@ -30,8 +31,6 @@ struct Rectangle {
 struct UniformStorage {
     rectangles: array<Rectangle>,
 };
-
-@group(0) @binding(0) var<storage> data: UniformStorage;
 
 // To be honest this is a huge overkill. I tried to find what is the least
 // correct value that still works without changing how things look and
