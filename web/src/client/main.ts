@@ -1,10 +1,8 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import quadWGSL from "./shaders/quad.wgsl";
-import cellWGSL from "./shaders/cell.wgsl";
-import { RectRenderer } from "./rect-renderer";
 import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
 import { SAMPLE_COUNT } from "./constants";
+import { UIRenderer } from "./ui-renderer";
 
 type Interval = [number, number];
 
@@ -57,151 +55,10 @@ async function main() {
 
   const N = 100;
 
-  const data = [
+  const data: [Float32Array, Float32Array] = [
     Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
     Float32Array.from({ length: N * N }).map((_, j) => Math.floor(j / N) / N),
   ];
-
-  const square_box = Math.min(w, h);
-  const d = { x: data[0], y: data[1] };
-  const dims = [
-    ["x", w],
-    ["y", h],
-  ] as const;
-
-  const scales = Object.fromEntries(
-    dims.map(([name, dim]) => {
-      let buffer = (dim - square_box) / 2;
-      const domain = extent(d[name]);
-      const range = [buffer, dim - buffer];
-      return [name, { domain, range }];
-    }),
-  ) as Scales;
-
-  const [xbuf, ybuf] = data.map((arr) => {
-    let buffer = device.createBuffer({
-      size: arr.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      mappedAtCreation: true,
-    });
-    new Float32Array(buffer.getMappedRange()).set(arr);
-    buffer.unmap();
-    return buffer;
-  });
-
-  const xyLayout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: { type: "read-only-storage" },
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: { type: "read-only-storage" },
-      },
-    ],
-  });
-
-  const uniforms = new Float32Array(50);
-  const uZoom = uniforms.subarray(0, 16);
-  const uWindowScale = uniforms.subarray(16, 32);
-  const uUntransform = uniforms.subarray(32, 48);
-  const ubuffer = device.createBuffer({
-    size: uniforms.byteLength,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-
-  {
-    const mats = window_transform(scales, w, h);
-    uWindowScale.set(mats[0]);
-    uUntransform.set(mats[1]);
-  }
-
-  let ulayout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: { type: "uniform" },
-      },
-    ],
-  });
-
-  const quadModule = device.createShaderModule({
-    code: quadWGSL,
-  });
-
-  const gridPipeline = device.createRenderPipeline({
-    label: "Grid render pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [xyLayout, ulayout],
-    }),
-    vertex: {
-      module: quadModule,
-      entryPoint: "vert",
-    },
-    fragment: {
-      module: quadModule,
-      targets: [
-        {
-          format: format,
-          blend: {
-            color: {
-              srcFactor: "src-alpha",
-              dstFactor: "one-minus-src-alpha",
-              operation: "add",
-            },
-            alpha: {
-              srcFactor: "src-alpha",
-              dstFactor: "one-minus-src-alpha",
-              operation: "add",
-            },
-          },
-        },
-      ],
-    },
-    multisample: { count: SAMPLE_COUNT },
-    primitive: {
-      topology: "triangle-list",
-    },
-  });
-
-  const xyGroup = device.createBindGroup({
-    layout: xyLayout,
-    entries: [
-      { binding: 0, resource: { buffer: xbuf } },
-      { binding: 1, resource: { buffer: ybuf } },
-    ],
-  });
-
-  const uGroup = device.createBindGroup({
-    layout: ulayout,
-    entries: [{ binding: 0, resource: { buffer: ubuffer } }],
-  });
-
-  const cellShaderModule = device.createShaderModule({
-    code: cellWGSL,
-  });
-
-  const cellPipeline = device.createRenderPipeline({
-    label: "Cell render pipeline",
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [ulayout],
-    }),
-    vertex: {
-      module: cellShaderModule,
-    },
-    fragment: {
-      module: cellShaderModule,
-      targets: [{ format: format }],
-    },
-    primitive: {
-      topology: "triangle-list",
-    },
-    multisample: { count: SAMPLE_COUNT },
-  });
 
   const colorTexture = device.createTexture({
     label: "color",
@@ -211,83 +68,39 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   const colorTextureView = colorTexture.createView({ label: "color" });
-  const ui = new RectRenderer(
+  const ui = new UIRenderer(
     device,
     context,
     colorTextureView,
+    data,
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
   );
-  const texture = device.createTexture({
-    label: "ok",
-    size: { width: canvas.width, height: canvas.height },
-    sampleCount: 4,
-    format: "bgra8unorm",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-  });
-  const textureView = texture.createView({ label: "okoko" });
 
   function frame() {
-    const commandEncoder = device.createCommandEncoder({
-      label: "command encoder",
+    ui.rectangle({
+      color: new Vec4(1, 0.5, 1, 1),
+      position: new Vec2(400, 400),
+      size: new Vec2(100, 100),
+      corners: new Vec4(10, 10, 10, 10),
+      sigma: 20,
     });
-    const renderPassDescriptor: GPURenderPassDescriptor = {
-      label: "main render pass",
-      // colorAttachments: [
-      //   {
-      //     view: textureView,
-      //     clearValue: [1, 1, 1, 1],
-      //     loadOp: "clear",
-      //     storeOp: "store",
-      //   },
-      // ],
-      colorAttachments: [
-        {
-          view: colorTextureView,
-          resolveTarget: context
-            .getCurrentTexture()
-            .createView({ label: "antialiased resolve target" }),
-          // This is background color.
-          clearValue: { r: 1, g: 1, b: 1, a: 1 },
-          loadOp: "clear",
-          storeOp: "store",
-        },
-      ],
-    };
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(gridPipeline);
-    passEncoder.setBindGroup(0, xyGroup);
-    passEncoder.setBindGroup(1, uGroup);
-    passEncoder.draw(6, data[0].length);
-    passEncoder.setPipeline(cellPipeline);
-    passEncoder.setBindGroup(0, uGroup);
-    passEncoder.draw(6);
+    ui.rectangle({
+      color: new Vec4(0.5, 0.25, 0.5, 1),
+      position: new Vec2(400, 400),
+      size: new Vec2(100, 100),
+      corners: new Vec4(10, 10, 10, 10),
+      sigma: 0.25,
+    });
+    ui.rectangle({
+      color: new Vec4(1, 0.5, 1, 1),
+      position: new Vec2(401, 401),
+      size: new Vec2(98, 98),
+      corners: new Vec4(9, 9, 9, 9),
+      sigma: 0.25,
+    });
 
-    ui.rectangle(
-      new Vec4(1, 0.5, 1, 1),
-      new Vec2(400, 400),
-      new Vec2(100, 100),
-      new Vec4(10, 10, 10, 10),
-      20,
-    );
-    ui.rectangle(
-      new Vec4(0.5, 0.25, 0.5, 1),
-      new Vec2(400, 400),
-      new Vec2(100, 100),
-      new Vec4(10, 10, 10, 10),
-      0.25,
-    );
-    ui.rectangle(
-      new Vec4(1, 0.5, 1, 1),
-      new Vec2(401, 401),
-      new Vec2(98, 98),
-      new Vec4(9, 9, 9, 9),
-      0.25,
-    );
-
-    ui.render(passEncoder);
-    passEncoder.end();
-    device.queue.submit([commandEncoder.finish()]);
+    ui.render();
     // requestAnimationFrame(frame);
   }
 
@@ -301,8 +114,7 @@ async function main() {
       0, 0, 1, 0,
       x, y, 0, 1,
     ];
-    uZoom.set(mat);
-    device.queue.writeBuffer(ubuffer, 0, uniforms);
+    ui.updateZoom(mat);
     requestAnimationFrame(frame);
   }
 

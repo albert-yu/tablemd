@@ -1,3 +1,11 @@
+@group(0) @binding(0) var<uniform> uni: Uniforms;
+
+struct Uniforms {
+    zoom: mat4x4<f32>,
+    window_scale: mat4x4<f32>,
+    untransform: mat4x4<f32>,
+};
+
 struct VertexInput {
     @location(0) position: vec2f,
     @builtin(instance_index) instance: u32

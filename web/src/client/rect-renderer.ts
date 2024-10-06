@@ -22,8 +22,6 @@ export class RectRenderer {
 
   constructor(
     private device: GPUDevice,
-    private readonly context: GPUCanvasContext,
-    private colorTextureView: GPUTextureView,
     private width: number,
     private height: number,
   ) {
@@ -118,13 +116,14 @@ export class RectRenderer {
     device.queue.writeBuffer(this.vertexBuffer, 0, new Float32Array(vertices));
   }
 
-  rectangle(
-    color: Vec4,
-    position: Vec2,
-    size: Vec2,
-    corners: Vec4,
-    sigma: number,
-  ): void {
+  rectangle(args: {
+    color: Vec4;
+    position: Vec2;
+    size: Vec2;
+    corners: Vec4;
+    sigma: number;
+  }): void {
+    const { color, position, size, corners, sigma } = args;
     const struct = 16;
     this.rectangleData[this.rectangleCount * struct + 0] = color.x;
     this.rectangleData[this.rectangleCount * struct + 1] = color.y;
@@ -184,7 +183,9 @@ export class RectRenderer {
     // renderPass.end();
 
     // this.device.queue.submit([commandEncoder.finish()]);
+  }
 
+  reset() {
     this.rectangleCount = 0;
     this.rectangleData = new Float32Array(RECTANGLE_BUFFER_SIZE);
   }
