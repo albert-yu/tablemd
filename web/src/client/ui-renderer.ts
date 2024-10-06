@@ -17,9 +17,14 @@ export class UIRenderer {
     width: number,
     height: number,
   ) {
-    this.rectangleRenderer = new RectRenderer(device, width, height);
     this.uniformsProvider = new UniformsProvider(device, width, height, data);
     this.gridRenderer = new GridRenderer(device, this.uniformsProvider, data);
+    this.rectangleRenderer = new RectRenderer(
+      device,
+      width,
+      height,
+      this.uniformsProvider,
+    );
   }
 
   rectangle(args: {
@@ -56,6 +61,15 @@ export class UIRenderer {
       ],
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    // TODO: dynamic canvas size
+    // passEncoder.setViewport(
+    //   0,
+    //   0,
+    //   this.width * window.devicePixelRatio,
+    //   this.height * window.devicePixelRatio,
+    //   0,
+    //   1,
+    // );
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
@@ -63,6 +77,10 @@ export class UIRenderer {
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
 
+    this.afterRender();
+  }
+
+  private afterRender() {
     this.rectangleRenderer.reset();
   }
 }
