@@ -49,7 +49,7 @@ fn selectCorner(x: f32, y: f32, c: vec4f) -> f32 {
     return mix(mix(c.x, c.y, step(0, x)), mix(c.w, c.z, step(0, x)), step(0, y));
 }
 
-      // Return the blurred mask along the x dimension.
+// Return the blurred mask along the x dimension.
 fn roundedBoxShadowX(x: f32, y: f32, s: f32, corner: f32, halfSize: vec2f) -> f32 {
     let d = min(halfSize.y - corner - abs(y), 0);
     let c = halfSize.x - corner + sqrt(max(0, corner * corner - d * d));
@@ -57,7 +57,7 @@ fn roundedBoxShadowX(x: f32, y: f32, s: f32, corner: f32, halfSize: vec2f) -> f3
     return integral.y - integral.x;
 }
 
-      // Return the mask for the shadow of a box from lower to upper.
+// Return the mask for the shadow of a box from lower to upper.
 fn roundedBoxShadow(
     lower: vec2f,
     upper: vec2f,
