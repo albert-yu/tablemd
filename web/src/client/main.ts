@@ -69,6 +69,12 @@ async function main() {
 
   const pos = new Vec2(500, 500);
 
+  let frames = 0;
+
+  let time = Date.now();
+
+  const fpsSpan = document.querySelector("#fps");
+
   function frame() {
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
@@ -93,7 +99,14 @@ async function main() {
     });
 
     ui.render();
-    // requestAnimationFrame(frame);
+    frames++;
+    const now = Date.now();
+    if (now - time > 1000) {
+      time = now;
+      fpsSpan!.innerHTML = `${frames}`;
+      frames = 0;
+    }
+    requestAnimationFrame(frame);
   }
 
   requestAnimationFrame(frame);
@@ -107,7 +120,6 @@ async function main() {
       x, y, 0, 1,
     ];
     ui.updateZoom(mat);
-    requestAnimationFrame(frame);
   }
 
   const DEFAULT_SCALE = 4;
