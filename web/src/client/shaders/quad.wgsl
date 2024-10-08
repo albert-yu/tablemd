@@ -41,6 +41,6 @@ fn frag(input: VertexOutput) -> @location(0) vec4<f32> {
     if distance(input.quad_position, center) > 0.5 {
       discard;
     }
-    let opacity = 0.5;
+    let opacity = 0.25;
     return vec4<f32>(0.0, 0.0, 0.0, opacity);
 }
