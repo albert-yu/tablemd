@@ -65,8 +65,6 @@ async function main() {
     CANVAS_HEIGHT,
   );
 
-  const SCALE = 0.1;
-
   let frames = 0;
 
   let time = Date.now();
@@ -77,23 +75,23 @@ async function main() {
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
       position: new Vec2(400, 400),
-      size: new Vec2(100, 100).scale(SCALE),
-      corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-      sigma: 2,
+      size: new Vec2(100, 100),
+      corners: new Vec4(10, 10, 10, 10),
+      sigma: 20,
     });
     ui.rectangle({
       color: new Vec4(0.5, 0.25, 0.5, 1),
       position: new Vec2(400, 400),
-      size: new Vec2(100, 100).scale(SCALE),
-      corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-      sigma: 0.025,
+      size: new Vec2(100, 100),
+      corners: new Vec4(10, 10, 10, 10),
+      sigma: 0.25,
     });
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
-      position: new Vec2(400, 400),
-      size: new Vec2(98, 98).scale(SCALE),
-      corners: new Vec4(9, 9, 9, 9).scale(SCALE),
-      sigma: 0.025,
+      position: new Vec2(401, 401),
+      size: new Vec2(98, 98),
+      corners: new Vec4(9, 9, 9, 9),
+      sigma: 0.25,
     });
 
     ui.render();
