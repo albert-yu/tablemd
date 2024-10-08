@@ -75,21 +75,21 @@ async function main() {
       position: pos,
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-      sigma: 20,
+      sigma: 2,
     });
     ui.rectangle({
       color: new Vec4(0.5, 0.25, 0.5, 1),
       position: pos,
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-      sigma: 0.25,
+      sigma: 0.025,
     });
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
-      position: pos,
+      position: new Vec2(500.1, 500.1),
       size: new Vec2(98, 98).scale(SCALE),
       corners: new Vec4(9, 9, 9, 9).scale(SCALE),
-      sigma: 0.25,
+      sigma: 0.025,
     });
 
     ui.render();
