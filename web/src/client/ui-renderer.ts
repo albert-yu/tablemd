@@ -61,10 +61,6 @@ export class UIRenderer {
       ],
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    // const width = this.context.canvas.width;
-    // const height = this.context.canvas.height;
-    // passEncoder.setViewport(0, 0, width, height, 0, 1);
-    // this.uniformsProvider.updateWindowData(width, height);
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
