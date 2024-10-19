@@ -136,6 +136,10 @@ async function main() {
   };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
 
+  window.addEventListener("resize", () => {
+    ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
+  });
+
   try {
     let memory: WebAssembly.Memory | undefined = undefined;
     // const ctx = canvas.getContext("2d")!;

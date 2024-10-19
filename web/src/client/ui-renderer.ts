@@ -37,6 +37,10 @@ export class UIRenderer {
     this.uniformsProvider.updateZoom(val);
   }
 
+  updateCanvasDimensions(w: number, h: number) {
+    this.uniformsProvider.updateWindowData(w, h);
+  }
+
   render(): void {
     const commandEncoder = this.device.createCommandEncoder({
       label: "command encoder",
@@ -57,10 +61,10 @@ export class UIRenderer {
       ],
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    const width = this.context.canvas.width;
-    const height = this.context.canvas.height;
-    passEncoder.setViewport(0, 0, width, height, 0, 1);
-    this.uniformsProvider.updateWindowData(width, height);
+    // const width = this.context.canvas.width;
+    // const height = this.context.canvas.height;
+    // passEncoder.setViewport(0, 0, width, height, 0, 1);
+    // this.uniformsProvider.updateWindowData(width, height);
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
