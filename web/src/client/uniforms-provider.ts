@@ -19,10 +19,7 @@ export class UniformsProvider {
   private device: GPUDevice;
   private bindGroup: GPUBindGroup;
 
-  constructor(
-    device: GPUDevice,
-    private readonly context: GPUCanvasContext,
-  ) {
+  constructor(device: GPUDevice, context: GPUCanvasContext) {
     this.device = device;
     const uniforms = new Float32Array(50);
     this.uniforms = uniforms;
@@ -46,7 +43,7 @@ export class UniformsProvider {
       layout: this.layout,
       entries: [{ binding: 0, resource: { buffer: this.buffer } }],
     });
-    this.updateWindowData();
+    this.updateWindowData(context.canvas.width, context.canvas.height);
   }
 
   private setWindowScale(val: number[]) {
@@ -70,11 +67,10 @@ export class UniformsProvider {
   }
 
   /**
-   * Call before render
+   * Writes the updated window data
+   * to the uniform buffer
    */
-  updateWindowData() {
-    const w = this.context.canvas.width;
-    const h = this.context.canvas.height;
+  updateWindowData(w: number, h: number) {
     const range = Math.min(w, h);
     const scales: Scales = {
       x: {
