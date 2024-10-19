@@ -18,17 +18,11 @@ export class UniformsProvider {
   private layout: GPUBindGroupLayout;
   private device: GPUDevice;
   private bindGroup: GPUBindGroup;
-  /**
-   * TODO: can remove this I believe
-   */
-  private gridPoints: [Float32Array, Float32Array];
 
   constructor(
     device: GPUDevice,
     private readonly context: GPUCanvasContext,
-    gridPoints: [Float32Array, Float32Array],
   ) {
-    this.gridPoints = gridPoints;
     this.device = device;
     const uniforms = new Float32Array(50);
     this.uniforms = uniforms;
@@ -74,22 +68,16 @@ export class UniformsProvider {
   updateWindowData() {
     const w = this.context.canvas.width;
     const h = this.context.canvas.height;
-    const square_box = Math.min(w, h);
-    const d = { x: this.gridPoints[0], y: this.gridPoints[1] };
-    const dims = [
-      ["x", w],
-      ["y", h],
-    ] as const;
-
-    const scales = Object.fromEntries(
-      dims.map(([name, dim]) => {
-        let buffer = (dim - square_box) / 2;
-        const domain = extent(d[name]);
-        const range = [buffer, dim - buffer];
-        return [name, { domain, range }];
-      }),
-    ) as Scales;
-
+    const scales: Scales = {
+      x: {
+        domain: [0, 1],
+        range: [0, w],
+      },
+      y: {
+        domain: [0, 1],
+        range: [0, h],
+      },
+    };
     {
       const mats = window_transform(scales, w, h);
       this.setWindowScale(mats[0]);
@@ -104,34 +92,6 @@ export class UniformsProvider {
   getBindGroup() {
     return this.bindGroup;
   }
-}
-
-/**
- * Returns [min, max].
- *
- * Adapted from
- * https://github.com/d3/d3-array/blob/be0ae0d2b36ab91b833294ad2cfc5d5905acbd0f/src/extent.js#L1
- */
-function extent(values: Float32Array): [number, number] {
-  let min: number | undefined = undefined;
-  let max: number | undefined = undefined;
-  for (const value of values) {
-    if (value != null) {
-      if (min === undefined) {
-        if (value >= value) {
-          min = max = value;
-        }
-      } else {
-        if (min > value) {
-          min = value;
-        }
-        if (max! < value) {
-          max = value;
-        }
-      }
-    }
-  }
-  return [min!, max!];
 }
 
 function window_transform(scales: Scales, width: number, height: number) {

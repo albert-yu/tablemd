@@ -20,7 +20,7 @@ export class UIRenderer {
     private readonly context: GPUCanvasContext,
     private colorTextureView: GPUTextureView,
   ) {
-    this.uniformsProvider = new UniformsProvider(device, context, gridPoints);
+    this.uniformsProvider = new UniformsProvider(device, context);
     this.gridRenderer = new GridRenderer(
       device,
       this.uniformsProvider,
