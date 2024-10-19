@@ -25,7 +25,7 @@ struct Rectangle {
     sigma: f32,
     corners: vec4f,
     size: vec2f,
-    window: vec2f,
+    _unused2: vec2f,
 };
 
 struct UniformStorage {
