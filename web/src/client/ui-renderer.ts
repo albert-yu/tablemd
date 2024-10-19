@@ -3,6 +3,12 @@ import type { Vec4 } from "./Vec4";
 import { GridRenderer } from "./grid-renderer";
 import { RectRenderer } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
+import { GRID_N as N } from "./constants";
+
+const gridPoints: [Float32Array, Float32Array] = [
+  Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
+  Float32Array.from({ length: N * N }).map((_, j) => Math.floor(j / N) / N),
+];
 
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
@@ -13,12 +19,20 @@ export class UIRenderer {
     private device: GPUDevice,
     private readonly context: GPUCanvasContext,
     private colorTextureView: GPUTextureView,
-    data: [Float32Array, Float32Array],
     width: number,
     height: number,
   ) {
-    this.uniformsProvider = new UniformsProvider(device, width, height, data);
-    this.gridRenderer = new GridRenderer(device, this.uniformsProvider, data);
+    this.uniformsProvider = new UniformsProvider(
+      device,
+      width,
+      height,
+      gridPoints,
+    );
+    this.gridRenderer = new GridRenderer(
+      device,
+      this.uniformsProvider,
+      gridPoints,
+    );
     this.rectangleRenderer = new RectRenderer(
       device,
       width,

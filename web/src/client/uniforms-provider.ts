@@ -18,15 +18,18 @@ export class UniformsProvider {
   private layout: GPUBindGroupLayout;
   private device: GPUDevice;
   private bindGroup: GPUBindGroup;
-  private data: [Float32Array, Float32Array];
+  /**
+   * TODO: can remove this I believe
+   */
+  private gridPoints: [Float32Array, Float32Array];
 
   constructor(
     device: GPUDevice,
     width: number,
     height: number,
-    gridData: [Float32Array, Float32Array],
+    gridPoints: [Float32Array, Float32Array],
   ) {
-    this.data = gridData;
+    this.gridPoints = gridPoints;
     this.device = device;
     const uniforms = new Float32Array(50);
     this.uniforms = uniforms;
@@ -49,7 +52,7 @@ export class UniformsProvider {
     const w = width;
     const h = height;
     const square_box = Math.min(w, h);
-    const d = { x: this.data[0], y: this.data[1] };
+    const d = { x: this.gridPoints[0], y: this.gridPoints[1] };
     const dims = [
       ["x", w],
       ["y", h],

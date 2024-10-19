@@ -1,7 +1,7 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
-import { SAMPLE_COUNT } from "./constants";
+import { SAMPLE_COUNT, GRID_N as N } from "./constants";
 import { UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
@@ -41,13 +41,6 @@ async function main() {
     // alphaMode: "premultiplied",
   });
 
-  const N = 100;
-
-  const data: [Float32Array, Float32Array] = [
-    Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
-    Float32Array.from({ length: N * N }).map((_, j) => Math.floor(j / N) / N),
-  ];
-
   const colorTexture = device.createTexture({
     label: "color",
     size: { width: canvas.width, height: canvas.height },
@@ -60,7 +53,6 @@ async function main() {
     device,
     context,
     colorTextureView,
-    data,
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
   );

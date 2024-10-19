@@ -9,9 +9,9 @@ export class GridRenderer {
   constructor(
     device: GPUDevice,
     private uniforms: UniformsProvider,
-    private data: [Float32Array, Float32Array],
+    private gridPoints: [Float32Array, Float32Array],
   ) {
-    const [xbuf, ybuf] = data.map((arr) => {
+    const [xbuf, ybuf] = gridPoints.map((arr) => {
       let buffer = device.createBuffer({
         size: arr.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -91,6 +91,6 @@ export class GridRenderer {
     passEncoder.setPipeline(this.gridPipeline);
     passEncoder.setBindGroup(0, this.xyGroup);
     passEncoder.setBindGroup(1, this.uGroup);
-    passEncoder.draw(6, this.data[0].length);
+    passEncoder.draw(6, this.gridPoints[0].length);
   }
 }
