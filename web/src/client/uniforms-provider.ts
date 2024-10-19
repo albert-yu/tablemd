@@ -57,9 +57,16 @@ export class UniformsProvider {
     this.untransform.set(val);
   }
 
+  /**
+   * Submits current uniform buffer to device
+   */
+  private writeToBuffer() {
+    this.device.queue.writeBuffer(this.buffer, 0, this.uniforms);
+  }
+
   updateZoom(val: number[]) {
     this.zoom.set(val);
-    this.device.queue.writeBuffer(this.buffer, 0, this.uniforms);
+    this.writeToBuffer();
   }
 
   /**
@@ -84,6 +91,7 @@ export class UniformsProvider {
       this.setWindowScale(mats[0]);
       this.setUntransform(mats[1]);
     }
+    this.writeToBuffer();
   }
 
   getBindGroupLayout() {
