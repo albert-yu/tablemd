@@ -25,8 +25,7 @@ export class UniformsProvider {
 
   constructor(
     device: GPUDevice,
-    width: number,
-    height: number,
+    private readonly context: GPUCanvasContext,
     gridPoints: [Float32Array, Float32Array],
   ) {
     this.gridPoints = gridPoints;
@@ -49,8 +48,8 @@ export class UniformsProvider {
         },
       ],
     });
-    const w = width;
-    const h = height;
+    const w = this.context.canvas.width;
+    const h = this.context.canvas.height;
     const square_box = Math.min(w, h);
     const d = { x: this.gridPoints[0], y: this.gridPoints[1] };
     const dims = [

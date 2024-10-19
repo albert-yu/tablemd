@@ -46,7 +46,7 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   const colorTextureView = colorTexture.createView({ label: "color" });
-  const ui = new UIRenderer(device, context, colorTextureView, w(), h());
+  const ui = new UIRenderer(device, context, colorTextureView);
 
   let frames = 0;
 
