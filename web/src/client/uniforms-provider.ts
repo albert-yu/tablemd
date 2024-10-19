@@ -18,18 +18,8 @@ export class UniformsProvider {
   private layout: GPUBindGroupLayout;
   private device: GPUDevice;
   private bindGroup: GPUBindGroup;
-  /**
-   * TODO: can remove this I believe
-   */
-  private gridPoints: [Float32Array, Float32Array];
 
-  constructor(
-    device: GPUDevice,
-    width: number,
-    height: number,
-    gridPoints: [Float32Array, Float32Array],
-  ) {
-    this.gridPoints = gridPoints;
+  constructor(device: GPUDevice, context: GPUCanvasContext) {
     this.device = device;
     const uniforms = new Float32Array(50);
     this.uniforms = uniforms;
@@ -49,34 +39,11 @@ export class UniformsProvider {
         },
       ],
     });
-    const w = width;
-    const h = height;
-    const square_box = Math.min(w, h);
-    const d = { x: this.gridPoints[0], y: this.gridPoints[1] };
-    const dims = [
-      ["x", w],
-      ["y", h],
-    ] as const;
-
     this.bindGroup = device.createBindGroup({
       layout: this.layout,
       entries: [{ binding: 0, resource: { buffer: this.buffer } }],
     });
-
-    const scales = Object.fromEntries(
-      dims.map(([name, dim]) => {
-        let buffer = (dim - square_box) / 2;
-        const domain = extent(d[name]);
-        const range = [buffer, dim - buffer];
-        return [name, { domain, range }];
-      }),
-    ) as Scales;
-
-    {
-      const mats = window_transform(scales, w, h);
-      this.setWindowScale(mats[0]);
-      this.setUntransform(mats[1]);
-    }
+    this.updateWindowData(context.canvas.width, context.canvas.height);
   }
 
   private setWindowScale(val: number[]) {
@@ -87,9 +54,40 @@ export class UniformsProvider {
     this.untransform.set(val);
   }
 
+  /**
+   * Submits current uniform buffer to device
+   */
+  private writeToBuffer() {
+    this.device.queue.writeBuffer(this.buffer, 0, this.uniforms);
+  }
+
   updateZoom(val: number[]) {
     this.zoom.set(val);
-    this.device.queue.writeBuffer(this.buffer, 0, this.uniforms);
+    this.writeToBuffer();
+  }
+
+  /**
+   * Writes the updated window data
+   * to the uniform buffer
+   */
+  updateWindowData(w: number, h: number) {
+    const range = Math.min(w, h);
+    const scales: Scales = {
+      x: {
+        domain: [0, 1],
+        range: [0, range],
+      },
+      y: {
+        domain: [0, 1],
+        range: [0, range],
+      },
+    };
+    {
+      const mats = window_transform(scales, w, h);
+      this.setWindowScale(mats[0]);
+      this.setUntransform(mats[1]);
+    }
+    this.writeToBuffer();
   }
 
   getBindGroupLayout() {
@@ -99,34 +97,6 @@ export class UniformsProvider {
   getBindGroup() {
     return this.bindGroup;
   }
-}
-
-/**
- * Returns [min, max].
- *
- * Adapted from
- * https://github.com/d3/d3-array/blob/be0ae0d2b36ab91b833294ad2cfc5d5905acbd0f/src/extent.js#L1
- */
-function extent(values: Float32Array): [number, number] {
-  let min: number | undefined = undefined;
-  let max: number | undefined = undefined;
-  for (const value of values) {
-    if (value != null) {
-      if (min === undefined) {
-        if (value >= value) {
-          min = max = value;
-        }
-      } else {
-        if (min > value) {
-          min = value;
-        }
-        if (max! < value) {
-          max = value;
-        }
-      }
-    }
-  }
-  return [min!, max!];
 }
 
 function window_transform(scales: Scales, width: number, height: number) {

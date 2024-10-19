@@ -4,6 +4,14 @@ import { SAMPLE_COUNT } from "./constants";
 import rectangleShader from "./shaders/rectangle.wgsl";
 import type { UniformsProvider } from "./uniforms-provider";
 
+export type RectangleArgs = {
+  color: Vec4;
+  position: Vec2;
+  size: Vec2;
+  corners: Vec4;
+  sigma: number;
+};
+
 // First number is the size of Rectangle struct (with padding).
 // Second is in this case maximum number of allowed elements (can easily go into
 // high thousands).
@@ -23,8 +31,6 @@ export class RectRenderer {
 
   constructor(
     private device: GPUDevice,
-    private canvasWidth: number,
-    private canvasHeight: number,
     private uniforms: UniformsProvider,
   ) {
     const rectangleModule = device.createShaderModule({
@@ -127,22 +133,17 @@ export class RectRenderer {
     device.queue.writeBuffer(this.vertexBuffer, 0, new Float32Array(vertices));
   }
 
-  rectangle(args: {
-    color: Vec4;
-    position: Vec2;
-    size: Vec2;
-    corners: Vec4;
-    sigma: number;
-  }): void {
+  rectangle(args: RectangleArgs): void {
     const { color, position, size, corners, sigma } = args;
     const struct = 16;
+    const UNUSED = 0;
     this.rectangleData[this.rectangleCount * struct + 0] = color.x;
     this.rectangleData[this.rectangleCount * struct + 1] = color.y;
     this.rectangleData[this.rectangleCount * struct + 2] = color.z;
     this.rectangleData[this.rectangleCount * struct + 3] = color.w;
     this.rectangleData[this.rectangleCount * struct + 4] = position.x;
     this.rectangleData[this.rectangleCount * struct + 5] = position.y;
-    this.rectangleData[this.rectangleCount * struct + 6] = 0;
+    this.rectangleData[this.rectangleCount * struct + 6] = UNUSED;
     this.rectangleData[this.rectangleCount * struct + 7] = sigma;
     this.rectangleData[this.rectangleCount * struct + 8] = corners.x;
     this.rectangleData[this.rectangleCount * struct + 9] = corners.y;
@@ -150,8 +151,8 @@ export class RectRenderer {
     this.rectangleData[this.rectangleCount * struct + 11] = corners.w;
     this.rectangleData[this.rectangleCount * struct + 12] = size.x;
     this.rectangleData[this.rectangleCount * struct + 13] = size.y;
-    this.rectangleData[this.rectangleCount * struct + 14] = this.canvasWidth;
-    this.rectangleData[this.rectangleCount * struct + 15] = this.canvasHeight;
+    this.rectangleData[this.rectangleCount * struct + 14] = UNUSED;
+    this.rectangleData[this.rectangleCount * struct + 15] = UNUSED;
 
     this.rectangleCount += 1;
   }

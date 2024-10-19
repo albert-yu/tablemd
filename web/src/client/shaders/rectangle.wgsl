@@ -25,7 +25,7 @@ struct Rectangle {
     sigma: f32,
     corners: vec4f,
     size: vec2f,
-    window: vec2f,
+    _unused2: vec2f,
 };
 
 struct UniformStorage {
@@ -108,8 +108,7 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
         input.position
     );
     let t = uni.untransform * uni.zoom * uni.window_scale;
-
-    output.position = t * vec4f(vertex / r.window * 2 - 1, 0, 1);
+    output.position = t * vec4f(vertex, 0, 1);
     // output.position.y = -output.position.y;
     output.vertex = vertex;
     output.instance = input.instance;
