@@ -109,7 +109,6 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
     );
     let t = uni.untransform * uni.zoom * uni.window_scale;
     output.position = t * vec4f(vertex, 0, 1);
-    // output.position.y = -output.position.y;
     output.vertex = vertex;
     output.instance = input.instance;
     return output;
