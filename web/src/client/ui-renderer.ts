@@ -72,19 +72,8 @@ export class UIRenderer {
       ],
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    // passEncoder.setViewport(
-    //   0,
-    //   0,
-    //   this.width * window.devicePixelRatio,
-    //   this.height * window.devicePixelRatio,
-    //   0,
-    //   1,
-    // );
     const width = this.context.canvas.width;
     const height = this.context.canvas.height;
-
-    // const width = this.width * window.devicePixelRatio;
-    // const height = this.height * window.devicePixelRatio;
     passEncoder.setViewport(0, 0, width, height, 0, 1);
 
     this.gridRenderer.render(passEncoder);
