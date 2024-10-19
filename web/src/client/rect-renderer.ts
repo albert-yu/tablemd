@@ -23,8 +23,6 @@ export class RectRenderer {
 
   constructor(
     private device: GPUDevice,
-    private canvasWidth: number,
-    private canvasHeight: number,
     private uniforms: UniformsProvider,
   ) {
     const rectangleModule = device.createShaderModule({
@@ -133,8 +131,11 @@ export class RectRenderer {
     size: Vec2;
     corners: Vec4;
     sigma: number;
+    canvasWidth: number;
+    canvasHeight: number;
   }): void {
-    const { color, position, size, corners, sigma } = args;
+    const { color, position, size, corners, sigma, canvasWidth, canvasHeight } =
+      args;
     const struct = 16;
     this.rectangleData[this.rectangleCount * struct + 0] = color.x;
     this.rectangleData[this.rectangleCount * struct + 1] = color.y;
@@ -150,8 +151,8 @@ export class RectRenderer {
     this.rectangleData[this.rectangleCount * struct + 11] = corners.w;
     this.rectangleData[this.rectangleCount * struct + 12] = size.x;
     this.rectangleData[this.rectangleCount * struct + 13] = size.y;
-    this.rectangleData[this.rectangleCount * struct + 14] = this.canvasWidth;
-    this.rectangleData[this.rectangleCount * struct + 15] = this.canvasHeight;
+    this.rectangleData[this.rectangleCount * struct + 14] = canvasWidth;
+    this.rectangleData[this.rectangleCount * struct + 15] = canvasHeight;
 
     this.rectangleCount += 1;
   }

@@ -19,12 +19,6 @@ async function main() {
     throw new Error("No adapter found.");
   }
 
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 800;
-
-  const w = CANVAS_WIDTH;
-  const h = CANVAS_HEIGHT;
-
   const device = await adapter.requestDevice();
   //
   const canvas = document.querySelector("canvas")!;
@@ -41,6 +35,9 @@ async function main() {
     // alphaMode: "premultiplied",
   });
 
+  const w = () => canvas.clientWidth;
+  const h = () => canvas.clientHeight;
+
   const colorTexture = device.createTexture({
     label: "color",
     size: { width: canvas.width, height: canvas.height },
@@ -49,13 +46,7 @@ async function main() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   const colorTextureView = colorTexture.createView({ label: "color" });
-  const ui = new UIRenderer(
-    device,
-    context,
-    colorTextureView,
-    CANVAS_WIDTH,
-    CANVAS_HEIGHT,
-  );
+  const ui = new UIRenderer(device, context, colorTextureView, w(), h());
 
   let frames = 0;
 
@@ -66,12 +57,16 @@ async function main() {
   const SCALE = 0.25;
   const position = new Vec2(500, 500);
   function frame() {
+    const canvasWidth = w();
+    const canvasHeight = h();
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
       position: position,
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
       sigma: 20,
+      canvasWidth,
+      canvasHeight,
     });
     ui.rectangle({
       color: new Vec4(0.5, 0.25, 0.5, 1),
@@ -79,6 +74,8 @@ async function main() {
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
       sigma: 0.025,
+      canvasWidth,
+      canvasHeight,
     });
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
@@ -86,6 +83,8 @@ async function main() {
       size: new Vec2(98, 98).scale(SCALE),
       corners: new Vec4(9, 9, 9, 9).scale(SCALE),
       sigma: 0.025,
+      canvasWidth,
+      canvasHeight,
     });
 
     ui.render();
@@ -124,8 +123,8 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const gridX = (N * p.x) / w;
-      const gridY = (N * p.y) / h;
+      const gridX = (N * p.x) / w();
+      const gridY = (N * p.y) / h();
       console.log({ x: gridX, y: gridY });
 
       // Suppose each spreadsheet cell is 2 grid cells wide by 1 cell tall.
@@ -145,7 +144,7 @@ async function main() {
     // const ctx = canvas.getContext("2d")!;
     // canvas.height = CANVAS_HEIGHT;
     // canvas.width = CANVAS_WIDTH;
-    const size = CANVAS_WIDTH * CANVAS_HEIGHT;
+    const size = w() * h();
     const _byteSize = size * 4;
 
     // ctx.imageSmoothingEnabled = false;

@@ -33,12 +33,7 @@ export class UIRenderer {
       this.uniformsProvider,
       gridPoints,
     );
-    this.rectangleRenderer = new RectRenderer(
-      device,
-      width,
-      height,
-      this.uniformsProvider,
-    );
+    this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
   }
 
   rectangle(args: {
@@ -47,6 +42,8 @@ export class UIRenderer {
     size: Vec2;
     corners: Vec4;
     sigma: number;
+    canvasWidth: number;
+    canvasHeight: number;
   }): void {
     this.rectangleRenderer.rectangle(args);
   }
@@ -75,7 +72,6 @@ export class UIRenderer {
       ],
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    // TODO: dynamic canvas size
     // passEncoder.setViewport(
     //   0,
     //   0,
@@ -84,6 +80,12 @@ export class UIRenderer {
     //   0,
     //   1,
     // );
+    const width = this.context.canvas.width;
+    const height = this.context.canvas.height;
+
+    // const width = this.width * window.devicePixelRatio;
+    // const height = this.height * window.devicePixelRatio;
+    passEncoder.setViewport(0, 0, width, height, 0, 1);
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
