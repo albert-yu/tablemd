@@ -59,8 +59,8 @@ async function main() {
 
   const fpsSpan = document.querySelector("#fps");
 
-  const SCALE = 0.25;
-  const position = new Vec2(500, 500);
+  const SCALE = 0.001;
+  const position = new Vec2(0, 0);
   function frame() {
     const canvasWidth = w();
     const canvasHeight = h();
@@ -69,7 +69,7 @@ async function main() {
       position: position,
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-      sigma: 20,
+      sigma: 0.01,
       canvasWidth,
       canvasHeight,
     });
@@ -78,7 +78,7 @@ async function main() {
       position: position,
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-      sigma: 0.025,
+      sigma: SCALE * 0.01,
       canvasWidth,
       canvasHeight,
     });
@@ -87,7 +87,7 @@ async function main() {
       position: position.add(new Vec2(SCALE, SCALE)),
       size: new Vec2(98, 98).scale(SCALE),
       corners: new Vec4(9, 9, 9, 9).scale(SCALE),
-      sigma: 0.025,
+      sigma: SCALE * 0.01,
       canvasWidth,
       canvasHeight,
     });
