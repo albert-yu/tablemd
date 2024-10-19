@@ -10,8 +10,15 @@ const cursorStyle = {
 } as const;
 
 async function main() {
+  const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
-    throw new Error("WebGPU not supported on this browser.");
+    const errNode = document.createElement("div");
+    errNode.innerHTML = `<p>WebGPU is not supported on this browser.</p>
+    <p>Use Chrome, Edge, or another Chromium-based browser.</p>`;
+    errNode.style.color = "red";
+    canvas.replaceWith(errNode);
+    console.error("WebGPU not supported on this browser.");
+    return;
   }
 
   const adapter = await navigator.gpu.requestAdapter();
@@ -20,11 +27,9 @@ async function main() {
   }
 
   const device = await adapter.requestDevice();
-  //
-  const canvas = document.querySelector("canvas")!;
   const context = canvas.getContext("webgpu")!;
-
   const devicePixelRatio = window.devicePixelRatio;
+
   canvas.width = canvas.clientWidth * devicePixelRatio;
   canvas.height = canvas.clientHeight * devicePixelRatio;
   const format = navigator.gpu.getPreferredCanvasFormat();
