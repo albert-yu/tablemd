@@ -48,6 +48,30 @@ export class UniformsProvider {
         },
       ],
     });
+    this.bindGroup = device.createBindGroup({
+      layout: this.layout,
+      entries: [{ binding: 0, resource: { buffer: this.buffer } }],
+    });
+    this.updateWindowData();
+  }
+
+  private setWindowScale(val: number[]) {
+    this.windowScale.set(val);
+  }
+
+  private setUntransform(val: number[]) {
+    this.untransform.set(val);
+  }
+
+  updateZoom(val: number[]) {
+    this.zoom.set(val);
+    this.device.queue.writeBuffer(this.buffer, 0, this.uniforms);
+  }
+
+  /**
+   * Call before render
+   */
+  updateWindowData() {
     const w = this.context.canvas.width;
     const h = this.context.canvas.height;
     const square_box = Math.min(w, h);
@@ -56,11 +80,6 @@ export class UniformsProvider {
       ["x", w],
       ["y", h],
     ] as const;
-
-    this.bindGroup = device.createBindGroup({
-      layout: this.layout,
-      entries: [{ binding: 0, resource: { buffer: this.buffer } }],
-    });
 
     const scales = Object.fromEntries(
       dims.map(([name, dim]) => {
@@ -76,19 +95,6 @@ export class UniformsProvider {
       this.setWindowScale(mats[0]);
       this.setUntransform(mats[1]);
     }
-  }
-
-  private setWindowScale(val: number[]) {
-    this.windowScale.set(val);
-  }
-
-  private setUntransform(val: number[]) {
-    this.untransform.set(val);
-  }
-
-  updateZoom(val: number[]) {
-    this.zoom.set(val);
-    this.device.queue.writeBuffer(this.buffer, 0, this.uniforms);
   }
 
   getBindGroupLayout() {
