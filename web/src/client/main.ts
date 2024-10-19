@@ -84,14 +84,14 @@ async function main() {
       position: new Vec2(400, 400),
       size: new Vec2(100, 100),
       corners: new Vec4(10, 10, 10, 10),
-      sigma: 0.25,
+      sigma: 0.025,
     });
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
       position: new Vec2(401, 401),
       size: new Vec2(98, 98),
       corners: new Vec4(9, 9, 9, 9),
-      sigma: 0.25,
+      sigma: 0.025,
     });
 
     ui.render();
