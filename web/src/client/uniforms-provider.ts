@@ -68,14 +68,15 @@ export class UniformsProvider {
   updateWindowData() {
     const w = this.context.canvas.width;
     const h = this.context.canvas.height;
+    const range = Math.min(w, h);
     const scales: Scales = {
       x: {
         domain: [0, 1],
-        range: [0, w],
+        range: [0, range],
       },
       y: {
         domain: [0, 1],
-        range: [0, h],
+        range: [0, range],
       },
     };
     {
