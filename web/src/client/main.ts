@@ -60,7 +60,7 @@ async function main() {
   const fpsSpan = document.querySelector("#fps");
 
   const SCALE = 0.001;
-  const position = new Vec2(0, 0);
+  const position = new Vec2(0.25, 0.25);
   function frame() {
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
@@ -108,7 +108,7 @@ async function main() {
     ui.updateZoom(mat);
   }
 
-  const DEFAULT_SCALE = 4;
+  const DEFAULT_SCALE = 2;
   let mode: CanvasMode = getCanvasSelectMode() ?? "select";
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
