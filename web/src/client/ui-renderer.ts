@@ -1,7 +1,7 @@
 import type { Vec2 } from "./Vec2";
 import type { Vec4 } from "./Vec4";
 import { GridRenderer } from "./grid-renderer";
-import { RectRenderer } from "./rect-renderer";
+import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import { GRID_N as N } from "./constants";
 
@@ -29,15 +29,7 @@ export class UIRenderer {
     this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
   }
 
-  rectangle(args: {
-    color: Vec4;
-    position: Vec2;
-    size: Vec2;
-    corners: Vec4;
-    sigma: number;
-    canvasWidth: number;
-    canvasHeight: number;
-  }): void {
+  rectangle(args: RectangleArgs): void {
     this.rectangleRenderer.rectangle(args);
   }
 

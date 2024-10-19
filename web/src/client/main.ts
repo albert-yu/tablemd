@@ -62,16 +62,12 @@ async function main() {
   const SCALE = 0.001;
   const position = new Vec2(0, 0);
   function frame() {
-    const canvasWidth = w();
-    const canvasHeight = h();
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
       position: position,
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
       sigma: 0.01,
-      canvasWidth,
-      canvasHeight,
     });
     ui.rectangle({
       color: new Vec4(0.5, 0.25, 0.5, 1),
@@ -79,8 +75,6 @@ async function main() {
       size: new Vec2(100, 100).scale(SCALE),
       corners: new Vec4(10, 10, 10, 10).scale(SCALE),
       sigma: SCALE * 0.01,
-      canvasWidth,
-      canvasHeight,
     });
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
@@ -88,8 +82,6 @@ async function main() {
       size: new Vec2(98, 98).scale(SCALE),
       corners: new Vec4(9, 9, 9, 9).scale(SCALE),
       sigma: SCALE * 0.01,
-      canvasWidth,
-      canvasHeight,
     });
 
     ui.render();
