@@ -25,9 +25,10 @@ struct FormattedText {
   chars: array<vec3f>,
 };
 
-struct Camera {
-  projection: mat4x4f,
-  view: mat4x4f,
+struct Uniforms {
+    zoom: mat4x4<f32>,
+    window_scale: mat4x4<f32>,
+    untransform: mat4x4<f32>,
 };
 
 // Font bindings
@@ -36,7 +37,7 @@ struct Camera {
 @group(0) @binding(2) var<storage> chars: array<Char>;
 
 // Text bindings
-@group(1) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<uniform> uni: Uniforms;
 @group(1) @binding(1) var<storage> text: FormattedText;
 
 @vertex
@@ -46,7 +47,7 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
     let charPos = (pos[input.vertex] * char.size + textElement.xy + char.offset) * text.scale;
 
     var output: VertexOutput;
-    output.position = camera.projection * camera.view * text.transform * vec4f(charPos, 0, 1);
+    output.position = uni.untransform * uni.zoom * uni.window_scale * text.transform * vec4f(charPos, 0, 1);
 
     output.texcoord = pos[input.vertex] * vec2f(1, -1);
     output.texcoord *= char.texExtent;

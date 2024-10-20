@@ -2,6 +2,7 @@ import { mat4, type Mat4 } from "wgpu-matrix";
 
 import msdfTextWGSL from "./shaders/msdf-text.wgsl";
 import { SAMPLE_COUNT } from "./constants";
+import type { UniformsProvider } from "./uniforms-provider";
 
 // The kerning map stores a spare map of character ID pairs with an associated
 // X offset that should be applied to the character spacing when the second
@@ -129,15 +130,16 @@ export class MsdfTextRenderer {
   textBindGroupLayout: GPUBindGroupLayout;
   pipelinePromise: Promise<GPURenderPipeline>;
   sampler: GPUSampler;
-  cameraUniformBuffer: GPUBuffer;
+  // cameraUniformBuffer: GPUBuffer;
 
   renderBundleDescriptor: GPURenderBundleEncoderDescriptor;
-  cameraArray: Float32Array = new Float32Array(16 * 2);
+  // cameraArray: Float32Array = new Float32Array(16 * 2);
 
   constructor(
     public device: GPUDevice,
     colorFormat: GPUTextureFormat,
     depthFormat: GPUTextureFormat,
+    private uniforms: UniformsProvider,
   ) {
     this.renderBundleDescriptor = {
       label: "MSDF text render",
@@ -154,11 +156,11 @@ export class MsdfTextRenderer {
       maxAnisotropy: 16,
     });
 
-    this.cameraUniformBuffer = device.createBuffer({
-      label: "MSDF camera uniform buffer",
-      size: this.cameraArray.byteLength,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
-    });
+    // this.cameraUniformBuffer = device.createBuffer({
+    //   label: "MSDF camera uniform buffer",
+    //   size: this.cameraArray.byteLength,
+    //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+    // });
 
     this.fontBindGroupLayout = device.createBindGroupLayout({
       label: "MSDF font group layout",
@@ -408,7 +410,7 @@ export class MsdfTextRenderer {
       entries: [
         {
           binding: 0,
-          resource: { buffer: this.cameraUniformBuffer },
+          resource: { buffer: this.uniforms.getBuffer() },
         },
         {
           binding: 1,
@@ -501,15 +503,15 @@ export class MsdfTextRenderer {
     };
   }
 
-  updateCamera(projection: Mat4, view: Mat4) {
-    this.cameraArray.set(projection, 0);
-    this.cameraArray.set(view, 16);
-    this.device.queue.writeBuffer(
-      this.cameraUniformBuffer,
-      0,
-      this.cameraArray,
-    );
-  }
+  // updateCamera(projection: Mat4, view: Mat4) {
+  //   this.cameraArray.set(projection, 0);
+  //   this.cameraArray.set(view, 16);
+  //   this.device.queue.writeBuffer(
+  //     this.cameraUniformBuffer,
+  //     0,
+  //     this.cameraArray,
+  //   );
+  // }
 
   render(renderPass: GPURenderPassEncoder, ...text: MsdfText[]) {
     const renderBundles = text.map((t) => t.getRenderBundle());
