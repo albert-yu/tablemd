@@ -1,5 +1,3 @@
-import type { Vec2 } from "./Vec2";
-import type { Vec4 } from "./Vec4";
 import { GridRenderer } from "./grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
