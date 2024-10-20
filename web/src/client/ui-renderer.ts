@@ -98,7 +98,7 @@ export class UIRenderer {
         },
       ],
       depthStencilAttachment: {
-        view: this.depthTexture.createView(),
+        view: this.depthTexture.createView({ label: "depth-stencil" }),
         depthClearValue: 1.0,
         depthLoadOp: "clear",
         depthStoreOp: "store",
