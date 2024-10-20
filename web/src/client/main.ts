@@ -3,6 +3,9 @@ import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
 import { GRID_N as N } from "./constants";
 import { UIRenderer } from "./ui-renderer";
+import fontTTF from "./fonts/spacemono-regular.ttf";
+
+console.log(fontTTF);
 
 const cursorStyle = {
   select: "auto",
