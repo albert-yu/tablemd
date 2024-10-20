@@ -23,8 +23,6 @@ const env = values.env || "development";
 const minify = env === "production";
 const sourcemap = env === "development" ? "inline" : "none";
 
-const ASCII_MSDF = "ascii-msdf";
-
 const copyFileToBuild = (...pathToFile: string[]) => {
   const joined = path.join(...pathToFile);
   return Bun.write(
@@ -33,12 +31,7 @@ const copyFileToBuild = (...pathToFile: string[]) => {
   );
 };
 
-await Promise.all([
-  copyFileToBuild("index.html"),
-  copyFileToBuild(ASCII_MSDF, "ascii-msdf.json"),
-  copyFileToBuild(ASCII_MSDF, "ascii.0.png"),
-  copyFileToBuild(ASCII_MSDF, "ascii.1.png"),
-]);
+await Promise.all([copyFileToBuild("index.html")]);
 
 Bun.build({
   entrypoints: [path.join(currentDir, "./src/client/main.ts")],
