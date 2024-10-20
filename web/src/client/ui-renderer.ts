@@ -54,7 +54,7 @@ export class UIRenderer {
             .getCurrentTexture()
             .createView({ label: "antialiased resolve target" }),
           // This is background color.
-          clearValue: { r: 1, g: 1, b: 1, a: 1 },
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
           loadOp: "clear",
           storeOp: "store",
         },
