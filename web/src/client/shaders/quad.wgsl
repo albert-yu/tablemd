@@ -42,5 +42,5 @@ fn frag(input: VertexOutput) -> @location(0) vec4<f32> {
       discard;
     }
     let opacity = 0.25;
-    return vec4<f32>(0.0, 0.0, 0.0, opacity);
+    return vec4<f32>(1.0, 1.0, 1.0, opacity);
 }

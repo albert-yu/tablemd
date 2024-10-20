@@ -104,10 +104,8 @@ export class CanvasEventHandler {
         // pan with scroll
         const dirX = -event.deltaX;
         const diry = -event.deltaY;
-        // slow down the scroll a bit
-        const factor = 0.8;
-        this.x += dirX * factor;
-        this.y += diry * factor;
+        this.x += dirX;
+        this.y += diry;
         listener({ k: this.k, x: this.x, y: this.y });
       }
     };

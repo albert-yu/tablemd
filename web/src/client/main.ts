@@ -1,7 +1,7 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
-import { SAMPLE_COUNT, GRID_N as N } from "./constants";
+import { GRID_N as N } from "./constants";
 import { UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
@@ -36,31 +36,22 @@ async function main() {
 
   context.configure({
     device,
-    format: format,
-    // alphaMode: "premultiplied",
+    format,
   });
 
   const w = () => canvas.clientWidth;
   const h = () => canvas.clientHeight;
 
-  const colorTexture = device.createTexture({
-    label: "color",
-    size: { width: canvas.width, height: canvas.height },
-    sampleCount: SAMPLE_COUNT,
-    format: "bgra8unorm",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-  });
-  const colorTextureView = colorTexture.createView({ label: "color" });
-  const ui = new UIRenderer(device, context, colorTextureView);
+  const ui = new UIRenderer(device, context, format);
 
   let frames = 0;
 
   let time = Date.now();
 
-  const fpsSpan = document.querySelector("#fps");
+  const fpsSpan = document.querySelector("#fps")!;
 
   const SCALE = 0.001;
-  const position = new Vec2(0, 0);
+  const position = new Vec2(0.25, 0.25);
   function frame() {
     ui.rectangle({
       color: new Vec4(1, 0.5, 1, 1),
@@ -89,7 +80,7 @@ async function main() {
     const now = Date.now();
     if (now - time > 1000) {
       time = now;
-      fpsSpan!.innerHTML = `${frames}`;
+      fpsSpan.innerHTML = `${frames}`;
       frames = 0;
     }
     requestAnimationFrame(frame);
@@ -108,7 +99,7 @@ async function main() {
     ui.updateZoom(mat);
   }
 
-  const DEFAULT_SCALE = 4;
+  const DEFAULT_SCALE = 2;
   let mode: CanvasMode = getCanvasSelectMode() ?? "select";
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,

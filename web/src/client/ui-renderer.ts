@@ -1,9 +1,7 @@
-import type { Vec2 } from "./Vec2";
-import type { Vec4 } from "./Vec4";
 import { GridRenderer } from "./grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
-import { GRID_N as N } from "./constants";
+import { GRID_N as N, SAMPLE_COUNT } from "./constants";
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
@@ -14,12 +12,20 @@ export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: GridRenderer;
   private uniformsProvider: UniformsProvider;
+  private colorTexture: GPUTexture;
 
   constructor(
     private device: GPUDevice,
     private readonly context: GPUCanvasContext,
-    private colorTextureView: GPUTextureView,
+    format: GPUTextureFormat,
   ) {
+    this.colorTexture = device.createTexture({
+      label: "color",
+      size: { width: context.canvas.width, height: context.canvas.height },
+      sampleCount: SAMPLE_COUNT,
+      format: format,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+    });
     this.uniformsProvider = new UniformsProvider(device, context);
     this.gridRenderer = new GridRenderer(
       device,
@@ -49,12 +55,12 @@ export class UIRenderer {
       label: "main render pass",
       colorAttachments: [
         {
-          view: this.colorTextureView,
+          view: this.colorTexture.createView({ label: "color" }),
           resolveTarget: this.context
             .getCurrentTexture()
             .createView({ label: "antialiased resolve target" }),
           // This is background color.
-          clearValue: { r: 1, g: 1, b: 1, a: 1 },
+          clearValue: { r: 0, g: 0, b: 0, a: 1 },
           loadOp: "clear",
           storeOp: "store",
         },
