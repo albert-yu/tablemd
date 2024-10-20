@@ -69,7 +69,7 @@ const generateFontJSON = async () => {
 await Promise.all([copyFileToBuild("index.html"), generateFontJSON()]);
 
 Bun.build({
-  entrypoints: [path.join(currentDir, "./src/client/main.ts")],
+  entrypoints: [path.join(CLIENT_SRC, "main.ts")],
   outdir: OUT_DIR,
   minify: minify,
   sourcemap: sourcemap,
