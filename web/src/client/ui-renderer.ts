@@ -17,12 +17,13 @@ export class UIRenderer {
   constructor(
     private device: GPUDevice,
     private readonly context: GPUCanvasContext,
+    format: GPUTextureFormat,
   ) {
     this.colorTexture = device.createTexture({
       label: "color",
       size: { width: context.canvas.width, height: context.canvas.height },
       sampleCount: SAMPLE_COUNT,
-      format: "bgra8unorm",
+      format: format,
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
     this.uniformsProvider = new UniformsProvider(device, context);

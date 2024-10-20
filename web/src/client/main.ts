@@ -36,20 +36,19 @@ async function main() {
 
   context.configure({
     device,
-    format: format,
-    // alphaMode: "premultiplied",
+    format,
   });
 
   const w = () => canvas.clientWidth;
   const h = () => canvas.clientHeight;
 
-  const ui = new UIRenderer(device, context);
+  const ui = new UIRenderer(device, context, format);
 
   let frames = 0;
 
   let time = Date.now();
 
-  const fpsSpan = document.querySelector("#fps");
+  const fpsSpan = document.querySelector("#fps")!;
 
   const SCALE = 0.001;
   const position = new Vec2(0.25, 0.25);
@@ -81,7 +80,7 @@ async function main() {
     const now = Date.now();
     if (now - time > 1000) {
       time = now;
-      fpsSpan!.innerHTML = `${frames}`;
+      fpsSpan.innerHTML = `${frames}`;
       frames = 0;
     }
     requestAnimationFrame(frame);
