@@ -1,6 +1,7 @@
 import wgsl from "./bun-plugins/wgsl";
 import { parseArgs } from "util";
 import path from "path";
+import ttf from "./bun-plugins/ttf";
 
 const currentDir = import.meta.dir;
 
@@ -38,5 +39,5 @@ Bun.build({
   outdir: OUT_DIR,
   minify: minify,
   sourcemap: sourcemap,
-  plugins: [wgsl()],
+  plugins: [wgsl(), ttf()],
 });
