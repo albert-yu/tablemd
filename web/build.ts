@@ -5,6 +5,7 @@ import path from "path";
 const currentDir = import.meta.dir;
 
 const OUT_DIR = path.join(currentDir, "./build");
+const CLIENT_SRC = path.join(currentDir, "./src/client");
 
 const { values } = parseArgs({
   args: Bun.argv,
@@ -22,10 +23,22 @@ const env = values.env || "development";
 const minify = env === "production";
 const sourcemap = env === "development" ? "inline" : "none";
 
-await Bun.write(
-  OUT_DIR + "/index.html",
-  Bun.file(path.join(currentDir, "./src/client/index.html")),
-);
+const ASCII_MSDF = "ascii-msdf";
+
+const copyFileToBuild = (...pathToFile: string[]) => {
+  const joined = path.join(...pathToFile);
+  return Bun.write(
+    path.join(OUT_DIR, joined),
+    Bun.file(path.join(CLIENT_SRC, joined)),
+  );
+};
+
+await Promise.all([
+  copyFileToBuild("index.html"),
+  copyFileToBuild(ASCII_MSDF, "ascii-msdf.json"),
+  copyFileToBuild(ASCII_MSDF, "ascii.0.png"),
+  copyFileToBuild(ASCII_MSDF, "ascii.1.png"),
+]);
 
 Bun.build({
   entrypoints: [path.join(currentDir, "./src/client/main.ts")],
