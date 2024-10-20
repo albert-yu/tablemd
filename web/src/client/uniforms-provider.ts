@@ -97,9 +97,6 @@ export class UniformsProvider {
   getBindGroup() {
     return this.bindGroup;
   }
-  getBuffer() {
-    return this.buffer;
-  }
 }
 
 function window_transform(scales: Scales, width: number, height: number) {

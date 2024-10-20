@@ -50,7 +50,6 @@ export class UIRenderer {
       device,
       format,
       DEPTH_STENCIL_FORMAT,
-      this.uniformsProvider,
     );
   }
 
