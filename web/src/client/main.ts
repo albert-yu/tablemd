@@ -3,9 +3,8 @@ import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
 import { GRID_N as N } from "./constants";
 import { UIRenderer } from "./ui-renderer";
-import fontTTF from "./fonts/spacemono-regular.ttf";
-
-console.log(fontTTF);
+import fontURL from "./fonts/spacemono-regular.ttf";
+import opentype from "opentype.js";
 
 const cursorStyle = {
   select: "auto",
@@ -28,6 +27,10 @@ async function main() {
   if (!adapter) {
     throw new Error("No adapter found.");
   }
+
+  const fontBuffer = await fetch(fontURL).then((res) => res.arrayBuffer());
+  const font = opentype.parse(fontBuffer);
+  console.log(font);
 
   const device = await adapter.requestDevice();
   const context = canvas.getContext("webgpu")!;
