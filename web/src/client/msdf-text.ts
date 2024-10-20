@@ -1,7 +1,6 @@
 import { mat4, type Mat4 } from "wgpu-matrix";
 
 import msdfTextWGSL from "./shaders/msdf-text.wgsl";
-import { SAMPLE_COUNT } from "./constants";
 
 // The kerning map stores a spare map of character ID pairs with an associated
 // X offset that should be applied to the character spacing when the second
@@ -140,10 +139,8 @@ export class MsdfTextRenderer {
     depthFormat: GPUTextureFormat,
   ) {
     this.renderBundleDescriptor = {
-      label: "MSDF text render",
       colorFormats: [colorFormat],
       depthStencilFormat: depthFormat,
-      sampleCount: SAMPLE_COUNT,
     };
 
     this.sampler = device.createSampler({
@@ -233,9 +230,6 @@ export class MsdfTextRenderer {
       primitive: {
         topology: "triangle-strip",
         stripIndexFormat: "uint32",
-      },
-      multisample: {
-        count: SAMPLE_COUNT,
       },
       depthStencil: {
         depthWriteEnabled: false,

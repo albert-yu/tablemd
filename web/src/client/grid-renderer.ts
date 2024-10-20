@@ -1,5 +1,5 @@
 import quadWGSL from "./shaders/quad.wgsl";
-import { DEPTH_STENCIL_FORMAT, SAMPLE_COUNT } from "./constants";
+import { SAMPLE_COUNT } from "./constants";
 import type { UniformsProvider } from "./uniforms-provider";
 
 export class GridRenderer {
@@ -74,13 +74,6 @@ export class GridRenderer {
       multisample: { count: SAMPLE_COUNT },
       primitive: {
         topology: "triangle-list",
-      },
-      // Enable depth testing so that the fragment closest to the camera
-      // is rendered in front.
-      depthStencil: {
-        depthWriteEnabled: true,
-        depthCompare: "less",
-        format: DEPTH_STENCIL_FORMAT,
       },
     });
 

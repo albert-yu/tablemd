@@ -1,8 +1,7 @@
 import { GridRenderer } from "./grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
-import { DEPTH_STENCIL_FORMAT, GRID_N as N, SAMPLE_COUNT } from "./constants";
-import { type MsdfFont, type MsdfText, MsdfTextRenderer } from "./msdf-text";
+import { GRID_N as N, SAMPLE_COUNT } from "./constants";
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
@@ -13,12 +12,7 @@ export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: GridRenderer;
   private uniformsProvider: UniformsProvider;
-  private textRenderer: MsdfTextRenderer;
-
-  private font: MsdfFont | undefined = undefined;
   private colorTexture: GPUTexture;
-  private depthTexture: GPUTexture;
-  private textBlocks: MsdfText[] = [];
 
   constructor(
     private device: GPUDevice,
@@ -39,32 +33,6 @@ export class UIRenderer {
       gridPoints,
     );
     this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
-    this.depthTexture = device.createTexture({
-      label: "Main - Depth texture",
-      size: [context.canvas.width, context.canvas.height],
-      format: DEPTH_STENCIL_FORMAT,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-      sampleCount: SAMPLE_COUNT,
-    });
-    this.textRenderer = new MsdfTextRenderer(
-      device,
-      format,
-      DEPTH_STENCIL_FORMAT,
-    );
-  }
-
-  async initAsync() {
-    await this.fetchFont();
-    if (!this.font) {
-      return;
-    }
-    this.textBlocks.push(
-      this.textRenderer.formatText(this.font, "Thing", {
-        centered: true,
-        pixelScale: 1 / 128,
-        color: [1, 0, 0, 1],
-      }),
-    );
   }
 
   rectangle(args: RectangleArgs): void {
@@ -97,18 +65,11 @@ export class UIRenderer {
           storeOp: "store",
         },
       ],
-      depthStencilAttachment: {
-        view: this.depthTexture.createView(),
-        depthClearValue: 1.0,
-        depthLoadOp: "clear",
-        depthStoreOp: "store",
-      },
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
-    this.textRenderer.render(passEncoder, ...this.textBlocks);
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
@@ -118,11 +79,5 @@ export class UIRenderer {
 
   private afterRender() {
     this.rectangleRenderer.reset();
-  }
-
-  private async fetchFont() {
-    this.font = await this.textRenderer.createFont(
-      "./ascii-msdf/ascii-msdf.json",
-    );
   }
 }

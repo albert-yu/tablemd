@@ -1,6 +1,6 @@
 import type { Vec2 } from "./Vec2";
 import type { Vec4 } from "./Vec4";
-import { DEPTH_STENCIL_FORMAT, SAMPLE_COUNT } from "./constants";
+import { SAMPLE_COUNT } from "./constants";
 import rectangleShader from "./shaders/rectangle.wgsl";
 import type { UniformsProvider } from "./uniforms-provider";
 
@@ -117,11 +117,6 @@ export class RectRenderer {
         ],
       },
       multisample: { count: SAMPLE_COUNT },
-      depthStencil: {
-        depthWriteEnabled: true,
-        depthCompare: "less",
-        format: DEPTH_STENCIL_FORMAT,
-      },
     });
 
     // Just regular full-screen quad consisting of two triangles.
