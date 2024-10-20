@@ -43,6 +43,7 @@ async function main() {
   const h = () => canvas.clientHeight;
 
   const ui = new UIRenderer(device, context, format);
+  await ui.initAsync();
 
   let frames = 0;
 
