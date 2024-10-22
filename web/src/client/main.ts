@@ -21,6 +21,11 @@ async function main() {
     return;
   }
 
+  const fontAtlas = await fetch(
+    "/fonts/space-mono-regular-msdf/space-mono-regular.png",
+  );
+  console.log(await fontAtlas.arrayBuffer());
+
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) {
     throw new Error("No adapter found.");
