@@ -10,15 +10,6 @@ const cursorStyle = {
   pan: "grab",
 } as const;
 
-async function digestMessage(buf: ArrayBuffer) {
-  const hashBuffer = await window.crypto.subtle.digest("SHA-256", buf); // hash the message
-  const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join(""); // convert bytes to hex string
-  return hashHex;
-}
-
 async function main() {
   const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
@@ -31,18 +22,12 @@ async function main() {
     return;
   }
 
-  const fontAtlas = await fetch(
-    "/fonts/space-mono-regular-msdf/space-mono-regular.png",
-  );
-  const buf = await fontAtlas.arrayBuffer();
-  console.log(await digestMessage(buf));
-  const buf2 = spaceMonoFontAtlas;
-  console.log(await digestMessage(buf2));
-
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) {
     throw new Error("No adapter found.");
   }
+
+  console.log(spaceMonoFontAtlas);
 
   const device = await adapter.requestDevice();
   const context = canvas.getContext("webgpu")!;

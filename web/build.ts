@@ -7,7 +7,6 @@ const currentDir = import.meta.dir;
 const OUT_DIR = path.join(currentDir, "./build");
 const CLIENT_SRC = path.join(currentDir, "./src/client");
 
-const spaceMonoRegularDir = "fonts/space-mono-regular-msdf";
 const { values } = parseArgs({
   args: Bun.argv,
   options: {
@@ -32,11 +31,7 @@ const copyFileToBuild = (...pathToFile: string[]) => {
   );
 };
 
-await Promise.all([
-  copyFileToBuild("index.html"),
-  // texture atlas
-  copyFileToBuild(spaceMonoRegularDir, "space-mono-regular.png"),
-]);
+await Promise.all([copyFileToBuild("index.html")]);
 
 Bun.build({
   entrypoints: [path.join(CLIENT_SRC, "main.ts")],
