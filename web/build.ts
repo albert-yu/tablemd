@@ -1,7 +1,6 @@
 import wgsl from "./bun-plugins/wgsl";
 import { parseArgs } from "util";
 import path from "path";
-import opentype from "opentype.js";
 
 const currentDir = import.meta.dir;
 
@@ -32,41 +31,7 @@ const copyFileToBuild = (...pathToFile: string[]) => {
   );
 };
 
-/**
- * Source: https://stackoverflow.com/a/61749783
- */
-function refReplacer() {
-  let m = new Map(),
-    v = new Map(),
-    init: any = null;
-
-  return function (this: any, field: string, value: any) {
-    let p = m.get(this) + (Array.isArray(this) ? `[${field}]` : "." + field);
-    let isComplex = value === Object(value);
-
-    if (isComplex) m.set(value, p);
-
-    let pp = v.get(value) || "";
-    let path = p.replace(/undefined\.\.?/, "");
-    let val = pp ? `#REF:${pp[0] == "[" ? "$" : "$."}${pp}` : value;
-
-    !init ? (init = value) : val === init ? (val = "#REF:$") : 0;
-    if (!pp && isComplex) v.set(value, path);
-
-    return val;
-  };
-}
-
-const generateFontJSON = async () => {
-  const ttfPath = path.join(CLIENT_SRC, "fonts/spacemono-regular.ttf");
-  const raw = await Bun.file(ttfPath).arrayBuffer();
-  const font = opentype.parse(raw);
-  const str = JSON.stringify(font, refReplacer());
-  const outPath = path.join(CLIENT_SRC, "fonts/gen/spacemono-regular.json");
-  return await Bun.write(outPath, str);
-};
-
-await Promise.all([copyFileToBuild("index.html"), generateFontJSON()]);
+await Promise.all([copyFileToBuild("index.html")]);
 
 Bun.build({
   entrypoints: [path.join(CLIENT_SRC, "main.ts")],

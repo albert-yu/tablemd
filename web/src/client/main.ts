@@ -3,7 +3,6 @@ import { Vec2 } from "./Vec2";
 import { Vec4 } from "./Vec4";
 import { GRID_N as N } from "./constants";
 import { UIRenderer } from "./ui-renderer";
-import font from "./fonts/gen/spacemono-regular.json";
 
 const cursorStyle = {
   select: "auto",
@@ -21,7 +20,6 @@ async function main() {
     console.error("WebGPU not supported on this browser.");
     return;
   }
-  console.log("font", font);
 
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) {
