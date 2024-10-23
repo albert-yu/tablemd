@@ -12,8 +12,6 @@ import {
   type MsdfChar,
 } from "./msdf-font";
 import msdfTextWGSL from "./shaders/msdf-text.wgsl";
-import basicVertWGSL from "./shaders/basic-vert.wgsl";
-import vertexPositionColorWGSL from "./shaders/vertex-position-color.wgsl";
 import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { mat4, vec3, type Mat4 } from "wgpu-matrix";
 
@@ -438,55 +436,11 @@ setBlendConstant().`,
     size: uniformBufferSize,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  // Create a vertex buffer from the cube data.
-  // const pipeline = device.createRenderPipeline({
-  //   layout: "auto",
-  //   vertex: {
-  //     module: device.createShaderModule({
-  //       code: basicVertWGSL,
-  //     }),
-  //   },
-  //   fragment: {
-  //     module: device.createShaderModule({
-  //       code: vertexPositionColorWGSL,
-  //     }),
-  //     targets: [
-  //       {
-  //         format: format,
-  //       },
-  //     ],
-  //   },
-  //   primitive: {
-  //     // Backface culling since the cube is solid piece of geometry.
-  //     // Faces pointing away from the camera will be occluded by faces
-  //     // pointing toward the camera.
-  //     cullMode: "back",
-  //   },
-
-  //   // Enable depth testing so that the fragment closest to the camera
-  //   // is rendered in front.
-  //   depthStencil: {
-  //     depthWriteEnabled: true,
-  //     depthCompare: "less",
-  //     format: depthFormat,
-  //   },
-  // });
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: depthFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  // const uniformBindGroup = device.createBindGroup({
-  //   layout: pipeline.getBindGroupLayout(0),
-  //   entries: [
-  //     {
-  //       binding: 0,
-  //       resource: {
-  //         buffer: uniformBuffer,
-  //       },
-  //     },
-  //   ],
-  // });
   const renderPassDescriptor: GPURenderPassDescriptor = {
     // @ts-expect-error
     colorAttachments: [
