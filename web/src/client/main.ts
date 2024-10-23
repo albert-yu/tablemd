@@ -656,7 +656,7 @@ function measureText(
         maxWidth = Math.max(maxWidth, textOffsetX);
         textOffsetX = 0;
         textOffsetY -= font.lineHeight;
-        break; // TODO: was this originally removed for a reason?
+        break;
       case 13: // CR
         break;
       case 32: // Space
