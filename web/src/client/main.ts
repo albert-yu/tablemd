@@ -405,7 +405,6 @@ setBlendConstant().`,
     // Update the transform of the larger block of text
     const crawl = ((Date.now() - start) / 2500) % 14;
     mat4.identity(textMatrix);
-    mat4.rotateX(textMatrix, -Math.PI / 8, textMatrix);
     mat4.translate(textMatrix, [0, crawl - 3, 0], textMatrix);
     mat4.translate(textMatrix, [-3, -0.1, 0], textMatrix);
     largeText.setTransform(textMatrix);
