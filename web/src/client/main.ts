@@ -356,7 +356,7 @@ to WebGL and does not explicitly target OpenGL ES.
 
 WebGPU sees physical GPU hardware as GPUAdapters. It provides a
 connection to an adapter via GPUDevice, which manages resources, and
-the device’s GPUQueues, which execute commands. GPUDevice may have
+the device's GPUQueues, which execute commands. GPUDevice may have
 its own memory with high-speed access to the processing units.
 GPUBuffer and GPUTexture are the physical resources backed by GPU
 memory. GPUCommandBuffer and GPURenderBundle are containers for
