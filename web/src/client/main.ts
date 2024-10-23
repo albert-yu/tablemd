@@ -393,26 +393,8 @@ setBlendConstant().`,
   const start = Date.now();
 
   function getTransformationMatrix() {
-    const now = Date.now() / 5000;
     const viewMatrix = mat4.identity();
     mat4.translate(viewMatrix, vec3.fromValues(0, 0, -5), viewMatrix);
-
-    const modelMatrix = mat4.identity();
-    mat4.translate(modelMatrix, vec3.fromValues(0, 2, -3), modelMatrix);
-    mat4.rotate(
-      modelMatrix,
-      vec3.fromValues(Math.sin(now), Math.cos(now), 0),
-      1,
-      modelMatrix,
-    );
-
-    // Update the matrix for the cube
-    mat4.multiply(projectionMatrix, viewMatrix, modelViewProjectionMatrix);
-    mat4.multiply(
-      modelViewProjectionMatrix,
-      modelMatrix,
-      modelViewProjectionMatrix,
-    );
 
     // Update the projection and view matrices for the text
     updateCamera(projectionMatrix, viewMatrix);
