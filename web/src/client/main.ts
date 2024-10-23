@@ -16,13 +16,6 @@ import basicVertWGSL from "./shaders/basic-vert.wgsl";
 import vertexPositionColorWGSL from "./shaders/vertex-position-color.wgsl";
 import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { mat4, vec3, type Mat4 } from "wgpu-matrix";
-import {
-  cubePositionOffset,
-  cubeUVOffset,
-  cubeVertexArray,
-  cubeVertexCount,
-  cubeVertexSize,
-} from "./meshes/cube";
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
@@ -446,81 +439,54 @@ setBlendConstant().`,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   // Create a vertex buffer from the cube data.
-  const verticesBuffer = device.createBuffer({
-    size: cubeVertexArray.byteLength,
-    usage: GPUBufferUsage.VERTEX,
-    mappedAtCreation: true,
-  });
-  new Float32Array(verticesBuffer.getMappedRange()).set(cubeVertexArray);
-  verticesBuffer.unmap();
+  // const pipeline = device.createRenderPipeline({
+  //   layout: "auto",
+  //   vertex: {
+  //     module: device.createShaderModule({
+  //       code: basicVertWGSL,
+  //     }),
+  //   },
+  //   fragment: {
+  //     module: device.createShaderModule({
+  //       code: vertexPositionColorWGSL,
+  //     }),
+  //     targets: [
+  //       {
+  //         format: format,
+  //       },
+  //     ],
+  //   },
+  //   primitive: {
+  //     // Backface culling since the cube is solid piece of geometry.
+  //     // Faces pointing away from the camera will be occluded by faces
+  //     // pointing toward the camera.
+  //     cullMode: "back",
+  //   },
 
-  const pipeline = device.createRenderPipeline({
-    layout: "auto",
-    vertex: {
-      module: device.createShaderModule({
-        code: basicVertWGSL,
-      }),
-      buffers: [
-        {
-          arrayStride: cubeVertexSize,
-          attributes: [
-            {
-              // position
-              shaderLocation: 0,
-              offset: cubePositionOffset,
-              format: "float32x4",
-            },
-            {
-              // uv
-              shaderLocation: 1,
-              offset: cubeUVOffset,
-              format: "float32x2",
-            },
-          ],
-        },
-      ],
-    },
-    fragment: {
-      module: device.createShaderModule({
-        code: vertexPositionColorWGSL,
-      }),
-      targets: [
-        {
-          format: format,
-        },
-      ],
-    },
-    primitive: {
-      // Backface culling since the cube is solid piece of geometry.
-      // Faces pointing away from the camera will be occluded by faces
-      // pointing toward the camera.
-      cullMode: "back",
-    },
-
-    // Enable depth testing so that the fragment closest to the camera
-    // is rendered in front.
-    depthStencil: {
-      depthWriteEnabled: true,
-      depthCompare: "less",
-      format: depthFormat,
-    },
-  });
+  //   // Enable depth testing so that the fragment closest to the camera
+  //   // is rendered in front.
+  //   depthStencil: {
+  //     depthWriteEnabled: true,
+  //     depthCompare: "less",
+  //     format: depthFormat,
+  //   },
+  // });
   const depthTexture = device.createTexture({
     size: [canvas.width, canvas.height],
     format: depthFormat,
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  const uniformBindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: uniformBuffer,
-        },
-      },
-    ],
-  });
+  // const uniformBindGroup = device.createBindGroup({
+  //   layout: pipeline.getBindGroupLayout(0),
+  //   entries: [
+  //     {
+  //       binding: 0,
+  //       resource: {
+  //         buffer: uniformBuffer,
+  //       },
+  //     },
+  //   ],
+  // });
   const renderPassDescriptor: GPURenderPassDescriptor = {
     // @ts-expect-error
     colorAttachments: [
@@ -565,10 +531,8 @@ setBlendConstant().`,
 
     const commandEncoder = device.createCommandEncoder();
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(pipeline);
-    passEncoder.setBindGroup(0, uniformBindGroup);
-    passEncoder.setVertexBuffer(0, verticesBuffer);
-    passEncoder.draw(cubeVertexCount, 1, 0, 0);
+    // passEncoder.setPipeline(pipeline);
+    // passEncoder.setBindGroup(0, uniformBindGroup);
 
     const renderBundle = largeText.getRenderBundle();
     passEncoder.executeBundles([renderBundle]);
