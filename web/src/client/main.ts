@@ -390,7 +390,7 @@ setBlendConstant().`,
     device.queue.writeBuffer(cameraUniformBuffer, 0, cameraArray);
   };
 
-  const start = Date.now();
+  // const start = Date.now();
 
   function getTransformationMatrix() {
     const viewMatrix = mat4.identity();
@@ -403,9 +403,9 @@ setBlendConstant().`,
     const textMatrix = mat4.create();
 
     // Update the transform of the larger block of text
-    const crawl = ((Date.now() - start) / 2500) % 14;
+    // const crawl = ((Date.now() - start) / 2500) % 14;
     mat4.identity(textMatrix);
-    mat4.translate(textMatrix, [-3, crawl - 3.01, 0], textMatrix);
+    mat4.translate(textMatrix, [-3, 7 - 3.01, 0], textMatrix);
     largeText.setTransform(textMatrix);
 
     return modelViewProjectionMatrix;
@@ -449,8 +449,8 @@ setBlendConstant().`,
 
   const SCALE = 0.001;
   const position = new Vec2(0.25, 0.25);
+  const transformationMatrix = getTransformationMatrix();
   function frame() {
-    const transformationMatrix = getTransformationMatrix();
     device.queue.writeBuffer(
       uniformBuffer,
       0,
