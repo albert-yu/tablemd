@@ -450,14 +450,14 @@ setBlendConstant().`,
   const SCALE = 0.001;
   const position = new Vec2(0.25, 0.25);
   const transformationMatrix = getTransformationMatrix();
+  device.queue.writeBuffer(
+    uniformBuffer,
+    0,
+    transformationMatrix.buffer,
+    transformationMatrix.byteOffset,
+    transformationMatrix.byteLength,
+  );
   function frame() {
-    device.queue.writeBuffer(
-      uniformBuffer,
-      0,
-      transformationMatrix.buffer,
-      transformationMatrix.byteOffset,
-      transformationMatrix.byteLength,
-    );
     // @ts-expect-error
     renderPassDescriptor.colorAttachments[0].view = context
       .getCurrentTexture()
