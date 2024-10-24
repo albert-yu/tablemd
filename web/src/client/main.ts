@@ -161,13 +161,13 @@ async function main() {
 
   if (spaceMonoFontJSON.kernings) {
     // Our particular font is monospaced, so we can actually remove this
-    for (const kearning of spaceMonoFontJSON.kernings as Kerning[]) {
-      let charKerning = kernings.get(kearning.first);
+    for (const kerning of spaceMonoFontJSON.kernings as Kerning[]) {
+      let charKerning = kernings.get(kerning.first);
       if (!charKerning) {
         charKerning = new Map<number, number>();
-        kernings.set(kearning.first, charKerning);
+        kernings.set(kerning.first, charKerning);
       }
-      charKerning.set(kearning.second, kearning.amount);
+      charKerning.set(kerning.second, kerning.amount);
     }
   }
   const shaderModule = device.createShaderModule({
