@@ -9,6 +9,12 @@ import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-regular";
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
+import type { Vec2 } from "wgpu-matrix";
+
+export type TextArgs = {
+  value: string;
+  position: Vec2;
+};
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
@@ -32,6 +38,7 @@ export class TextRenderer {
   private textBindGroupLayout: GPUBindGroupLayout;
   private chars: { [x: number]: MsdfChar };
   private renderBundleDescriptor: GPURenderBundleEncoderDescriptor;
+  private texts: MsdfText[] = [];
 
   constructor(
     private device: GPUDevice,
@@ -214,7 +221,18 @@ export class TextRenderer {
     );
   }
 
-  formatText(text: string, options: MsdfTextFormattingOptions = {}) {
+  render(passEncoder: GPURenderPassEncoder): void {
+    const renderBundles = this.texts.map((t) => t.getRenderBundle());
+    passEncoder.executeBundles(renderBundles);
+  }
+
+  text(args: TextArgs) {
+    const { value, position: _pos } = args;
+    const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
+    this.texts.push(msdfText);
+  }
+
+  private formatText(text: string, options: MsdfTextFormattingOptions = {}) {
     if (!this.font) {
       throw new Error(`Need to call first ${this.init.name}`);
     }

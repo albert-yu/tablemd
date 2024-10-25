@@ -2,6 +2,7 @@ import { GridRenderer } from "./grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import { GRID_N as N, SAMPLE_COUNT } from "./constants";
+import { TextRenderer, type TextArgs } from "./text-renderer";
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
@@ -12,6 +13,7 @@ export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: GridRenderer;
   private uniformsProvider: UniformsProvider;
+  private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
 
   constructor(
@@ -33,10 +35,19 @@ export class UIRenderer {
       gridPoints,
     );
     this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
+    this.textRenderer = new TextRenderer(device, format, this.uniformsProvider);
+  }
+
+  async init() {
+    await this.textRenderer.init();
   }
 
   rectangle(args: RectangleArgs): void {
     this.rectangleRenderer.rectangle(args);
+  }
+
+  text(args: TextArgs): void {
+    this.textRenderer.text(args);
   }
 
   updateZoom(val: number[]) {
@@ -70,6 +81,7 @@ export class UIRenderer {
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
+    this.textRenderer.render(passEncoder);
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);

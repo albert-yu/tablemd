@@ -59,387 +59,388 @@ async function main() {
   const w = () => canvas.clientWidth;
   const h = () => canvas.clientHeight;
 
-  // Font atlas
-  const imageBitmap = await createImageBitmap(new Blob([spaceMonoFontAtlas]));
+  // // Font atlas
+  // const imageBitmap = await createImageBitmap(new Blob([spaceMonoFontAtlas]));
 
-  const texture = device.createTexture({
-    label: "MSDF font atlas texture Space Mono",
-    size: [imageBitmap.width, imageBitmap.height, 1],
-    format: "rgba8unorm",
-    usage:
-      GPUTextureUsage.TEXTURE_BINDING |
-      GPUTextureUsage.COPY_DST |
-      GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  device.queue.copyExternalImageToTexture(
-    { source: imageBitmap },
-    { texture },
-    [imageBitmap.width, imageBitmap.height],
-  );
-  const charCount = spaceMonoFontJSON.chars.length;
+  // const texture = device.createTexture({
+  //   label: "MSDF font atlas texture Space Mono",
+  //   size: [imageBitmap.width, imageBitmap.height, 1],
+  //   format: "rgba8unorm",
+  //   usage:
+  //     GPUTextureUsage.TEXTURE_BINDING |
+  //     GPUTextureUsage.COPY_DST |
+  //     GPUTextureUsage.RENDER_ATTACHMENT,
+  // });
+  // device.queue.copyExternalImageToTexture(
+  //   { source: imageBitmap },
+  //   { texture },
+  //   [imageBitmap.width, imageBitmap.height],
+  // );
+  // const charCount = spaceMonoFontJSON.chars.length;
 
-  const charsBuffer = device.createBuffer({
-    label: "MSDF character layout buffer",
-    size: charCount * Float32Array.BYTES_PER_ELEMENT * 8,
-    usage: GPUBufferUsage.STORAGE,
-    mappedAtCreation: true,
-  });
-  const charsArray = new Float32Array(charsBuffer.getMappedRange());
-  const u = 1 / spaceMonoFontJSON.common.scaleW;
-  const v = 1 / spaceMonoFontJSON.common.scaleH;
+  // const charsBuffer = device.createBuffer({
+  //   label: "MSDF character layout buffer",
+  //   size: charCount * Float32Array.BYTES_PER_ELEMENT * 8,
+  //   usage: GPUBufferUsage.STORAGE,
+  //   mappedAtCreation: true,
+  // });
+  // const charsArray = new Float32Array(charsBuffer.getMappedRange());
+  // const u = 1 / spaceMonoFontJSON.common.scaleW;
+  // const v = 1 / spaceMonoFontJSON.common.scaleH;
 
   const ui = new UIRenderer(device, context, format);
-  const chars: { [x: number]: MsdfChar } = {};
 
-  let offset = 0;
-  for (const [i, char] of spaceMonoFontJSON.chars.entries()) {
-    // @ts-expect-error charIndex assigned in following line
-    chars[char.id] = char;
-    chars[char.id].charIndex = i;
-    charsArray[offset] = char.x * u; // texOffset.x
-    charsArray[offset + 1] = char.y * v; // texOffset.y
-    charsArray[offset + 2] = char.width * u; // texExtent.x
-    charsArray[offset + 3] = char.height * v; // texExtent.y
-    charsArray[offset + 4] = char.width; // size.x
-    charsArray[offset + 5] = char.height; // size.y
-    charsArray[offset + 6] = char.xoffset; // offset.x
-    charsArray[offset + 7] = -char.yoffset; // offset.y
-    offset += 8;
-  }
+  // const chars: { [x: number]: MsdfChar } = {};
 
-  charsBuffer.unmap();
+  // let offset = 0;
+  // for (const [i, char] of spaceMonoFontJSON.chars.entries()) {
+  //   // @ts-expect-error charIndex assigned in following line
+  //   chars[char.id] = char;
+  //   chars[char.id].charIndex = i;
+  //   charsArray[offset] = char.x * u; // texOffset.x
+  //   charsArray[offset + 1] = char.y * v; // texOffset.y
+  //   charsArray[offset + 2] = char.width * u; // texExtent.x
+  //   charsArray[offset + 3] = char.height * v; // texExtent.y
+  //   charsArray[offset + 4] = char.width; // size.x
+  //   charsArray[offset + 5] = char.height; // size.y
+  //   charsArray[offset + 6] = char.xoffset; // offset.x
+  //   charsArray[offset + 7] = -char.yoffset; // offset.y
+  //   offset += 8;
+  // }
 
-  const sampler = device.createSampler({
-    label: "MSDF text sampler",
-    minFilter: "linear",
-    magFilter: "linear",
-    mipmapFilter: "linear",
-    maxAnisotropy: 16,
-  });
-  const fontBindGroupLayout = device.createBindGroupLayout({
-    label: "MSDF font group layout",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: {},
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.FRAGMENT,
-        sampler: {},
-      },
-      {
-        binding: 2,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: { type: "read-only-storage" },
-      },
-    ],
-  });
+  // charsBuffer.unmap();
 
-  const bindGroup = device.createBindGroup({
-    label: "msdf font bind group",
-    layout: fontBindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        // TODO: Allow multi-page fonts
-        resource: texture.createView(),
-      },
-      {
-        binding: 1,
-        resource: sampler,
-      },
-      {
-        binding: 2,
-        resource: { buffer: charsBuffer },
-      },
-    ],
-  });
+  // const sampler = device.createSampler({
+  //   label: "MSDF text sampler",
+  //   minFilter: "linear",
+  //   magFilter: "linear",
+  //   mipmapFilter: "linear",
+  //   maxAnisotropy: 16,
+  // });
+  // const fontBindGroupLayout = device.createBindGroupLayout({
+  //   label: "MSDF font group layout",
+  //   entries: [
+  //     {
+  //       binding: 0,
+  //       visibility: GPUShaderStage.FRAGMENT,
+  //       texture: {},
+  //     },
+  //     {
+  //       binding: 1,
+  //       visibility: GPUShaderStage.FRAGMENT,
+  //       sampler: {},
+  //     },
+  //     {
+  //       binding: 2,
+  //       visibility: GPUShaderStage.VERTEX,
+  //       buffer: { type: "read-only-storage" },
+  //     },
+  //   ],
+  // });
 
-  const kernings: KerningMap = new Map();
+  // const bindGroup = device.createBindGroup({
+  //   label: "msdf font bind group",
+  //   layout: fontBindGroupLayout,
+  //   entries: [
+  //     {
+  //       binding: 0,
+  //       // TODO: Allow multi-page fonts
+  //       resource: texture.createView(),
+  //     },
+  //     {
+  //       binding: 1,
+  //       resource: sampler,
+  //     },
+  //     {
+  //       binding: 2,
+  //       resource: { buffer: charsBuffer },
+  //     },
+  //   ],
+  // });
 
-  if (spaceMonoFontJSON.kernings) {
-    // Our particular font is monospaced, so we can actually remove this
-    for (const kerning of spaceMonoFontJSON.kernings as Kerning[]) {
-      let charKerning = kernings.get(kerning.first);
-      if (!charKerning) {
-        charKerning = new Map<number, number>();
-        kernings.set(kerning.first, charKerning);
-      }
-      charKerning.set(kerning.second, kerning.amount);
-    }
-  }
-  const shaderModule = device.createShaderModule({
-    label: "MSDF text shader",
-    code: msdfTextWGSL,
-  });
+  // const kernings: KerningMap = new Map();
 
-  const textBindGroupLayout = device.createBindGroupLayout({
-    label: "MSDF text group layout",
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: {},
-      },
-      {
-        binding: 1,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: "read-only-storage" },
-      },
-    ],
-  });
+  // if (spaceMonoFontJSON.kernings) {
+  //   // Our particular font is monospaced, so we can actually remove this
+  //   for (const kerning of spaceMonoFontJSON.kernings as Kerning[]) {
+  //     let charKerning = kernings.get(kerning.first);
+  //     if (!charKerning) {
+  //       charKerning = new Map<number, number>();
+  //       kernings.set(kerning.first, charKerning);
+  //     }
+  //     charKerning.set(kerning.second, kerning.amount);
+  //   }
+  // }
+  // const shaderModule = device.createShaderModule({
+  //   label: "MSDF text shader",
+  //   code: msdfTextWGSL,
+  // });
 
-  const depthFormat = "depth24plus";
+  // const textBindGroupLayout = device.createBindGroupLayout({
+  //   label: "MSDF text group layout",
+  //   entries: [
+  //     {
+  //       binding: 0,
+  //       visibility: GPUShaderStage.VERTEX,
+  //       buffer: {},
+  //     },
+  //     {
+  //       binding: 1,
+  //       visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+  //       buffer: { type: "read-only-storage" },
+  //     },
+  //   ],
+  // });
 
-  const fontPipeline = device.createRenderPipeline({
-    label: `msdf text pipeline`,
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [fontBindGroupLayout, textBindGroupLayout],
-    }),
-    vertex: {
-      module: shaderModule,
-      entryPoint: "vertexMain",
-    },
-    fragment: {
-      module: shaderModule,
-      entryPoint: "fragmentMain",
-      targets: [
-        {
-          format: format,
-          blend: {
-            color: {
-              srcFactor: "src-alpha",
-              dstFactor: "one-minus-src-alpha",
-            },
-            alpha: {
-              srcFactor: "one",
-              dstFactor: "one",
-            },
-          },
-        },
-      ],
-    },
-    primitive: {
-      topology: "triangle-strip",
-      stripIndexFormat: "uint32",
-    },
-    depthStencil: {
-      depthWriteEnabled: false,
-      depthCompare: "less",
-      format: depthFormat,
-    },
-  });
+  // const depthFormat = "depth24plus";
 
-  const font = new MsdfFont(
-    fontPipeline,
-    bindGroup,
-    spaceMonoFontJSON.common.lineHeight,
-    chars,
-    kernings,
-  );
+  // const fontPipeline = device.createRenderPipeline({
+  //   label: `msdf text pipeline`,
+  //   layout: device.createPipelineLayout({
+  //     bindGroupLayouts: [fontBindGroupLayout, textBindGroupLayout],
+  //   }),
+  //   vertex: {
+  //     module: shaderModule,
+  //     entryPoint: "vertexMain",
+  //   },
+  //   fragment: {
+  //     module: shaderModule,
+  //     entryPoint: "fragmentMain",
+  //     targets: [
+  //       {
+  //         format: format,
+  //         blend: {
+  //           color: {
+  //             srcFactor: "src-alpha",
+  //             dstFactor: "one-minus-src-alpha",
+  //           },
+  //           alpha: {
+  //             srcFactor: "one",
+  //             dstFactor: "one",
+  //           },
+  //         },
+  //       },
+  //     ],
+  //   },
+  //   primitive: {
+  //     topology: "triangle-strip",
+  //     stripIndexFormat: "uint32",
+  //   },
+  //   depthStencil: {
+  //     depthWriteEnabled: false,
+  //     depthCompare: "less",
+  //     format: depthFormat,
+  //   },
+  // });
 
-  const cameraArray = new Float32Array(16 * 2);
+  // const font = new MsdfFont(
+  //   fontPipeline,
+  //   bindGroup,
+  //   spaceMonoFontJSON.common.lineHeight,
+  //   chars,
+  //   kernings,
+  // );
 
-  const cameraUniformBuffer = device.createBuffer({
-    label: "MSDF camera uniform buffer",
-    size: cameraArray.byteLength,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
-  });
+  // const cameraArray = new Float32Array(16 * 2);
 
-  const renderBundleDescriptor: GPURenderBundleEncoderDescriptor = {
-    colorFormats: [format],
-    depthStencilFormat: depthFormat,
-  };
+  // const cameraUniformBuffer = device.createBuffer({
+  //   label: "MSDF camera uniform buffer",
+  //   size: cameraArray.byteLength,
+  //   usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+  // });
 
-  const formatText = (
-    font: MsdfFont,
-    text: string,
-    options: MsdfTextFormattingOptions = {},
-  ) => {
-    const textBuffer = device.createBuffer({
-      label: "msdf text buffer",
-      size: (text.length + 6) * Float32Array.BYTES_PER_ELEMENT * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      mappedAtCreation: true,
-    });
+  // const renderBundleDescriptor: GPURenderBundleEncoderDescriptor = {
+  //   colorFormats: [format],
+  //   depthStencilFormat: depthFormat,
+  // };
 
-    const textArray = new Float32Array(textBuffer.getMappedRange());
-    let offset = 24; // Accounts for the values managed by MsdfText internally.
+  // const formatText = (
+  //   font: MsdfFont,
+  //   text: string,
+  //   options: MsdfTextFormattingOptions = {},
+  // ) => {
+  //   const textBuffer = device.createBuffer({
+  //     label: "msdf text buffer",
+  //     size: (text.length + 6) * Float32Array.BYTES_PER_ELEMENT * 4,
+  //     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  //     mappedAtCreation: true,
+  //   });
 
-    let measurements: MsdfTextMeasurements;
-    if (options.centered) {
-      measurements = measureText(font, text);
+  //   const textArray = new Float32Array(textBuffer.getMappedRange());
+  //   let offset = 24; // Accounts for the values managed by MsdfText internally.
 
-      measureText(
-        font,
-        text,
-        (textX: number, textY: number, line: number, char: MsdfChar) => {
-          const lineOffset =
-            measurements.width * -0.5 -
-            (measurements.width - measurements.lineWidths[line]) * -0.5;
+  //   let measurements: MsdfTextMeasurements;
+  //   if (options.centered) {
+  //     measurements = measureText(font, text);
 
-          textArray[offset] = textX + lineOffset;
-          textArray[offset + 1] = textY + measurements.height * 0.5;
-          textArray[offset + 2] = char.charIndex;
-          offset += 4;
-        },
-      );
-    } else {
-      measurements = measureText(
-        font,
-        text,
-        (textX: number, textY: number, line: number, char: MsdfChar) => {
-          textArray[offset] = textX;
-          textArray[offset + 1] = textY;
-          textArray[offset + 2] = char.charIndex;
-          offset += 4;
-        },
-      );
-    }
+  //     measureText(
+  //       font,
+  //       text,
+  //       (textX: number, textY: number, line: number, char: MsdfChar) => {
+  //         const lineOffset =
+  //           measurements.width * -0.5 -
+  //           (measurements.width - measurements.lineWidths[line]) * -0.5;
 
-    textBuffer.unmap();
+  //         textArray[offset] = textX + lineOffset;
+  //         textArray[offset + 1] = textY + measurements.height * 0.5;
+  //         textArray[offset + 2] = char.charIndex;
+  //         offset += 4;
+  //       },
+  //     );
+  //   } else {
+  //     measurements = measureText(
+  //       font,
+  //       text,
+  //       (textX: number, textY: number, line: number, char: MsdfChar) => {
+  //         textArray[offset] = textX;
+  //         textArray[offset + 1] = textY;
+  //         textArray[offset + 2] = char.charIndex;
+  //         offset += 4;
+  //       },
+  //     );
+  //   }
 
-    const bindGroup = device.createBindGroup({
-      label: "msdf text bind group",
-      layout: textBindGroupLayout,
-      entries: [
-        {
-          binding: 0,
-          resource: { buffer: cameraUniformBuffer },
-        },
-        {
-          binding: 1,
-          resource: { buffer: textBuffer },
-        },
-      ],
-    });
+  //   textBuffer.unmap();
 
-    const encoder = device.createRenderBundleEncoder(renderBundleDescriptor);
-    encoder.setPipeline(font.pipeline);
-    encoder.setBindGroup(0, font.bindGroup);
-    encoder.setBindGroup(1, bindGroup);
-    encoder.draw(4, measurements.printedCharCount);
-    const renderBundle = encoder.finish();
+  //   const bindGroup = device.createBindGroup({
+  //     label: "msdf text bind group",
+  //     layout: textBindGroupLayout,
+  //     entries: [
+  //       {
+  //         binding: 0,
+  //         resource: { buffer: cameraUniformBuffer },
+  //       },
+  //       {
+  //         binding: 1,
+  //         resource: { buffer: textBuffer },
+  //       },
+  //     ],
+  //   });
 
-    const msdfText = new MsdfText(
-      device,
-      renderBundle,
-      measurements,
-      font,
-      textBuffer,
-    );
-    if (options.pixelScale !== undefined) {
-      msdfText.setPixelScale(options.pixelScale);
-    }
+  //   const encoder = device.createRenderBundleEncoder(renderBundleDescriptor);
+  //   encoder.setPipeline(font.pipeline);
+  //   encoder.setBindGroup(0, font.bindGroup);
+  //   encoder.setBindGroup(1, bindGroup);
+  //   encoder.draw(4, measurements.printedCharCount);
+  //   const renderBundle = encoder.finish();
 
-    if (options.color !== undefined) {
-      msdfText.setColor(...options.color);
-    }
+  //   const msdfText = new MsdfText(
+  //     device,
+  //     renderBundle,
+  //     measurements,
+  //     font,
+  //     textBuffer,
+  //   );
+  //   if (options.pixelScale !== undefined) {
+  //     msdfText.setPixelScale(options.pixelScale);
+  //   }
 
-    return msdfText;
-  };
+  //   if (options.color !== undefined) {
+  //     msdfText.setColor(...options.color);
+  //   }
 
-  const largeText = formatText(
-    font,
-    `
-WebGPU exposes an API for performing operations, such as rendering
-and computation, on a Graphics Processing Unit.
+  //   return msdfText;
+  // };
 
-Graphics Processing Units, or GPUs for short, have been essential
-in enabling rich rendering and computational applications in personal
-computing. WebGPU is an API that exposes the capabilities of GPU
-hardware for the Web. The API is designed from the ground up to
-efficiently map to (post-2014) native GPU APIs. WebGPU is not related
-to WebGL and does not explicitly target OpenGL ES.
-
-WebGPU sees physical GPU hardware as GPUAdapters. It provides a
-connection to an adapter via GPUDevice, which manages resources, and
-the device's GPUQueues, which execute commands. GPUDevice may have
-its own memory with high-speed access to the processing units.
-GPUBuffer and GPUTexture are the physical resources backed by GPU
-memory. GPUCommandBuffer and GPURenderBundle are containers for
-user-recorded commands. GPUShaderModule contains shader code. The
-other resources, such as GPUSampler or GPUBindGroup, configure the
-way physical resources are used by the GPU.
-
-GPUs execute commands encoded in GPUCommandBuffers by feeding data
-through a pipeline, which is a mix of fixed-function and programmable
-stages. Programmable stages execute shaders, which are special
-programs designed to run on GPU hardware. Most of the state of a
-pipeline is defined by a GPURenderPipeline or a GPUComputePipeline
-object. The state not included in these pipeline objects is set
-during encoding with commands, such as beginRenderPass() or
-setBlendConstant().`,
-    { pixelScale: 1 / 256 },
-  );
-
-  const aspect = canvas.width / canvas.height;
-  const projectionMatrix = mat4.perspective(
-    (2 * Math.PI) / 5,
-    aspect,
-    1,
-    100.0,
-  );
-  const modelViewProjectionMatrix = mat4.create();
-
-  const updateCamera = (projection: Mat4, view: Mat4) => {
-    cameraArray.set(projection, 0);
-    cameraArray.set(view, 16);
-    device.queue.writeBuffer(cameraUniformBuffer, 0, cameraArray);
-  };
-
-  // const start = Date.now();
-
-  function getTransformationMatrix() {
-    const viewMatrix = mat4.identity();
-    mat4.translate(viewMatrix, vec3.fromValues(0, 0, -5), viewMatrix);
-
-    // Update the projection and view matrices for the text
-    updateCamera(projectionMatrix, viewMatrix);
-
-    // Update the transform of all the text surrounding the cube
-    const textMatrix = mat4.create();
-
-    // Update the transform of the larger block of text
-    // const crawl = ((Date.now() - start) / 2500) % 14;
-    mat4.identity(textMatrix);
-    mat4.translate(textMatrix, [-3, 7 - 3.01, 0], textMatrix);
-    largeText.setTransform(textMatrix);
-
-    return modelViewProjectionMatrix;
-  }
-
-  const uniformBufferSize = 4 * 16; // 4x4 matrix
-  const uniformBuffer = device.createBuffer({
-    size: uniformBufferSize,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const depthTexture = device.createTexture({
-    size: [canvas.width, canvas.height],
-    format: depthFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  const renderPassDescriptor: GPURenderPassDescriptor = {
-    // @ts-expect-error
-    colorAttachments: [
-      {
-        view: undefined, // Assigned later
-
-        clearValue: [0, 0, 0, 1],
-        loadOp: "clear",
-        storeOp: "store",
-      },
-    ],
-    depthStencilAttachment: {
-      view: depthTexture.createView(),
-
-      depthClearValue: 1.0,
-      depthLoadOp: "clear",
-      depthStoreOp: "store",
-    },
-  };
+  //   const largeText = formatText(
+  //     font,
+  //     `
+  // WebGPU exposes an API for performing operations, such as rendering
+  // and computation, on a Graphics Processing Unit.
+  //
+  // Graphics Processing Units, or GPUs for short, have been essential
+  // in enabling rich rendering and computational applications in personal
+  // computing. WebGPU is an API that exposes the capabilities of GPU
+  // hardware for the Web. The API is designed from the ground up to
+  // efficiently map to (post-2014) native GPU APIs. WebGPU is not related
+  // to WebGL and does not explicitly target OpenGL ES.
+  //
+  // WebGPU sees physical GPU hardware as GPUAdapters. It provides a
+  // connection to an adapter via GPUDevice, which manages resources, and
+  // the device's GPUQueues, which execute commands. GPUDevice may have
+  // its own memory with high-speed access to the processing units.
+  // GPUBuffer and GPUTexture are the physical resources backed by GPU
+  // memory. GPUCommandBuffer and GPURenderBundle are containers for
+  // user-recorded commands. GPUShaderModule contains shader code. The
+  // other resources, such as GPUSampler or GPUBindGroup, configure the
+  // way physical resources are used by the GPU.
+  //
+  // GPUs execute commands encoded in GPUCommandBuffers by feeding data
+  // through a pipeline, which is a mix of fixed-function and programmable
+  // stages. Programmable stages execute shaders, which are special
+  // programs designed to run on GPU hardware. Most of the state of a
+  // pipeline is defined by a GPURenderPipeline or a GPUComputePipeline
+  // object. The state not included in these pipeline objects is set
+  // during encoding with commands, such as beginRenderPass() or
+  // setBlendConstant().`,
+  //     { pixelScale: 1 / 256 },
+  //   );
+  //
+  //   const aspect = canvas.width / canvas.height;
+  //   const projectionMatrix = mat4.perspective(
+  //     (2 * Math.PI) / 5,
+  //     aspect,
+  //     1,
+  //     100.0,
+  //   );
+  //   const modelViewProjectionMatrix = mat4.create();
+  //
+  //   const updateCamera = (projection: Mat4, view: Mat4) => {
+  //     cameraArray.set(projection, 0);
+  //     cameraArray.set(view, 16);
+  //     device.queue.writeBuffer(cameraUniformBuffer, 0, cameraArray);
+  //   };
+  //
+  //   // const start = Date.now();
+  //
+  //   function getTransformationMatrix() {
+  //     const viewMatrix = mat4.identity();
+  //     mat4.translate(viewMatrix, vec3.fromValues(0, 0, -5), viewMatrix);
+  //
+  //     // Update the projection and view matrices for the text
+  //     updateCamera(projectionMatrix, viewMatrix);
+  //
+  //     // Update the transform of all the text surrounding the cube
+  //     const textMatrix = mat4.create();
+  //
+  //     // Update the transform of the larger block of text
+  //     // const crawl = ((Date.now() - start) / 2500) % 14;
+  //     mat4.identity(textMatrix);
+  //     mat4.translate(textMatrix, [-3, 7 - 3.01, 0], textMatrix);
+  //     largeText.setTransform(textMatrix);
+  //
+  //     return modelViewProjectionMatrix;
+  //   }
+  //
+  //   const uniformBufferSize = 4 * 16; // 4x4 matrix
+  //   const uniformBuffer = device.createBuffer({
+  //     size: uniformBufferSize,
+  //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  //   });
+  //   const depthTexture = device.createTexture({
+  //     size: [canvas.width, canvas.height],
+  //     format: depthFormat,
+  //     usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  //   });
+  //   const renderPassDescriptor: GPURenderPassDescriptor = {
+  //     // @ts-expect-error
+  //     colorAttachments: [
+  //       {
+  //         view: undefined, // Assigned later
+  //
+  //         clearValue: [0, 0, 0, 1],
+  //         loadOp: "clear",
+  //         storeOp: "store",
+  //       },
+  //     ],
+  //     depthStencilAttachment: {
+  //       view: depthTexture.createView(),
+  //
+  //       depthClearValue: 1.0,
+  //       depthLoadOp: "clear",
+  //       depthStoreOp: "store",
+  //     },
+  //   };
 
   let frames = 0;
 
@@ -449,53 +450,53 @@ setBlendConstant().`,
 
   const SCALE = 0.001;
   const position = new Vec2(0.25, 0.25);
-  const transformationMatrix = getTransformationMatrix();
-  device.queue.writeBuffer(
-    uniformBuffer,
-    0,
-    transformationMatrix.buffer,
-    transformationMatrix.byteOffset,
-    transformationMatrix.byteLength,
-  );
+  // const transformationMatrix = getTransformationMatrix();
+  // device.queue.writeBuffer(
+  //   uniformBuffer,
+  //   0,
+  //   transformationMatrix.buffer,
+  //   transformationMatrix.byteOffset,
+  //   transformationMatrix.byteLength,
+  // );
   function frame() {
-    // @ts-expect-error
-    renderPassDescriptor.colorAttachments[0].view = context
-      .getCurrentTexture()
-      .createView();
+    // // @ts-expect-error
+    // renderPassDescriptor.colorAttachments[0].view = context
+    //   .getCurrentTexture()
+    //   .createView();
 
-    const commandEncoder = device.createCommandEncoder();
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    // passEncoder.setPipeline(pipeline);
-    // passEncoder.setBindGroup(0, uniformBindGroup);
+    // const commandEncoder = device.createCommandEncoder();
+    // const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    // // passEncoder.setPipeline(pipeline);
+    // // passEncoder.setBindGroup(0, uniformBindGroup);
 
-    const renderBundle = largeText.getRenderBundle();
-    passEncoder.executeBundles([renderBundle]);
+    // const renderBundle = largeText.getRenderBundle();
+    // passEncoder.executeBundles([renderBundle]);
 
-    // ui.rectangle({
-    //   color: new Vec4(1, 0.5, 1, 1),
-    //   position: position,
-    //   size: new Vec2(100, 100).scale(SCALE),
-    //   corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-    //   sigma: 0.01,
-    // });
-    // ui.rectangle({
-    //   color: new Vec4(0.5, 0.25, 0.5, 1),
-    //   position: position,
-    //   size: new Vec2(100, 100).scale(SCALE),
-    //   corners: new Vec4(10, 10, 10, 10).scale(SCALE),
-    //   sigma: SCALE * 0.01,
-    // });
-    // ui.rectangle({
-    //   color: new Vec4(1, 0.5, 1, 1),
-    //   position: position.add(new Vec2(SCALE, SCALE)),
-    //   size: new Vec2(98, 98).scale(SCALE),
-    //   corners: new Vec4(9, 9, 9, 9).scale(SCALE),
-    //   sigma: SCALE * 0.01,
-    // });
+    ui.rectangle({
+      color: new Vec4(1, 0.5, 1, 1),
+      position: position,
+      size: new Vec2(100, 100).scale(SCALE),
+      corners: new Vec4(10, 10, 10, 10).scale(SCALE),
+      sigma: 0.01,
+    });
+    ui.rectangle({
+      color: new Vec4(0.5, 0.25, 0.5, 1),
+      position: position,
+      size: new Vec2(100, 100).scale(SCALE),
+      corners: new Vec4(10, 10, 10, 10).scale(SCALE),
+      sigma: SCALE * 0.01,
+    });
+    ui.rectangle({
+      color: new Vec4(1, 0.5, 1, 1),
+      position: position.add(new Vec2(SCALE, SCALE)),
+      size: new Vec2(98, 98).scale(SCALE),
+      corners: new Vec4(9, 9, 9, 9).scale(SCALE),
+      sigma: SCALE * 0.01,
+    });
 
-    // ui.render();
-    passEncoder.end();
-    device.queue.submit([commandEncoder.finish()]);
+    ui.render();
+    // passEncoder.end();
+    // device.queue.submit([commandEncoder.finish()]);
     frames++;
     const now = Date.now();
     if (now - time > 1000) {
