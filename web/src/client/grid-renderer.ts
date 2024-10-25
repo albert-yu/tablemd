@@ -76,8 +76,8 @@ export class GridRenderer {
         topology: "triangle-list",
       },
       depthStencil: {
-        depthWriteEnabled: true,
-        depthCompare: "less",
+        depthWriteEnabled: false,
+        depthCompare: "greater",
         format: DEPTH_STENCIL_TEXTURE_FORMAT,
       },
     });

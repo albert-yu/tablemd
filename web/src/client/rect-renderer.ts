@@ -118,7 +118,7 @@ export class RectRenderer {
       },
       multisample: { count: SAMPLE_COUNT },
       depthStencil: {
-        depthWriteEnabled: true,
+        depthWriteEnabled: false,
         depthCompare: "less",
         format: DEPTH_STENCIL_TEXTURE_FORMAT,
       },
