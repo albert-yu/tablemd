@@ -46,8 +46,9 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
     let char = chars[u32(textElement.z)];
     let charPos = (pos[input.vertex] * char.size + textElement.xy + char.offset) * text.scale;
 
+    let t = uni.untransform * uni.zoom * uni.window_scale;
     var output: VertexOutput;
-    output.position = uni.untransform * uni.zoom * uni.window_scale * text.transform * vec4f(charPos, 0, 1);
+    output.position = t * text.transform * vec4f(charPos, 0, 1);
 
     output.texcoord = pos[input.vertex] * vec2f(1, -1);
     output.texcoord *= char.texExtent;
