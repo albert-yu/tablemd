@@ -177,3 +177,7 @@ dist
 ## Zig wasm build output
 build/
 .zig-cache
+
+
+# Generated files anywhere
+gen

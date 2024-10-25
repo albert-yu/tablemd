@@ -1,6 +1,5 @@
+import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { Vec2 } from "./Vec2";
-import { Vec4 } from "./Vec4";
 import { GRID_N as N } from "./constants";
 import { UIRenderer } from "./ui-renderer";
 
@@ -42,8 +41,6 @@ async function main() {
   const w = () => canvas.clientWidth;
   const h = () => canvas.clientHeight;
 
-  const ui = new UIRenderer(device, context, format);
-
   let frames = 0;
 
   let time = Date.now();
@@ -51,31 +48,36 @@ async function main() {
   const fpsSpan = document.querySelector("#fps")!;
 
   const SCALE = 0.001;
-  const position = new Vec2(0.25, 0.25);
+  const position = vec2.create(0.25, 0.25);
+  const ui = new UIRenderer(device, context, format);
+  await ui.init();
+
+  ui.text({ value: "Hello world" });
   function frame() {
     ui.rectangle({
-      color: new Vec4(1, 0.5, 1, 1),
+      color: vec4.create(1, 0.5, 1, 1),
       position: position,
-      size: new Vec2(100, 100).scale(SCALE),
-      corners: new Vec4(10, 10, 10, 10).scale(SCALE),
+      size: vec2.scale(vec2.create(100, 100), SCALE),
+      corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
       sigma: 0.01,
     });
     ui.rectangle({
-      color: new Vec4(0.5, 0.25, 0.5, 1),
+      color: vec4.create(0.5, 0.25, 0.5, 1),
       position: position,
-      size: new Vec2(100, 100).scale(SCALE),
-      corners: new Vec4(10, 10, 10, 10).scale(SCALE),
+      size: vec2.scale(vec2.create(100, 100), SCALE),
+      corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
       sigma: SCALE * 0.01,
     });
     ui.rectangle({
-      color: new Vec4(1, 0.5, 1, 1),
-      position: position.add(new Vec2(SCALE, SCALE)),
-      size: new Vec2(98, 98).scale(SCALE),
-      corners: new Vec4(9, 9, 9, 9).scale(SCALE),
+      color: vec4.create(1, 0.5, 1, 1),
+      position: vec2.add(position, vec2.create(SCALE, SCALE)),
+      size: vec2.scale(vec2.create(98, 98), SCALE),
+      corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
       sigma: SCALE * 0.01,
     });
 
     ui.render();
+
     frames++;
     const now = Date.now();
     if (now - time > 1000) {

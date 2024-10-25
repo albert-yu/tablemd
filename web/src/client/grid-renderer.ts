@@ -1,5 +1,5 @@
 import quadWGSL from "./shaders/quad.wgsl";
-import { SAMPLE_COUNT } from "./constants";
+import { DEPTH_STENCIL_TEXTURE_FORMAT, SAMPLE_COUNT } from "./constants";
 import type { UniformsProvider } from "./uniforms-provider";
 
 export class GridRenderer {
@@ -74,6 +74,11 @@ export class GridRenderer {
       multisample: { count: SAMPLE_COUNT },
       primitive: {
         topology: "triangle-list",
+      },
+      depthStencil: {
+        depthWriteEnabled: false,
+        depthCompare: "less-equal",
+        format: DEPTH_STENCIL_TEXTURE_FORMAT,
       },
     });
 

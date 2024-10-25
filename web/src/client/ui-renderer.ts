@@ -1,7 +1,12 @@
 import { GridRenderer } from "./grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
-import { GRID_N as N, SAMPLE_COUNT } from "./constants";
+import {
+  DEPTH_STENCIL_TEXTURE_FORMAT,
+  GRID_N as N,
+  SAMPLE_COUNT,
+} from "./constants";
+import { TextRenderer, type TextArgs } from "./text-renderer";
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
@@ -12,7 +17,9 @@ export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: GridRenderer;
   private uniformsProvider: UniformsProvider;
+  private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
+  private depthTexture: GPUTexture;
 
   constructor(
     private device: GPUDevice,
@@ -26,6 +33,13 @@ export class UIRenderer {
       format: format,
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
+    this.depthTexture = device.createTexture({
+      size: [context.canvas.width, context.canvas.height],
+      format: DEPTH_STENCIL_TEXTURE_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      sampleCount: SAMPLE_COUNT,
+    });
+
     this.uniformsProvider = new UniformsProvider(device, context);
     this.gridRenderer = new GridRenderer(
       device,
@@ -33,10 +47,19 @@ export class UIRenderer {
       gridPoints,
     );
     this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
+    this.textRenderer = new TextRenderer(device, format, this.uniformsProvider);
+  }
+
+  async init() {
+    await this.textRenderer.init();
   }
 
   rectangle(args: RectangleArgs): void {
     this.rectangleRenderer.rectangle(args);
+  }
+
+  text(args: TextArgs): void {
+    this.textRenderer.text(args);
   }
 
   updateZoom(val: number[]) {
@@ -65,11 +88,18 @@ export class UIRenderer {
           storeOp: "store",
         },
       ],
+      depthStencilAttachment: {
+        view: this.depthTexture.createView({ label: "depth" }),
+        depthClearValue: 1.0,
+        depthLoadOp: "clear",
+        depthStoreOp: "store",
+      },
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
     this.gridRenderer.render(passEncoder);
     this.rectangleRenderer.render(passEncoder);
+    this.textRenderer.render(passEncoder);
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);

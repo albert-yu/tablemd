@@ -1,6 +1,5 @@
-import type { Vec2 } from "./Vec2";
-import type { Vec4 } from "./Vec4";
-import { SAMPLE_COUNT } from "./constants";
+import type { Vec2, Vec4 } from "wgpu-matrix";
+import { DEPTH_STENCIL_TEXTURE_FORMAT, SAMPLE_COUNT } from "./constants";
 import rectangleShader from "./shaders/rectangle.wgsl";
 import type { UniformsProvider } from "./uniforms-provider";
 
@@ -16,6 +15,11 @@ export type RectangleArgs = {
 // Second is in this case maximum number of allowed elements (can easily go into
 // high thousands).
 const RECTANGLE_BUFFER_SIZE = 16 * 1024;
+
+const X = 0;
+const Y = 1;
+const Z = 2;
+const W = 3;
 
 /**
  * Copied from https://codesandbox.io/p/sandbox/7qt3v6?file=%2Findex.ts%3A61%2C5-61%2C14
@@ -117,6 +121,11 @@ export class RectRenderer {
         ],
       },
       multisample: { count: SAMPLE_COUNT },
+      depthStencil: {
+        depthWriteEnabled: false,
+        depthCompare: "less",
+        format: DEPTH_STENCIL_TEXTURE_FORMAT,
+      },
     });
 
     // Just regular full-screen quad consisting of two triangles.
@@ -137,20 +146,20 @@ export class RectRenderer {
     const { color, position, size, corners, sigma } = args;
     const struct = 16;
     const UNUSED = 0;
-    this.rectangleData[this.rectangleCount * struct + 0] = color.x;
-    this.rectangleData[this.rectangleCount * struct + 1] = color.y;
-    this.rectangleData[this.rectangleCount * struct + 2] = color.z;
-    this.rectangleData[this.rectangleCount * struct + 3] = color.w;
-    this.rectangleData[this.rectangleCount * struct + 4] = position.x;
-    this.rectangleData[this.rectangleCount * struct + 5] = position.y;
+    this.rectangleData[this.rectangleCount * struct + 0] = color[X];
+    this.rectangleData[this.rectangleCount * struct + 1] = color[Y];
+    this.rectangleData[this.rectangleCount * struct + 2] = color[Z];
+    this.rectangleData[this.rectangleCount * struct + 3] = color[W];
+    this.rectangleData[this.rectangleCount * struct + 4] = position[X];
+    this.rectangleData[this.rectangleCount * struct + 5] = position[Y];
     this.rectangleData[this.rectangleCount * struct + 6] = UNUSED;
     this.rectangleData[this.rectangleCount * struct + 7] = sigma;
-    this.rectangleData[this.rectangleCount * struct + 8] = corners.x;
-    this.rectangleData[this.rectangleCount * struct + 9] = corners.y;
-    this.rectangleData[this.rectangleCount * struct + 10] = corners.z;
-    this.rectangleData[this.rectangleCount * struct + 11] = corners.w;
-    this.rectangleData[this.rectangleCount * struct + 12] = size.x;
-    this.rectangleData[this.rectangleCount * struct + 13] = size.y;
+    this.rectangleData[this.rectangleCount * struct + 8] = corners[X];
+    this.rectangleData[this.rectangleCount * struct + 9] = corners[Y];
+    this.rectangleData[this.rectangleCount * struct + 10] = corners[Z];
+    this.rectangleData[this.rectangleCount * struct + 11] = corners[W];
+    this.rectangleData[this.rectangleCount * struct + 12] = size[X];
+    this.rectangleData[this.rectangleCount * struct + 13] = size[Y];
     this.rectangleData[this.rectangleCount * struct + 14] = UNUSED;
     this.rectangleData[this.rectangleCount * struct + 15] = UNUSED;
 
