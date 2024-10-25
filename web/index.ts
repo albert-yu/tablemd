@@ -7,10 +7,12 @@ Bun.serve({
   async fetch(req) {
     const pathname = new URL(req.url).pathname;
     const file = pathname === "/" ? "/index.html" : pathname;
+    console.log(`GET ${file}`);
     const filePath = path.join(BASE_PATH, file);
     return new Response(Bun.file(filePath));
   },
-  error() {
+  error(req) {
+    console.error(req.message);
     return new Response(null, { status: 404 });
   },
 });
