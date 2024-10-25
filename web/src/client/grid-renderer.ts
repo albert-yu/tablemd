@@ -77,7 +77,7 @@ export class GridRenderer {
       },
       depthStencil: {
         depthWriteEnabled: false,
-        depthCompare: "greater",
+        depthCompare: "less-equal",
         format: DEPTH_STENCIL_TEXTURE_FORMAT,
       },
     });
