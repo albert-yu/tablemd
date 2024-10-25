@@ -10,10 +10,11 @@ import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-r
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
 import type { Vec2 } from "wgpu-matrix";
+import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
 
 export type TextArgs = {
   value: string;
-  position: Vec2;
+  position?: Vec2;
 };
 
 interface MsdfTextFormattingOptions {
@@ -22,7 +23,7 @@ interface MsdfTextFormattingOptions {
   color?: [number, number, number, number];
 }
 
-const depthFormat = "depth24plus";
+const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
 
 export class TextRenderer {
   private fontPipeline: GPURenderPipeline;
@@ -48,6 +49,7 @@ export class TextRenderer {
     this.renderBundleDescriptor = {
       colorFormats: [format],
       depthStencilFormat: depthFormat,
+      sampleCount: SAMPLE_COUNT,
     };
     const shaderModule = device.createShaderModule({
       label: "MSDF text shader",
@@ -127,6 +129,9 @@ export class TextRenderer {
         depthWriteEnabled: false,
         depthCompare: "less",
         format: depthFormat,
+      },
+      multisample: {
+        count: SAMPLE_COUNT,
       },
     });
 

@@ -88,8 +88,6 @@ async function main() {
   // const u = 1 / spaceMonoFontJSON.common.scaleW;
   // const v = 1 / spaceMonoFontJSON.common.scaleH;
 
-  const ui = new UIRenderer(device, context, format);
-
   // const chars: { [x: number]: MsdfChar } = {};
 
   // let offset = 0;
@@ -458,6 +456,9 @@ async function main() {
   //   transformationMatrix.byteOffset,
   //   transformationMatrix.byteLength,
   // );
+  const ui = new UIRenderer(device, context, format);
+  await ui.init();
+
   function frame() {
     // // @ts-expect-error
     // renderPassDescriptor.colorAttachments[0].view = context
@@ -493,6 +494,7 @@ async function main() {
       corners: new Vec4(9, 9, 9, 9).scale(SCALE),
       sigma: SCALE * 0.01,
     });
+    ui.text({ value: "Hello world" });
 
     ui.render();
     // passEncoder.end();

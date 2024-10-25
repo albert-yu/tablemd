@@ -1,7 +1,11 @@
 import { GridRenderer } from "./grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
-import { GRID_N as N, SAMPLE_COUNT } from "./constants";
+import {
+  DEPTH_STENCIL_TEXTURE_FORMAT,
+  GRID_N as N,
+  SAMPLE_COUNT,
+} from "./constants";
 import { TextRenderer, type TextArgs } from "./text-renderer";
 
 const gridPoints: [Float32Array, Float32Array] = [
@@ -15,6 +19,7 @@ export class UIRenderer {
   private uniformsProvider: UniformsProvider;
   private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
+  private depthTexture: GPUTexture;
 
   constructor(
     private device: GPUDevice,
@@ -28,6 +33,13 @@ export class UIRenderer {
       format: format,
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
+    this.depthTexture = device.createTexture({
+      size: [context.canvas.width, context.canvas.height],
+      format: DEPTH_STENCIL_TEXTURE_FORMAT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      sampleCount: SAMPLE_COUNT,
+    });
+
     this.uniformsProvider = new UniformsProvider(device, context);
     this.gridRenderer = new GridRenderer(
       device,
@@ -76,6 +88,12 @@ export class UIRenderer {
           storeOp: "store",
         },
       ],
+      depthStencilAttachment: {
+        view: this.depthTexture.createView({ label: "depth" }),
+        depthClearValue: 1.0,
+        depthLoadOp: "clear",
+        depthStoreOp: "store",
+      },
     };
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
