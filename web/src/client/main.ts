@@ -459,6 +459,7 @@ async function main() {
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
+  ui.text({ value: "Hello world" });
   function frame() {
     // // @ts-expect-error
     // renderPassDescriptor.colorAttachments[0].view = context
@@ -494,7 +495,6 @@ async function main() {
       corners: new Vec4(9, 9, 9, 9).scale(SCALE),
       sigma: SCALE * 0.01,
     });
-    ui.text({ value: "Hello world" });
 
     ui.render();
     // passEncoder.end();
