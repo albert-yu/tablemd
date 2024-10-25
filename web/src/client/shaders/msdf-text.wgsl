@@ -2,27 +2,27 @@
 const pos = array(vec2f(0, -1), vec2f(1, -1), vec2f(0, 0), vec2f(1, 0));
 
 struct VertexInput {
-  @builtin(vertex_index) vertex: u32,
-  @builtin(instance_index) instance: u32,
+    @builtin(vertex_index) vertex: u32,
+    @builtin(instance_index) instance: u32,
 };
 
 struct VertexOutput {
-  @builtin(position) position: vec4f,
-  @location(0) texcoord: vec2f,
+    @builtin(position) position: vec4f,
+    @location(0) texcoord: vec2f,
 };
 
 struct Char {
-  texOffset: vec2f,
-  texExtent: vec2f,
-  size: vec2f,
-  offset: vec2f,
+    texOffset: vec2f,
+    texExtent: vec2f,
+    size: vec2f,
+    offset: vec2f,
 };
 
 struct FormattedText {
-  transform: mat4x4f,
-  color: vec4f,
-  scale: f32,
-  chars: array<vec3f>,
+    transform: mat4x4f,
+    color: vec4f,
+    scale: f32,
+    chars: array<vec3f>,
 };
 
 struct Uniforms {
@@ -48,7 +48,9 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
 
     let t = uni.untransform * uni.zoom * uni.window_scale;
     var output: VertexOutput;
-    output.position = t * text.transform * vec4f(charPos, 0, 1);
+    var charPos4 = vec4f(charPos, 0, 1);
+    charPos4.y = -charPos4.y;
+    output.position = t * text.transform * charPos4;
 
     output.texcoord = pos[input.vertex] * vec2f(1, -1);
     output.texcoord *= char.texExtent;
@@ -65,8 +67,8 @@ fn sampleMsdf(texcoord: vec2f) -> f32 {
 // https://github.com/Chlumsky/msdfgen/issues/22#issuecomment-234958005
 @fragment
 fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
-  // pxRange (AKA distanceRange) comes from the msdfgen tool. Don McCurdy's tool
-  // uses the default which is 4.
+    // pxRange (AKA distanceRange) comes from the msdfgen tool. Don McCurdy's tool
+    // uses the default which is 4.
     let pxRange = 4.0;
     let sz = vec2f(textureDimensions(fontTexture, 0));
     let dx = sz.x * length(vec2f(dpdxFine(input.texcoord.x), dpdyFine(input.texcoord.x)));
@@ -80,7 +82,7 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
     let alpha = smoothstep(-edgeWidth, edgeWidth, pxDist);
 
     if alpha < 0.001 {
-    discard;
+      discard;
     }
 
     return vec4f(text.color.rgb, text.color.a * alpha);
