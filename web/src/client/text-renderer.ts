@@ -12,8 +12,14 @@ import type { UniformsProvider } from "./uniforms-provider";
 import type { Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
 
-export type TextArgs = {
+export type PushTextArgs = {
   value: string;
+  position?: Vec2;
+};
+
+export type UpdateTextArgs = {
+  index: number;
+  value?: string;
   position?: Vec2;
 };
 
@@ -231,10 +237,22 @@ export class TextRenderer {
     passEncoder.executeBundles(renderBundles);
   }
 
-  text(args: TextArgs) {
+  /**
+   * Returns the index of the pushed element
+   */
+  pushText(args: PushTextArgs) {
     const { value, position: _pos } = args;
     const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
     this.texts.push(msdfText);
+    return this.texts.length - 1;
+  }
+
+  updateText(args: UpdateTextArgs) {
+    const { value, index, position: _pos } = args;
+    if (value) {
+      const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
+      this.texts[index] = msdfText;
+    }
   }
 
   private formatText(text: string, options: MsdfTextFormattingOptions = {}) {

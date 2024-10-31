@@ -6,7 +6,11 @@ import {
   GRID_N as N,
   SAMPLE_COUNT,
 } from "./constants";
-import { TextRenderer, type TextArgs } from "./text-renderer";
+import {
+  TextRenderer,
+  type PushTextArgs,
+  type UpdateTextArgs,
+} from "./text-renderer";
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
@@ -58,8 +62,12 @@ export class UIRenderer {
     this.rectangleRenderer.rectangle(args);
   }
 
-  text(args: TextArgs): void {
-    this.textRenderer.text(args);
+  pushText(args: PushTextArgs) {
+    return this.textRenderer.pushText(args);
+  }
+
+  updateText(args: UpdateTextArgs): void {
+    this.textRenderer.updateText(args);
   }
 
   updateZoom(val: number[]) {

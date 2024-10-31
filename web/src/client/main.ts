@@ -52,7 +52,14 @@ async function main() {
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
-  ui.text({ value: "Hello world" });
+  const str = "Hello, world!";
+  ui.pushText({ value: str });
+  let c = 0;
+  setInterval(() => {
+    c = (c % str.length) + 1;
+    ui.updateText({ value: str.slice(0, c), index: 0 });
+  }, 300);
+
   function frame() {
     ui.rectangle({
       color: vec4.create(1, 0.5, 1, 1),
