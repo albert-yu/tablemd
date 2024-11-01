@@ -1,4 +1,4 @@
-import { GridRenderer } from "./grid-renderer";
+import { DotGridRenderer } from "./dot-grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import {
@@ -19,7 +19,7 @@ const gridPoints: [Float32Array, Float32Array] = [
 
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
-  private gridRenderer: GridRenderer;
+  private gridRenderer: DotGridRenderer;
   private uniformsProvider: UniformsProvider;
   private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
@@ -45,7 +45,7 @@ export class UIRenderer {
     });
 
     this.uniformsProvider = new UniformsProvider(device, context);
-    this.gridRenderer = new GridRenderer(
+    this.gridRenderer = new DotGridRenderer(
       device,
       this.uniformsProvider,
       gridPoints,

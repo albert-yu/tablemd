@@ -2,7 +2,7 @@ import quadWGSL from "./shaders/quad.wgsl";
 import { DEPTH_STENCIL_TEXTURE_FORMAT, SAMPLE_COUNT } from "./constants";
 import type { UniformsProvider } from "./uniforms-provider";
 
-export class GridRenderer {
+export class DotGridRenderer {
   private gridPipeline: GPURenderPipeline;
   private xyGroup: GPUBindGroup;
   private uGroup: GPUBindGroup;
