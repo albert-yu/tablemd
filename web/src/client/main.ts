@@ -108,7 +108,7 @@ async function main() {
     ui.updateZoom(mat);
   }
 
-  const DEFAULT_SCALE = 2;
+  const DEFAULT_SCALE = 1;
   let mode: CanvasMode = getCanvasSelectMode() ?? "select";
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,

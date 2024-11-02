@@ -12,9 +12,13 @@ import {
   type UpdateTextArgs,
 } from "./text-renderer";
 
+const GRID_DENSITY = 50;
+
 const gridPoints: [Float32Array, Float32Array] = [
-  Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
-  Float32Array.from({ length: N * N }).map((_, j) => Math.floor(j / N) / N),
+  Float32Array.from({ length: N * N }).map((_, i) => (i % N) / GRID_DENSITY),
+  Float32Array.from({ length: N * N }).map(
+    (_, j) => Math.floor(j / N) / GRID_DENSITY,
+  ),
 ];
 
 export class UIRenderer {
