@@ -54,11 +54,6 @@ async function main() {
 
   const str = "Hello, world!";
   ui.pushText({ value: str });
-  let c = 0;
-  setInterval(() => {
-    c = (c % str.length) + 1;
-    ui.updateText({ value: str.slice(0, c), index: 0 });
-  }, 300);
 
   function frame() {
     ui.rectangle({
