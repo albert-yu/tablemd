@@ -81,12 +81,9 @@ export class CanvasEventHandler {
       event.preventDefault();
       if (event.ctrlKey) {
         // zoom
-        const k = Math.max(
-          this.scaleExtent[0],
-          Math.min(
-            this.scaleExtent[1],
-            this.k * Math.pow(2, zoomWheelDelta(event)),
-          ),
+        const k = clamp(
+          this.k * Math.pow(2, zoomWheelDelta(event)),
+          this.scaleExtent,
         );
         const newMouse = this.getMousePoint(event);
         if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
@@ -218,4 +215,9 @@ function translate(k: number, p0: Point2D, p1: Point2D): Point2D {
     x,
     y,
   };
+}
+
+function clamp(x: number, interval: Interval) {
+  const [min, max] = interval;
+  return Math.max(min, Math.min(max, x));
 }
