@@ -14,9 +14,11 @@ import {
 } from "./text-renderer";
 
 const gridPoints: [Float32Array, Float32Array] = [
-  Float32Array.from({ length: N * N }).map((_, i) => (i % N) / GRID_DENSITY),
   Float32Array.from({ length: N * N }).map(
-    (_, j) => Math.floor(j / N) / GRID_DENSITY,
+    (_, i) => (i % N) / (N * GRID_DENSITY),
+  ),
+  Float32Array.from({ length: N * N }).map(
+    (_, j) => Math.floor(j / N) / (N * GRID_DENSITY),
   ),
 ];
 

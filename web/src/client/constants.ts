@@ -1,4 +1,7 @@
 export const SAMPLE_COUNT = 4;
 export const GRID_N = 1000;
-export const GRID_DENSITY = 50;
+/**
+ * Higher (closer to 1) is more dense
+ */
+export const GRID_DENSITY = 1 / 20;
 export const DEPTH_STENCIL_TEXTURE_FORMAT = "depth24plus";
