@@ -3,6 +3,7 @@ import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import {
   DEPTH_STENCIL_TEXTURE_FORMAT,
+  GRID_DENSITY,
   GRID_N as N,
   SAMPLE_COUNT,
 } from "./constants";
@@ -11,8 +12,6 @@ import {
   type PushTextArgs,
   type UpdateTextArgs,
 } from "./text-renderer";
-
-const GRID_DENSITY = 50;
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map((_, i) => (i % N) / GRID_DENSITY),
