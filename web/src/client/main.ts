@@ -99,7 +99,7 @@ async function main() {
 
   function zoomed({ k, x, y }: { k: number; x: number; y: number }) {
     // prettier-ignore
-    let mat = [
+    const mat = [
       k, 0, 0, 0,
       0, k, 0, 0,
       0, 0, 1, 0,
