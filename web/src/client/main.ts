@@ -130,6 +130,7 @@ async function main() {
     canvas.style.cursor = cursorStyle[value];
   };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
+  ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
 
   window.addEventListener("resize", () => {
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
