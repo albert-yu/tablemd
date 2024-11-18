@@ -43,7 +43,7 @@ export class CanvasEventHandler {
     this.k = opts?.k ?? 1;
     this.x = opts?.x ?? 0;
     this.y = opts?.y ?? 0;
-    this.scaleExtent = opts?.scaleExtent ?? [1, 100];
+    this.scaleExtent = opts?.scaleExtent ?? [0.25, 100];
     this.mode = opts?.mode ?? "pan";
   }
 
