@@ -31,6 +31,10 @@ export class UIRenderer {
   private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
   private depthTexture: GPUTexture;
+  private canvasDimensions: {
+    w: number;
+    h: number;
+  };
 
   constructor(
     private device: GPUDevice,
@@ -59,6 +63,10 @@ export class UIRenderer {
     );
     this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
     this.textRenderer = new TextRenderer(device, format, this.uniformsProvider);
+    this.canvasDimensions = {
+      w: context.canvas.width,
+      h: context.canvas.height,
+    };
   }
 
   async init() {
@@ -82,6 +90,7 @@ export class UIRenderer {
   }
 
   updateCanvasDimensions(w: number, h: number) {
+    this.canvasDimensions = { w, h };
     this.uniformsProvider.updateWindowData(w, h);
   }
 
