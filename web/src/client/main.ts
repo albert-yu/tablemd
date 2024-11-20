@@ -114,8 +114,8 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const gridX = (N * p.x) / w();
-      const gridY = (N * p.y) / h();
+      const gridX = p.x / w();
+      const gridY = p.y / h();
       console.log({ x: gridX, y: gridY });
 
       // Suppose each spreadsheet cell is 2 grid cells wide by 1 cell tall.
