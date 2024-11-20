@@ -22,6 +22,8 @@ const gridPoints: [Float32Array, Float32Array] = [
   ),
 ];
 
+const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
+
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: DotGridRenderer;
@@ -95,8 +97,7 @@ export class UIRenderer {
           resolveTarget: this.context
             .getCurrentTexture()
             .createView({ label: "antialiased resolve target" }),
-          // This is background color.
-          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+          clearValue: BG_COLOR,
           loadOp: "clear",
           storeOp: "store",
         },
