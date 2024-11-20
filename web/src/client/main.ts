@@ -54,30 +54,29 @@ async function main() {
 
   const str = "Hello, world!";
   ui.pushText({ value: str });
+  ui.rectangle({
+    color: vec4.create(1, 0.5, 1, 1),
+    position: position,
+    size: vec2.scale(vec2.create(100, 100), SCALE),
+    corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
+    sigma: 0.01,
+  });
+  ui.rectangle({
+    color: vec4.create(0.5, 0.25, 0.5, 1),
+    position: position,
+    size: vec2.scale(vec2.create(100, 100), SCALE),
+    corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
+    sigma: SCALE * 0.01,
+  });
+  ui.rectangle({
+    color: vec4.create(1, 0.5, 1, 1),
+    position: vec2.add(position, vec2.create(SCALE, SCALE)),
+    size: vec2.scale(vec2.create(98, 98), SCALE),
+    corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
+    sigma: SCALE * 0.01,
+  });
 
   function frame() {
-    ui.rectangle({
-      color: vec4.create(1, 0.5, 1, 1),
-      position: position,
-      size: vec2.scale(vec2.create(100, 100), SCALE),
-      corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-      sigma: 0.01,
-    });
-    ui.rectangle({
-      color: vec4.create(0.5, 0.25, 0.5, 1),
-      position: position,
-      size: vec2.scale(vec2.create(100, 100), SCALE),
-      corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-      sigma: SCALE * 0.01,
-    });
-    ui.rectangle({
-      color: vec4.create(1, 0.5, 1, 1),
-      position: vec2.add(position, vec2.create(SCALE, SCALE)),
-      size: vec2.scale(vec2.create(98, 98), SCALE),
-      corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
-      sigma: SCALE * 0.01,
-    });
-
     ui.render();
 
     frames++;

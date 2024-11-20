@@ -117,11 +117,5 @@ export class UIRenderer {
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
-
-    this.afterRender();
-  }
-
-  private afterRender() {
-    this.rectangleRenderer.reset();
   }
 }
