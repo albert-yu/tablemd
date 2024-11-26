@@ -1,7 +1,6 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { GRID_DENSITY } from "./constants";
-import { getRectCorners, UIRenderer } from "./ui-renderer";
+import { getClickedCell, getRectCorners, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -114,15 +113,11 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const gridX = p.x * GRID_DENSITY;
-      const gridY = p.y * GRID_DENSITY;
-      console.log(gridX, gridY);
+      const cell = getClickedCell(p);
+      console.log(cell);
 
       const CELL_W = 1;
       // Round to nearest grid point
-      const cellX = Math.floor(gridX);
-      const cellY = Math.floor(gridY);
-
       // Convert to cell coordinates
       // console.log({
       //   clickedPoint: p,
@@ -134,7 +129,7 @@ async function main() {
       // const tr = zoom.invert(tr0);
       // const tl = zoom.invert(tl0);
       // const bl = zoom.invert(bl0);
-      const { tl, tr, bl } = getRectCorners(cellX, cellY);
+      const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
       const cellWidth = (tr.x - tl.x) * CELL_W;
       const cellHeight = bl.y - tl.y;
 

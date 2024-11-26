@@ -49,6 +49,19 @@ export const getRectCorners = (x: number, y: number) => {
   };
 };
 
+export const getClickedCell = (point: Point2D): Point2D => {
+  // Scale point to grid space
+  const gridX = point.x * GRID_DENSITY;
+  const gridY = point.y * GRID_DENSITY;
+  console.log(gridX, gridY);
+
+  // Round to nearest grid cell
+  return {
+    x: Math.floor(gridX),
+    y: Math.floor(gridY),
+  };
+};
+
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: DotGridRenderer;
