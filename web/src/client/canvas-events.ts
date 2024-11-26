@@ -1,4 +1,4 @@
-type Point2D = {
+export type Point2D = {
   x: number;
   y: number;
 };
@@ -182,7 +182,7 @@ export class CanvasEventHandler {
    * Adapted from
    * https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/transform.js#L24
    */
-  private invert(p: Point2D): Point2D {
+  invert(p: Point2D): Point2D {
     return {
       x: (p.x - this.x) / this.k,
       y: (p.y - this.y) / this.k,

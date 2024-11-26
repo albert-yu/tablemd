@@ -1,7 +1,7 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { GRID_N as N } from "./constants";
-import { UIRenderer } from "./ui-renderer";
+import { GRID_DENSITY } from "./constants";
+import { getRectCorners, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -114,11 +114,39 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      console.log({ x: p.x, y: p.y });
+      const gridX = p.x * GRID_DENSITY;
+      const gridY = p.y * GRID_DENSITY;
 
-      // Suppose each spreadsheet cell is 2 grid cells wide by 1 cell tall.
-      // Then, we'd have N / 2 columns and N rows.
-      // TODO: We need to figure out which area was clicked
+      // Round to nearest grid point
+      // If each cell is 2 units wide and 1 unit tall
+      const cellX = Math.floor(gridX / 2);
+      const cellY = Math.floor(gridY);
+
+      // Convert to cell coordinates
+      // console.log({
+      //   clickedPoint: p,
+      //   gridCoords: { x: gridX, y: gridY },
+      //   cell: { x: cellX, y: cellY },
+      // });
+      // const { tl: tl0, tr: tr0, bl: bl0 } = getRectCorners(cellX, cellY);
+      // console.log(tl0);
+      // const tr = zoom.invert(tr0);
+      // const tl = zoom.invert(tl0);
+      // const bl = zoom.invert(bl0);
+      const { tl, tr, bl } = getRectCorners(cellX, cellY);
+      const CELL_W_COUNT = 1;
+      const cellWidth = (tr.x - tl.x) * CELL_W_COUNT;
+      const cellHeight = bl.y - tl.y;
+
+      console.log({ cellWidth, cellHeight });
+
+      ui.rectangle({
+        color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
+        position: vec2.create(tl.x, tl.y),
+        size: vec2.create(cellWidth, cellHeight),
+        corners: vec4.create(0, 0, 0, 0),
+        sigma: 1e-6,
+      });
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {

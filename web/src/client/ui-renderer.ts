@@ -12,6 +12,7 @@ import {
   type PushTextArgs,
   type UpdateTextArgs,
 } from "./text-renderer";
+import type { Point2D } from "./canvas-events";
 
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map(
@@ -23,6 +24,30 @@ const gridPoints: [Float32Array, Float32Array] = [
 ];
 
 const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
+
+const getGridPointXY = (x: number, y: number): Point2D => {
+  const perRow = N;
+  const i = perRow * y + x;
+  return { x: gridPoints[0][i], y: gridPoints[1][i] };
+};
+
+/**
+ * @param x coordinate of cell
+ * @param y coordinate of cell
+ * @returns
+ */
+export const getRectCorners = (x: number, y: number) => {
+  const topLeft = getGridPointXY(x, y);
+  const topRight = getGridPointXY(x + 1, y);
+  const bottomLeft = getGridPointXY(x, y + 1);
+  const bottomRight = getGridPointXY(x + 1, y + 1);
+  return {
+    tl: topLeft,
+    tr: topRight,
+    bl: bottomLeft,
+    br: bottomRight,
+  };
+};
 
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
