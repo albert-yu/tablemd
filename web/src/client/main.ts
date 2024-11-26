@@ -116,10 +116,11 @@ async function main() {
       // Need to map it back to grid space (N x N)
       const gridX = p.x * GRID_DENSITY;
       const gridY = p.y * GRID_DENSITY;
+      console.log(gridX, gridY);
 
+      const CELL_W = 1;
       // Round to nearest grid point
-      // If each cell is 2 units wide and 1 unit tall
-      const cellX = Math.floor(gridX / 2);
+      const cellX = Math.floor(gridX);
       const cellY = Math.floor(gridY);
 
       // Convert to cell coordinates
@@ -134,11 +135,8 @@ async function main() {
       // const tl = zoom.invert(tl0);
       // const bl = zoom.invert(bl0);
       const { tl, tr, bl } = getRectCorners(cellX, cellY);
-      const CELL_W_COUNT = 1;
-      const cellWidth = (tr.x - tl.x) * CELL_W_COUNT;
+      const cellWidth = (tr.x - tl.x) * CELL_W;
       const cellHeight = bl.y - tl.y;
-
-      console.log({ cellWidth, cellHeight });
 
       ui.rectangle({
         color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
