@@ -14,6 +14,18 @@ import {
 } from "./text-renderer";
 import type { Point2D } from "./canvas-events";
 
+/**
+ * Row-major grid points, so
+ * ```
+ * 0: [0, 1, 2, 3, 4, ...]
+ * 1: [0, 0, 0, 0, 0, ...]
+ * ```
+ * to represent
+ * ```
+ * (0, 0), (1, 0), (2, 0), ..., (N-1, 0),
+ * (0, 1), (1, 1), ...
+ * ```
+ */
 const gridPoints: [Float32Array, Float32Array] = [
   Float32Array.from({ length: N * N }).map(
     (_, i) => (i % N) / (N * GRID_DENSITY),
