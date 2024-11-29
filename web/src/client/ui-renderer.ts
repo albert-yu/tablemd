@@ -37,6 +37,22 @@ const gridPoints: [Float32Array, Float32Array] = [
 
 const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
 
+/**
+ * @param upperBound
+ * @returns index of largest grid point less than `upperBound`
+ */
+const getIndexOfMaxGridPointBoundedBy = (upperBound: number): number => {
+  let i = 0;
+  for (; i < N; i++) {
+    const val = gridPoints[0][i];
+    if (val > upperBound) {
+      i--;
+      break;
+    }
+  }
+  return i;
+};
+
 const getGridPointXY = (x: number, y: number): Point2D => {
   const perRow = N;
   const i = perRow * y + x;
@@ -137,24 +153,8 @@ export class UIRenderer {
     const maxGridDim = Math.min(maxWidth, maxHeight);
     const gridX = point.x / maxGridDim;
     const gridY = point.y / maxGridDim;
-
-    let x = 0;
-    for (; x < N; x++) {
-      const xVal = gridPoints[0][x];
-      if (xVal > gridX) {
-        x--;
-        break;
-      }
-    }
-
-    let y = 0;
-    for (; y < N; y++) {
-      const yVal = gridPoints[0][y];
-      if (yVal > gridY) {
-        y--;
-        break;
-      }
-    }
+    const x = getIndexOfMaxGridPointBoundedBy(gridX);
+    const y = getIndexOfMaxGridPointBoundedBy(gridY);
     return {
       x,
       y,
