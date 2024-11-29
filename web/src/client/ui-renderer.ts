@@ -134,10 +134,9 @@ export class UIRenderer {
   getClickedCell(point: Point2D): Point2D {
     const maxWidth = this.canvasDimensions.w;
     const maxHeight = this.canvasDimensions.h;
-    const gridX = point.x / maxWidth;
-    const gridY = point.y / maxHeight;
-
-    console.log(gridX, gridY);
+    const maxGridDim = Math.min(maxWidth, maxHeight);
+    const gridX = point.x / maxGridDim;
+    const gridY = point.y / maxGridDim;
 
     let x = 0;
     for (; x < N; x++) {
