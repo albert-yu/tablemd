@@ -61,19 +61,6 @@ export const getRectCorners = (x: number, y: number) => {
   };
 };
 
-export const getClickedCell = (point: Point2D): Point2D => {
-  // Scale point to grid space
-  const gridX = point.x * GRID_DENSITY;
-  const gridY = point.y * GRID_DENSITY;
-  console.log(gridX, gridY);
-
-  // Round to nearest grid cell
-  return {
-    x: Math.floor(gridX),
-    y: Math.floor(gridY),
-  };
-};
-
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
   private gridRenderer: DotGridRenderer;
@@ -142,6 +129,37 @@ export class UIRenderer {
   updateCanvasDimensions(w: number, h: number) {
     this.canvasDimensions = { w, h };
     this.uniformsProvider.updateWindowData(w, h);
+  }
+
+  getClickedCell(point: Point2D): Point2D {
+    const maxWidth = this.canvasDimensions.w;
+    const maxHeight = this.canvasDimensions.h;
+    const gridX = point.x / maxWidth;
+    const gridY = point.y / maxHeight;
+
+    console.log(gridX, gridY);
+
+    let x = 0;
+    for (; x < N; x++) {
+      const xVal = gridPoints[0][x];
+      if (xVal > gridX) {
+        x--;
+        break;
+      }
+    }
+
+    let y = 0;
+    for (; y < N; y++) {
+      const yVal = gridPoints[0][y];
+      if (yVal > gridY) {
+        y--;
+        break;
+      }
+    }
+    return {
+      x,
+      y,
+    };
   }
 
   render(): void {

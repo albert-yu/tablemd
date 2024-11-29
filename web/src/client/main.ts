@@ -1,6 +1,6 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { getClickedCell, getRectCorners, UIRenderer } from "./ui-renderer";
+import { getRectCorners, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -113,7 +113,7 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const cell = getClickedCell(p);
+      const cell = ui.getClickedCell(p);
       console.log(cell);
 
       const CELL_W = 1;
