@@ -1,4 +1,4 @@
-type Point2D = {
+export type Point2D = {
   x: number;
   y: number;
 };
@@ -43,7 +43,7 @@ export class CanvasEventHandler {
     this.k = opts?.k ?? 1;
     this.x = opts?.x ?? 0;
     this.y = opts?.y ?? 0;
-    this.scaleExtent = opts?.scaleExtent ?? [1, 100];
+    this.scaleExtent = opts?.scaleExtent ?? [0.25, 100];
     this.mode = opts?.mode ?? "pan";
   }
 
@@ -81,12 +81,9 @@ export class CanvasEventHandler {
       event.preventDefault();
       if (event.ctrlKey) {
         // zoom
-        const k = Math.max(
-          this.scaleExtent[0],
-          Math.min(
-            this.scaleExtent[1],
-            this.k * Math.pow(2, zoomWheelDelta(event)),
-          ),
+        const k = clamp(
+          this.k * Math.pow(2, zoomWheelDelta(event)),
+          this.scaleExtent,
         );
         const newMouse = this.getMousePoint(event);
         if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
@@ -185,7 +182,7 @@ export class CanvasEventHandler {
    * Adapted from
    * https://github.com/d3/d3-zoom/blob/c8df708b78b46553bc4a0fbf1baf4ffc10cef8bd/src/transform.js#L24
    */
-  private invert(p: Point2D): Point2D {
+  invert(p: Point2D): Point2D {
     return {
       x: (p.x - this.x) / this.k,
       y: (p.y - this.y) / this.k,
@@ -218,4 +215,9 @@ function translate(k: number, p0: Point2D, p1: Point2D): Point2D {
     x,
     y,
   };
+}
+
+function clamp(x: number, interval: Interval) {
+  const [min, max] = interval;
+  return Math.max(min, Math.min(max, x));
 }

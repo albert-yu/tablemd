@@ -1,8 +1,9 @@
-import { GridRenderer } from "./grid-renderer";
+import { DotGridRenderer } from "./dot-grid-renderer";
 import { RectRenderer, type RectangleArgs } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import {
   DEPTH_STENCIL_TEXTURE_FORMAT,
+  GRID_DENSITY,
   GRID_N as N,
   SAMPLE_COUNT,
 } from "./constants";
@@ -11,19 +12,82 @@ import {
   type PushTextArgs,
   type UpdateTextArgs,
 } from "./text-renderer";
+import type { Point2D } from "./canvas-events";
 
+/**
+ * Row-major grid points, so
+ * ```
+ * 0: [0, 1, 2, 3, 4, ...]
+ * 1: [0, 0, 0, 0, 0, ...]
+ * ```
+ * to represent
+ * ```
+ * (0, 0), (1, 0), (2, 0), ..., (N-1, 0),
+ * (0, 1), (1, 1), ...
+ * ```
+ */
 const gridPoints: [Float32Array, Float32Array] = [
-  Float32Array.from({ length: N * N }).map((_, i) => (i % N) / N),
-  Float32Array.from({ length: N * N }).map((_, j) => Math.floor(j / N) / N),
+  Float32Array.from({ length: N * N }).map(
+    (_, i) => (i % N) / (N * GRID_DENSITY),
+  ),
+  Float32Array.from({ length: N * N }).map(
+    (_, j) => Math.floor(j / N) / (N * GRID_DENSITY),
+  ),
 ];
+
+const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
+
+/**
+ * @param upperBound
+ * @returns index of largest grid point less than `upperBound`
+ */
+const getIndexOfMaxGridPointBoundedBy = (upperBound: number): number => {
+  let i = 0;
+  for (; i < N; i++) {
+    const val = gridPoints[0][i];
+    if (val > upperBound) {
+      i--;
+      break;
+    }
+  }
+  return i;
+};
+
+const getGridPointXY = (x: number, y: number): Point2D => {
+  const perRow = N;
+  const i = perRow * y + x;
+  return { x: gridPoints[0][i], y: gridPoints[1][i] };
+};
+
+/**
+ * @param x coordinate of cell
+ * @param y coordinate of cell
+ * @returns
+ */
+export const getRectCorners = (x: number, y: number) => {
+  const topLeft = getGridPointXY(x, y);
+  const topRight = getGridPointXY(x + 1, y);
+  const bottomLeft = getGridPointXY(x, y + 1);
+  const bottomRight = getGridPointXY(x + 1, y + 1);
+  return {
+    tl: topLeft,
+    tr: topRight,
+    bl: bottomLeft,
+    br: bottomRight,
+  };
+};
 
 export class UIRenderer {
   private rectangleRenderer: RectRenderer;
-  private gridRenderer: GridRenderer;
+  private gridRenderer: DotGridRenderer;
   private uniformsProvider: UniformsProvider;
   private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
   private depthTexture: GPUTexture;
+  private canvasDimensions: {
+    w: number;
+    h: number;
+  };
 
   constructor(
     private device: GPUDevice,
@@ -45,13 +109,17 @@ export class UIRenderer {
     });
 
     this.uniformsProvider = new UniformsProvider(device, context);
-    this.gridRenderer = new GridRenderer(
+    this.gridRenderer = new DotGridRenderer(
       device,
       this.uniformsProvider,
       gridPoints,
     );
     this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
     this.textRenderer = new TextRenderer(device, format, this.uniformsProvider);
+    this.canvasDimensions = {
+      w: context.canvas.width,
+      h: context.canvas.height,
+    };
   }
 
   async init() {
@@ -75,7 +143,22 @@ export class UIRenderer {
   }
 
   updateCanvasDimensions(w: number, h: number) {
+    this.canvasDimensions = { w, h };
     this.uniformsProvider.updateWindowData(w, h);
+  }
+
+  getClickedCell(point: Point2D): Point2D {
+    const maxWidth = this.canvasDimensions.w;
+    const maxHeight = this.canvasDimensions.h;
+    const maxGridDim = Math.min(maxWidth, maxHeight);
+    const gridX = point.x / maxGridDim;
+    const gridY = point.y / maxGridDim;
+    const x = getIndexOfMaxGridPointBoundedBy(gridX);
+    const y = getIndexOfMaxGridPointBoundedBy(gridY);
+    return {
+      x,
+      y,
+    };
   }
 
   render(): void {
@@ -90,8 +173,7 @@ export class UIRenderer {
           resolveTarget: this.context
             .getCurrentTexture()
             .createView({ label: "antialiased resolve target" }),
-          // This is background color.
-          clearValue: { r: 0, g: 0, b: 0, a: 1 },
+          clearValue: BG_COLOR,
           loadOp: "clear",
           storeOp: "store",
         },
@@ -111,11 +193,5 @@ export class UIRenderer {
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
-
-    this.afterRender();
-  }
-
-  private afterRender() {
-    this.rectangleRenderer.reset();
   }
 }

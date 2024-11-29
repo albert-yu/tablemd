@@ -1,7 +1,6 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { GRID_N as N } from "./constants";
-import { UIRenderer } from "./ui-renderer";
+import { getRectCorners, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -52,37 +51,31 @@ async function main() {
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
-  const str = "Hello, world!";
-  ui.pushText({ value: str });
-  let c = 0;
-  setInterval(() => {
-    c = (c % str.length) + 1;
-    ui.updateText({ value: str.slice(0, c), index: 0 });
-  }, 300);
+  // const str = "Hello, world!";
+  // ui.pushText({ value: str });
+  // ui.rectangle({
+  //   color: vec4.create(1, 0.5, 1, 1),
+  //   position: position,
+  //   size: vec2.scale(vec2.create(100, 100), SCALE),
+  //   corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
+  //   sigma: 0.01,
+  // });
+  // ui.rectangle({
+  //   color: vec4.create(0.5, 0.25, 0.5, 1),
+  //   position: position,
+  //   size: vec2.scale(vec2.create(100, 100), SCALE),
+  //   corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
+  //   sigma: SCALE * 0.01,
+  // });
+  // ui.rectangle({
+  //   color: vec4.create(1, 0.5, 1, 1),
+  //   position: vec2.add(position, vec2.create(SCALE, SCALE)),
+  //   size: vec2.scale(vec2.create(98, 98), SCALE),
+  //   corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
+  //   sigma: SCALE * 0.01,
+  // });
 
   function frame() {
-    ui.rectangle({
-      color: vec4.create(1, 0.5, 1, 1),
-      position: position,
-      size: vec2.scale(vec2.create(100, 100), SCALE),
-      corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-      sigma: 0.01,
-    });
-    ui.rectangle({
-      color: vec4.create(0.5, 0.25, 0.5, 1),
-      position: position,
-      size: vec2.scale(vec2.create(100, 100), SCALE),
-      corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-      sigma: SCALE * 0.01,
-    });
-    ui.rectangle({
-      color: vec4.create(1, 0.5, 1, 1),
-      position: vec2.add(position, vec2.create(SCALE, SCALE)),
-      size: vec2.scale(vec2.create(98, 98), SCALE),
-      corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
-      sigma: SCALE * 0.01,
-    });
-
     ui.render();
 
     frames++;
@@ -99,7 +92,7 @@ async function main() {
 
   function zoomed({ k, x, y }: { k: number; x: number; y: number }) {
     // prettier-ignore
-    let mat = [
+    const mat = [
       k, 0, 0, 0,
       0, k, 0, 0,
       0, 0, 1, 0,
@@ -108,7 +101,7 @@ async function main() {
     ui.updateZoom(mat);
   }
 
-  const DEFAULT_SCALE = 2;
+  const DEFAULT_SCALE = 1;
   let mode: CanvasMode = getCanvasSelectMode() ?? "select";
   const zoom = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
@@ -120,13 +113,33 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const gridX = (N * p.x) / w();
-      const gridY = (N * p.y) / h();
-      console.log({ x: gridX, y: gridY });
+      const cell = ui.getClickedCell(p);
+      console.log(cell);
 
-      // Suppose each spreadsheet cell is 2 grid cells wide by 1 cell tall.
-      // Then, we'd have N / 2 columns and N rows.
-      // TODO: We need to figure out which area was clicked
+      const CELL_W = 1;
+      // Round to nearest grid point
+      // Convert to cell coordinates
+      // console.log({
+      //   clickedPoint: p,
+      //   gridCoords: { x: gridX, y: gridY },
+      //   cell: { x: cellX, y: cellY },
+      // });
+      // const { tl: tl0, tr: tr0, bl: bl0 } = getRectCorners(cellX, cellY);
+      // console.log(tl0);
+      // const tr = zoom.invert(tr0);
+      // const tl = zoom.invert(tl0);
+      // const bl = zoom.invert(bl0);
+      const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
+      const cellWidth = (tr.x - tl.x) * CELL_W;
+      const cellHeight = bl.y - tl.y;
+
+      ui.rectangle({
+        color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
+        position: vec2.create(tl.x, tl.y),
+        size: vec2.create(cellWidth, cellHeight),
+        corners: vec4.create(0, 0, 0, 0),
+        sigma: 1e-6,
+      });
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
@@ -135,6 +148,7 @@ async function main() {
     canvas.style.cursor = cursorStyle[value];
   };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
+  ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
 
   window.addEventListener("resize", () => {
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
