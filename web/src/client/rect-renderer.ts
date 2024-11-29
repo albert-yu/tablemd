@@ -167,6 +167,9 @@ export class RectRenderer {
   }
 
   render(passEncoder: GPURenderPassEncoder): void {
+    if (this.rectangleCount === 0) {
+      return;
+    }
     this.device.queue.writeBuffer(this.rectangleBuffer, 0, this.rectangleData);
     passEncoder.setVertexBuffer(0, this.vertexBuffer);
 
