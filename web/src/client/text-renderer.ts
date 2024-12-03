@@ -9,24 +9,25 @@ import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-regular";
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
-import type { Vec2 } from "wgpu-matrix";
+import { vec2, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
 
 export type PushTextArgs = {
   value: string;
-  position?: Vec2;
+  position: Vec2;
 };
 
 export type UpdateTextArgs = {
   index: number;
   value?: string;
-  position?: Vec2;
+  position: Vec2;
 };
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
   pixelScale?: number;
   color?: [number, number, number, number];
+  position: Vec2;
 }
 
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
@@ -241,24 +242,33 @@ export class TextRenderer {
    * Returns the index of the pushed element
    */
   pushText(args: PushTextArgs) {
-    const { value, position: _pos } = args;
-    const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
+    const { value, position } = args;
+    const msdfText = this.formatText(value, { pixelScale: 1 / 256, position });
     this.texts.push(msdfText);
     return this.texts.length - 1;
   }
 
   updateText(args: UpdateTextArgs) {
-    const { value, index, position: _pos } = args;
+    const { value, index, position } = args;
     if (value) {
-      const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
+      const msdfText = this.formatText(value, {
+        pixelScale: 1 / 256,
+        position,
+      });
       this.texts[index] = msdfText;
     }
   }
 
-  private formatText(text: string, options: MsdfTextFormattingOptions = {}) {
+  private formatText(
+    text: string,
+    options: MsdfTextFormattingOptions = {
+      position: vec2.create(0, 0),
+    },
+  ) {
     if (!this.font) {
       throw new Error(`Need to call first ${this.init.name}`);
     }
+    // TODO: use options.position
     const font = this.font;
     const textBuffer = this.device.createBuffer({
       label: "msdf text buffer",

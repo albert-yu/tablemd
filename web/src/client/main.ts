@@ -51,8 +51,8 @@ async function main() {
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
-  // const str = "Hello, world!";
-  // ui.pushText({ value: str });
+  const str = "Hello, world!";
+  ui.pushText({ value: str, position });
   // ui.rectangle({
   //   color: vec4.create(1, 0.5, 1, 1),
   //   position: position,
