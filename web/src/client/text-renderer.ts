@@ -11,23 +11,24 @@ import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regula
 import type { UniformsProvider } from "./uniforms-provider";
 import { vec2, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
+import type { Point2D } from "./canvas-events";
 
 export type PushTextArgs = {
   value: string;
-  position: Vec2;
+  position: Point2D;
 };
 
 export type UpdateTextArgs = {
   index: number;
   value?: string;
-  position: Vec2;
+  position: Point2D;
 };
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
   pixelScale?: number;
   color?: [number, number, number, number];
-  position: Vec2;
+  position: Point2D;
 }
 
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
@@ -262,7 +263,10 @@ export class TextRenderer {
   private formatText(
     text: string,
     options: MsdfTextFormattingOptions = {
-      position: vec2.create(0, 0),
+      position: {
+        x: 0,
+        y: 0,
+      },
     },
   ) {
     if (!this.font) {
@@ -292,8 +296,9 @@ export class TextRenderer {
             measurements.width * -0.5 -
             (measurements.width - measurements.lineWidths[line]) * -0.5;
 
-          textArray[offset] = textX + lineOffset;
-          textArray[offset + 1] = textY + measurements.height * 0.5;
+          textArray[offset] = textX + lineOffset + options.position.x;
+          textArray[offset + 1] =
+            textY + measurements.height * 0.5 + options.position.y;
           textArray[offset + 2] = char.charIndex;
           offset += 4;
         },
@@ -303,8 +308,8 @@ export class TextRenderer {
         font,
         text,
         (textX: number, textY: number, _line: number, char: MsdfChar) => {
-          textArray[offset] = textX;
-          textArray[offset + 1] = textY;
+          textArray[offset] = textX + options.position.x;
+          textArray[offset + 1] = textY + options.position.y;
           textArray[offset + 2] = char.charIndex;
           offset += 4;
         },

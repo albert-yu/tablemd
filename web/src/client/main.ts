@@ -46,8 +46,10 @@ async function main() {
 
   const fpsSpan = document.querySelector("#fps")!;
 
-  const SCALE = 0.001;
-  const position = vec2.create(0.25, 0.25);
+  const position = {
+    x: 24,
+    y: 20,
+  };
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
