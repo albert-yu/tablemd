@@ -47,8 +47,8 @@ async function main() {
   const fpsSpan = document.querySelector("#fps")!;
 
   const position = {
-    x: 24,
-    y: 20,
+    x: 0,
+    y: 0,
   };
   const ui = new UIRenderer(device, context, format);
   await ui.init();

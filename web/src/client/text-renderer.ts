@@ -244,7 +244,7 @@ export class TextRenderer {
    */
   pushText(args: PushTextArgs) {
     const { value, position } = args;
-    const msdfText = this.formatText(value, { pixelScale: 1 / 256, position });
+    const msdfText = this.formatText(value, { pixelScale: 1 / 2048, position });
     this.texts.push(msdfText);
     return this.texts.length - 1;
   }
