@@ -35,6 +35,9 @@ const gridPoints: [Float32Array, Float32Array] = [
   ),
 ];
 
+export const GRID_CELL_HEIGHT = gridPoints[0][1] - gridPoints[0][0];
+export const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
+
 const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
 
 /**

@@ -1,6 +1,11 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { getRectCorners, UIRenderer } from "./ui-renderer";
+import {
+  getRectCorners,
+  GRID_CELL_HEIGHT,
+  GRID_CELL_WIDTH,
+  UIRenderer,
+} from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -46,12 +51,16 @@ async function main() {
 
   const fpsSpan = document.querySelector("#fps")!;
 
-  const position = vec2.create(0.03200000151991844, 0.03200000151991844);
+  const position = vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 2);
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
   const str = "Hello, world!";
   ui.pushText({ value: str, position });
+  ui.pushText({
+    value: "Nother",
+    position: vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3),
+  });
   // ui.rectangle({
   //   color: vec4.create(1, 0.5, 1, 1),
   //   position: position,
