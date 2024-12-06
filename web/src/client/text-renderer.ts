@@ -247,6 +247,8 @@ export class TextRenderer {
     const matrix = mat4.identity();
     const msdfText = this.formatText(value, { pixelScale: 1 / 2048, position });
     mat4.translate(matrix, [0, 0.1, 0], matrix);
+    // TODO: figure out why flipping the y axis is necessary
+    mat4.scale(matrix, [1, -1, 1], matrix);
     msdfText.setTransform(matrix);
     this.texts.push(msdfText);
     return this.texts.length - 1;
