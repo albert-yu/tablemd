@@ -9,7 +9,7 @@ import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-regular";
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
-import { vec2, type Vec2 } from "wgpu-matrix";
+import { mat4, vec2, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
 import type { Point2D } from "./canvas-events";
 
@@ -244,7 +244,10 @@ export class TextRenderer {
    */
   pushText(args: PushTextArgs) {
     const { value, position } = args;
+    const matrix = mat4.identity();
     const msdfText = this.formatText(value, { pixelScale: 1 / 2048, position });
+    mat4.translate(matrix, [0, 0.1, 0], matrix);
+    msdfText.setTransform(matrix);
     this.texts.push(msdfText);
     return this.texts.length - 1;
   }
