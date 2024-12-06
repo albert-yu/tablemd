@@ -21,14 +21,13 @@ export type PushTextArgs = {
 export type UpdateTextArgs = {
   index: number;
   value?: string;
-  position: Vec2;
+  position?: Vec2;
 };
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
   pixelScale?: number;
   color?: [number, number, number, number];
-  position: Vec2;
 }
 
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
@@ -244,12 +243,12 @@ export class TextRenderer {
    */
   pushText(args: PushTextArgs) {
     const { value, position } = args;
-    const matrix = mat4.identity();
-    const msdfText = this.formatText(value, { pixelScale: 1 / 2048, position });
-    mat4.translate(matrix, [0, 0.1, 0], matrix);
+    const transform = mat4.identity();
+    const msdfText = this.formatText(value, { pixelScale: 1 / 2048 });
+    mat4.translate(transform, [position[0], position[1], 0], transform);
     // TODO: figure out why flipping the y axis is necessary
-    mat4.scale(matrix, [1, -1, 1], matrix);
-    msdfText.setTransform(matrix);
+    mat4.scale(transform, [1, -1, 1], transform);
+    msdfText.setTransform(transform);
     this.texts.push(msdfText);
     return this.texts.length - 1;
   }
@@ -259,22 +258,20 @@ export class TextRenderer {
     if (value) {
       const msdfText = this.formatText(value, {
         pixelScale: 1 / 256,
-        position,
       });
+      if (position) {
+        const transform = mat4.identity();
+        mat4.translate(transform, [position[0], position[1], 0], transform);
+        msdfText.setTransform(transform);
+      }
       this.texts[index] = msdfText;
     }
   }
 
-  private formatText(
-    text: string,
-    options: MsdfTextFormattingOptions = {
-      position: vec2.create(0, 0),
-    },
-  ) {
+  private formatText(text: string, options: MsdfTextFormattingOptions) {
     if (!this.font) {
       throw new Error(`Need to call first ${this.init.name}`);
     }
-    // TODO: use options.position
     const font = this.font;
     const textBuffer = this.device.createBuffer({
       label: "msdf text buffer",
@@ -297,10 +294,9 @@ export class TextRenderer {
           const lineOffset =
             measurements.width * -0.5 -
             (measurements.width - measurements.lineWidths[line]) * -0.5;
-          const [positionX, positionY] = options.position;
 
-          textArray[offset] = textX + lineOffset + positionX;
-          textArray[offset + 1] = textY + measurements.height * 0.5 + positionY;
+          textArray[offset] = textX + lineOffset;
+          textArray[offset + 1] = textY + measurements.height * 0.5;
           textArray[offset + 2] = char.charIndex;
           offset += 4;
         },
@@ -310,9 +306,8 @@ export class TextRenderer {
         font,
         text,
         (textX: number, textY: number, _line: number, char: MsdfChar) => {
-          const [positionX, positionY] = options.position;
-          textArray[offset] = textX + positionX;
-          textArray[offset + 1] = textY + positionY;
+          textArray[offset] = textX;
+          textArray[offset + 1] = textY;
           textArray[offset + 2] = char.charIndex;
           offset += 4;
         },
