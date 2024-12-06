@@ -15,20 +15,20 @@ import type { Point2D } from "./canvas-events";
 
 export type PushTextArgs = {
   value: string;
-  position: Point2D;
+  position: Vec2;
 };
 
 export type UpdateTextArgs = {
   index: number;
   value?: string;
-  position: Point2D;
+  position: Vec2;
 };
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
   pixelScale?: number;
   color?: [number, number, number, number];
-  position: Point2D;
+  position: Vec2;
 }
 
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
@@ -268,10 +268,7 @@ export class TextRenderer {
   private formatText(
     text: string,
     options: MsdfTextFormattingOptions = {
-      position: {
-        x: 0,
-        y: 0,
-      },
+      position: vec2.create(0, 0),
     },
   ) {
     if (!this.font) {
@@ -300,10 +297,10 @@ export class TextRenderer {
           const lineOffset =
             measurements.width * -0.5 -
             (measurements.width - measurements.lineWidths[line]) * -0.5;
+          const [positionX, positionY] = options.position;
 
-          textArray[offset] = textX + lineOffset + options.position.x;
-          textArray[offset + 1] =
-            textY + measurements.height * 0.5 + options.position.y;
+          textArray[offset] = textX + lineOffset + positionX;
+          textArray[offset + 1] = textY + measurements.height * 0.5 + positionY;
           textArray[offset + 2] = char.charIndex;
           offset += 4;
         },
@@ -313,8 +310,9 @@ export class TextRenderer {
         font,
         text,
         (textX: number, textY: number, _line: number, char: MsdfChar) => {
-          textArray[offset] = textX + options.position.x;
-          textArray[offset + 1] = textY + options.position.y;
+          const [positionX, positionY] = options.position;
+          textArray[offset] = textX + positionX;
+          textArray[offset + 1] = textY + positionY;
           textArray[offset + 2] = char.charIndex;
           offset += 4;
         },
