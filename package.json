@@ -2,9 +2,10 @@
   "name": "spreadsheet",
   "version": "0.0.1",
   "scripts": {
-    "build-dev": "./scripts/build-wasm.sh && bun web/build.ts && du -sh web/build/main.js",
+    "build-dev": "bun build-wasm && bun web/build.ts && du -sh web/build/main.js",
+    "build-wasm": "./scripts/build-wasm.sh",
     "clean": "rm -rf web/build",
-    "build-prod": "./scripts/build-wasm.sh -OReleaseSmall && bun web/build.ts --env production && du -sh web/build/main.js"
+    "build-prod": "bun build-wasm -OReleaseSmall && bun web/build.ts --env production && du -sh web/build/main.js"
   },
   "workspaces": [
     "web"
