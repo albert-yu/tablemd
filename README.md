@@ -8,14 +8,16 @@ Build and run.
 
 ```sh
 bun install
-bun build-dev # build for development
-bun dev # start the web server
-```
-
-`bun dev` just serves the files in the build output, so you could just
-
-```sh
-python3 -m http.server -d web/build 3000
+bun build-wasm # build the WASM development mode
+cd web && bun dev # start the web server and listen for changes
 ```
 
 Open `http://localhost:3000` in your browser.
+
+## Deploy
+
+```sh
+bun build-prod # build the WASM and web app production mode
+```
+
+Build results are in `web/build`.

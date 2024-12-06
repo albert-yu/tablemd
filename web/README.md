@@ -15,6 +15,12 @@ bun build.ts
 bun index.ts
 ```
 
+For local development with automatic rebuild:
+
+```bash
+bun dev
+```
+
 Build for production:
 
 ```bash
