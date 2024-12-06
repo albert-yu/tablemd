@@ -3,7 +3,7 @@ const currentDir = import.meta.dir;
 const BASE_PATH = path.join(currentDir, "./build");
 
 Bun.serve({
-  port: 8080,
+  port: 3000,
   async fetch(req) {
     const pathname = new URL(req.url).pathname;
     const file = pathname === "/" ? "/index.html" : pathname;

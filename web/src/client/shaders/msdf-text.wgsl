@@ -49,7 +49,7 @@ fn vertexMain(input: VertexInput) -> VertexOutput {
     let t = uni.untransform * uni.zoom * uni.window_scale;
     var output: VertexOutput;
     var charPos4 = vec4f(charPos, 0, 1);
-    charPos4.y = -charPos4.y;
+    // charPos4.y = -charPos4.y;
     output.position = t * text.transform * charPos4;
 
     output.texcoord = pos[input.vertex] * vec2f(1, -1);
@@ -63,7 +63,7 @@ fn sampleMsdf(texcoord: vec2f) -> f32 {
     return max(min(c.r, c.g), min(max(c.r, c.g), c.b));
 }
 
-// Antialiasing technique from Paul Houx 
+// Antialiasing technique from Paul Houx
 // https://github.com/Chlumsky/msdfgen/issues/22#issuecomment-234958005
 @fragment
 fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {

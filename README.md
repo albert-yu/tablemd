@@ -15,7 +15,7 @@ bun dev # start the web server
 `bun dev` just serves the files in the build output, so you could just
 
 ```sh
-python3 -m http.server -d web/build 8080
+python3 -m http.server -d web/build 3000
 ```
 
-Open `http://localhost:8080` in your browser.
+Open `http://localhost:3000` in your browser.

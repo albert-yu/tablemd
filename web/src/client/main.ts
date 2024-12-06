@@ -46,13 +46,12 @@ async function main() {
 
   const fpsSpan = document.querySelector("#fps")!;
 
-  const SCALE = 0.001;
-  const position = vec2.create(0.25, 0.25);
+  const position = vec2.create(0.03200000151991844, 0.03200000151991844);
   const ui = new UIRenderer(device, context, format);
   await ui.init();
 
-  // const str = "Hello, world!";
-  // ui.pushText({ value: str });
+  const str = "Hello, world!";
+  ui.pushText({ value: str, position });
   // ui.rectangle({
   //   color: vec4.create(1, 0.5, 1, 1),
   //   position: position,
@@ -114,7 +113,6 @@ async function main() {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
       const cell = ui.getClickedCell(p);
-      console.log(cell);
 
       const CELL_W = 1;
       // Round to nearest grid point
@@ -132,6 +130,10 @@ async function main() {
       const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
       const cellWidth = (tr.x - tl.x) * CELL_W;
       const cellHeight = bl.y - tl.y;
+      console.log({
+        cell,
+        tl,
+      });
 
       ui.rectangle({
         color: vec4.create(1, 0, 0, 0.5), // semi-transparent red

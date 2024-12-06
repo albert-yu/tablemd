@@ -9,12 +9,13 @@ import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-regular";
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
-import type { Vec2 } from "wgpu-matrix";
+import { mat4, vec2, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
+import type { Point2D } from "./canvas-events";
 
 export type PushTextArgs = {
   value: string;
-  position?: Vec2;
+  position: Vec2;
 };
 
 export type UpdateTextArgs = {
@@ -241,21 +242,33 @@ export class TextRenderer {
    * Returns the index of the pushed element
    */
   pushText(args: PushTextArgs) {
-    const { value, position: _pos } = args;
-    const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
+    const { value, position } = args;
+    const transform = mat4.identity();
+    const msdfText = this.formatText(value, { pixelScale: 1 / 2048 });
+    mat4.translate(transform, [position[0], position[1], 0], transform);
+    // TODO: figure out why flipping the y axis is necessary
+    mat4.scale(transform, [1, -1, 1], transform);
+    msdfText.setTransform(transform);
     this.texts.push(msdfText);
     return this.texts.length - 1;
   }
 
   updateText(args: UpdateTextArgs) {
-    const { value, index, position: _pos } = args;
+    const { value, index, position } = args;
     if (value) {
-      const msdfText = this.formatText(value, { pixelScale: 1 / 256 });
+      const msdfText = this.formatText(value, {
+        pixelScale: 1 / 256,
+      });
+      if (position) {
+        const transform = mat4.identity();
+        mat4.translate(transform, [position[0], position[1], 0], transform);
+        msdfText.setTransform(transform);
+      }
       this.texts[index] = msdfText;
     }
   }
 
-  private formatText(text: string, options: MsdfTextFormattingOptions = {}) {
+  private formatText(text: string, options: MsdfTextFormattingOptions) {
     if (!this.font) {
       throw new Error(`Need to call first ${this.init.name}`);
     }
