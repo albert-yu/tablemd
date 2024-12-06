@@ -6,6 +6,10 @@
     "@webgpu/types": "0.1.40",
     "prettier": "3.2.5"
   },
+  "scripts": {
+    "serve": "bun --hot run web/index.ts",
+    "dev": "bun build ./src/client/main.ts --outfile=main.js --outdir=build --sourcemap --watch"
+  },
   "peerDependencies": {
     "typescript": "5.6.3"
   },
