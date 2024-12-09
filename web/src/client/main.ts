@@ -123,9 +123,8 @@ async function main() {
       // Need to map it back to grid space (N x N)
       const cell = ui.getClickedCell(p);
 
-      const CELL_W = 1;
       const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
-      const cellWidth = (tr.x - tl.x) * CELL_W;
+      const cellWidth = tr.x - tl.x;
       const cellHeight = bl.y - tl.y;
       console.log({
         cell,
