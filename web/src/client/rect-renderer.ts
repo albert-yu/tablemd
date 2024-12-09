@@ -142,7 +142,11 @@ export class RectRenderer {
     device.queue.writeBuffer(this.vertexBuffer, 0, new Float32Array(vertices));
   }
 
-  rectangle(args: RectangleArgs): void {
+  /**
+   *  * Pushes a rectangle to the buffer.
+   *  * Returns the index of the rectangle.
+   */
+  rectangle(args: RectangleArgs): number {
     const { color, position, size, corners, sigma } = args;
     const struct = 16;
     const UNUSED = 0;
@@ -163,7 +167,37 @@ export class RectRenderer {
     this.rectangleData[this.rectangleCount * struct + 14] = UNUSED;
     this.rectangleData[this.rectangleCount * struct + 15] = UNUSED;
 
+    const index = this.rectangleCount;
     this.rectangleCount += 1;
+    return index;
+  }
+
+  updateRect(index: number, args: Partial<RectangleArgs>): void {
+    const { color, position, size, corners, sigma } = args;
+    const struct = 16;
+    if (color) {
+      this.rectangleData[index * struct + 0] = color[X];
+      this.rectangleData[index * struct + 1] = color[Y];
+      this.rectangleData[index * struct + 2] = color[Z];
+      this.rectangleData[index * struct + 3] = color[W];
+    }
+    if (position) {
+      this.rectangleData[index * struct + 4] = position[X];
+      this.rectangleData[index * struct + 5] = position[Y];
+    }
+    if (sigma) {
+      this.rectangleData[index * struct + 7] = sigma;
+    }
+    if (corners) {
+      this.rectangleData[index * struct + 8] = corners[X];
+      this.rectangleData[index * struct + 9] = corners[Y];
+      this.rectangleData[index * struct + 10] = corners[Z];
+      this.rectangleData[index * struct + 11] = corners[W];
+    }
+    if (size) {
+      this.rectangleData[index * struct + 12] = size[X];
+      this.rectangleData[index * struct + 13] = size[Y];
+    }
   }
 
   render(passEncoder: GPURenderPassEncoder): void {

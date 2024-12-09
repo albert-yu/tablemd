@@ -129,8 +129,12 @@ export class UIRenderer {
     await this.textRenderer.init();
   }
 
-  rectangle(args: RectangleArgs): void {
-    this.rectangleRenderer.rectangle(args);
+  rectangle(args: RectangleArgs): number {
+    return this.rectangleRenderer.rectangle(args);
+  }
+
+  updateRect(index: number, args: Partial<RectangleArgs>): void {
+    this.rectangleRenderer.updateRect(index, args);
   }
 
   pushText(args: PushTextArgs) {
@@ -161,6 +165,18 @@ export class UIRenderer {
     return {
       x,
       y,
+    };
+  }
+
+  getCellRect(cell: Point2D): { x: number; y: number; w: number; h: number } {
+    const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
+    const cellWidth = tr.x - tl.x;
+    const cellHeight = bl.y - tl.y;
+    return {
+      x: tl.x,
+      y: tl.y,
+      w: cellWidth,
+      h: cellHeight,
     };
   }
 

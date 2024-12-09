@@ -115,6 +115,7 @@ async function main() {
     k: DEFAULT_SCALE,
     mode,
   });
+  let hoverRectIndex: number | undefined = undefined;
   canvasEvents.addListener({ event: "zoom", listener: zoomed });
   canvasEvents.addListener({
     event: "click",
@@ -124,19 +125,9 @@ async function main() {
       const cell = ui.getCell(p);
 
       const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
-      const cellWidth = tr.x - tl.x;
-      const cellHeight = bl.y - tl.y;
       console.log({
         cell,
         tl,
-      });
-
-      ui.rectangle({
-        color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
-        position: vec2.create(tl.x, tl.y),
-        size: vec2.create(cellWidth, cellHeight),
-        corners: vec4.create(0, 0, 0, 0),
-        sigma: 1e-6,
       });
     },
   });
@@ -146,7 +137,27 @@ async function main() {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
       const cell = ui.getCell(p);
-      console.log(cell);
+
+      const { x, y, w, h } = ui.getCellRect(cell);
+
+      if (typeof hoverRectIndex === "number") {
+        ui.updateRect(hoverRectIndex, {
+          color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
+          position: vec2.create(x, y),
+          size: vec2.create(GRID_CELL_WIDTH, GRID_CELL_HEIGHT),
+          corners: vec4.create(0, 0, 0, 0),
+          sigma: 1e-6,
+        });
+      } else {
+        const i = ui.rectangle({
+          color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
+          position: vec2.create(x, y),
+          size: vec2.create(w, h),
+          corners: vec4.create(0, 0, 0, 0),
+          sigma: 1e-6,
+        });
+        hoverRectIndex = i;
+      }
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
