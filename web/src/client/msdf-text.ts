@@ -13,7 +13,6 @@ export class MsdfText {
   private bufferArrayDirty = true;
 
   constructor(
-    public device: GPUDevice,
     private renderBundle: GPURenderBundle,
     public measurements: MsdfTextMeasurements,
     public font: MsdfFont,
@@ -25,10 +24,10 @@ export class MsdfText {
     this.bufferArrayDirty = true;
   }
 
-  getRenderBundle() {
+  getRenderBundle(device: GPUDevice) {
     if (this.bufferArrayDirty) {
       this.bufferArrayDirty = false;
-      this.device.queue.writeBuffer(
+      device.queue.writeBuffer(
         this.textBuffer,
         0,
         this.bufferArray,

@@ -234,7 +234,7 @@ export class TextRenderer {
   }
 
   render(passEncoder: GPURenderPassEncoder): void {
-    const renderBundles = this.texts.map((t) => t.getRenderBundle());
+    const renderBundles = this.texts.map((t) => t.getRenderBundle(this.device));
     passEncoder.executeBundles(renderBundles);
   }
 
@@ -340,13 +340,7 @@ export class TextRenderer {
     encoder.draw(4, measurements.printedCharCount);
     const renderBundle = encoder.finish();
 
-    const msdfText = new MsdfText(
-      this.device,
-      renderBundle,
-      measurements,
-      font,
-      textBuffer,
-    );
+    const msdfText = new MsdfText(renderBundle, measurements, font, textBuffer);
     if (options.pixelScale !== undefined) {
       msdfText.setPixelScale(options.pixelScale);
     }
