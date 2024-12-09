@@ -5,6 +5,7 @@ export type Point2D = {
 type Interval = [number, number];
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type ClickCallback = (args: Point2D) => void;
+type HoverCallback = (args: Point2D) => void;
 
 type AddListenerArgs =
   | {
@@ -14,6 +15,10 @@ type AddListenerArgs =
   | {
       event: "click";
       listener: ClickCallback;
+    }
+  | {
+      event: "hover";
+      listener: HoverCallback;
     };
 
 export type CanvasMode = "pan" | "select";
@@ -53,7 +58,24 @@ export class CanvasEventHandler {
         return this.addZoomListener(args.listener);
       case "click":
         return this.addClickListener(args.listener);
+      case "hover":
+        return this.addHoverListener(args.listener);
     }
+  }
+
+  private addHoverListener(listener: HoverCallback) {
+    const onHover = (e: MouseEvent) => {
+      if (this.mode !== "select") {
+        return;
+      }
+      const point = this.getMousePoint(e);
+      const realPoint = this.invert(point);
+      listener(realPoint);
+    };
+    this.canvas.addEventListener("mousemove", onHover);
+    return () => {
+      this.canvas.removeEventListener("mousemove", onHover);
+    };
   }
 
   private addClickListener(listener: ClickCallback) {

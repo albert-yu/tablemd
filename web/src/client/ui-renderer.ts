@@ -150,7 +150,7 @@ export class UIRenderer {
     this.uniformsProvider.updateWindowData(w, h);
   }
 
-  getClickedCell(point: Point2D): Point2D {
+  getCell(point: Point2D): Point2D {
     const maxWidth = this.canvasDimensions.w;
     const maxHeight = this.canvasDimensions.h;
     const maxGridDim = Math.min(maxWidth, maxHeight);

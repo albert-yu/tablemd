@@ -121,7 +121,7 @@ async function main() {
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const cell = ui.getClickedCell(p);
+      const cell = ui.getCell(p);
 
       const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
       const cellWidth = tr.x - tl.x;
@@ -138,6 +138,15 @@ async function main() {
         corners: vec4.create(0, 0, 0, 0),
         sigma: 1e-6,
       });
+    },
+  });
+  canvasEvents.addListener({
+    event: "hover",
+    listener: (p) => {
+      // p is given relative to canvas dimensions.
+      // Need to map it back to grid space (N x N)
+      const cell = ui.getCell(p);
+      console.log(cell);
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
