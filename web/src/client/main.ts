@@ -111,12 +111,12 @@ async function main() {
 
   const DEFAULT_SCALE = 1;
   let mode: CanvasMode = getCanvasSelectMode() ?? "select";
-  const zoom = new CanvasEventHandler(canvas, {
+  const canvasEvents = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
     mode,
   });
-  zoom.addListener({ event: "zoom", listener: zoomed });
-  zoom.addListener({
+  canvasEvents.addListener({ event: "zoom", listener: zoomed });
+  canvasEvents.addListener({
     event: "click",
     listener: (p) => {
       // p is given relative to canvas dimensions.
@@ -124,18 +124,6 @@ async function main() {
       const cell = ui.getClickedCell(p);
 
       const CELL_W = 1;
-      // Round to nearest grid point
-      // Convert to cell coordinates
-      // console.log({
-      //   clickedPoint: p,
-      //   gridCoords: { x: gridX, y: gridY },
-      //   cell: { x: cellX, y: cellY },
-      // });
-      // const { tl: tl0, tr: tr0, bl: bl0 } = getRectCorners(cellX, cellY);
-      // console.log(tl0);
-      // const tr = zoom.invert(tr0);
-      // const tl = zoom.invert(tl0);
-      // const bl = zoom.invert(bl0);
       const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
       const cellWidth = (tr.x - tl.x) * CELL_W;
       const cellHeight = bl.y - tl.y;
@@ -155,7 +143,7 @@ async function main() {
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
     const value = radio.value as CanvasMode;
-    zoom.mode = value;
+    canvasEvents.mode = value;
     canvas.style.cursor = cursorStyle[value];
   };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
