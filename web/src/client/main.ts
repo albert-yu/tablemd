@@ -1,11 +1,6 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import {
-  getRectCorners,
-  GRID_CELL_HEIGHT,
-  GRID_CELL_WIDTH,
-  UIRenderer,
-} from "./ui-renderer";
+import { GRID_CELL_HEIGHT, GRID_CELL_WIDTH, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -116,6 +111,7 @@ async function main() {
     mode,
   });
   let hoverRectIndex: number | undefined = undefined;
+  let activeRectIndex: number | undefined = undefined;
   canvasEvents.addListener({ event: "zoom", listener: zoomed });
   canvasEvents.addListener({
     event: "click",
@@ -124,11 +120,26 @@ async function main() {
       // Need to map it back to grid space (N x N)
       const cell = ui.getCell(p);
 
-      const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
-      console.log({
-        cell,
-        tl,
-      });
+      const { x, y, w, h } = ui.getCellRect(cell);
+
+      if (typeof activeRectIndex === "number") {
+        ui.updateRect(activeRectIndex, {
+          color: vec4.create(0, 1, 0, 1),
+          position: vec2.create(x, y),
+          size: vec2.create(w, h),
+          corners: vec4.create(0, 0, 0, 0),
+          sigma: 1e-6,
+        });
+      } else {
+        const i = ui.rectangle({
+          color: vec4.create(0, 1, 0, 1),
+          position: vec2.create(x, y),
+          size: vec2.create(w, h),
+          corners: vec4.create(0, 0, 0, 0),
+          sigma: 1e-6,
+        });
+        activeRectIndex = i;
+      }
     },
   });
   canvasEvents.addListener({
@@ -144,7 +155,7 @@ async function main() {
         ui.updateRect(hoverRectIndex, {
           color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
           position: vec2.create(x, y),
-          size: vec2.create(GRID_CELL_WIDTH, GRID_CELL_HEIGHT),
+          size: vec2.create(w, h),
           corners: vec4.create(0, 0, 0, 0),
           sigma: 1e-6,
         });

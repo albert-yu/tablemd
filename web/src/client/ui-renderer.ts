@@ -67,7 +67,7 @@ const getGridPointXY = (x: number, y: number): Point2D => {
  * @param y coordinate of cell
  * @returns
  */
-export const getRectCorners = (x: number, y: number) => {
+const getRectCorners = (x: number, y: number) => {
   const topLeft = getGridPointXY(x, y);
   const topRight = getGridPointXY(x + 1, y);
   const bottomLeft = getGridPointXY(x, y + 1);
