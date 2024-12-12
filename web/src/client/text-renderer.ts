@@ -18,7 +18,6 @@ export type PushTextArgs = {
 };
 
 export type UpdateTextArgs = {
-  index: number;
   value?: string;
   position?: Vec2;
 };
@@ -45,7 +44,7 @@ export class TextRenderer {
   private textBindGroupLayout: GPUBindGroupLayout;
   private chars: { [x: number]: MsdfChar };
   private renderBundleDescriptor: GPURenderBundleEncoderDescriptor;
-  private texts: MsdfText[] = [];
+  private instances: MsdfText[] = [];
 
   constructor(
     private device: GPUDevice,
@@ -233,14 +232,16 @@ export class TextRenderer {
   }
 
   render(passEncoder: GPURenderPassEncoder): void {
-    const renderBundles = this.texts.map((t) => t.getRenderBundle(this.device));
+    const renderBundles = this.instances.map((t) =>
+      t.getRenderBundle(this.device),
+    );
     passEncoder.executeBundles(renderBundles);
   }
 
   /**
    * Returns the index of the pushed element
    */
-  pushText(args: PushTextArgs) {
+  push(args: PushTextArgs) {
     const { value, position } = args;
     const transform = mat4.identity();
     const msdfText = this.formatText(value, { pixelScale: 1 / 2048 });
@@ -248,12 +249,12 @@ export class TextRenderer {
     // TODO: figure out why flipping the y axis is necessary
     mat4.scale(transform, [1, -1, 1], transform);
     msdfText.setTransform(transform);
-    this.texts.push(msdfText);
-    return this.texts.length - 1;
+    this.instances.push(msdfText);
+    return this.instances.length - 1;
   }
 
-  updateText(args: UpdateTextArgs) {
-    const { value, index, position } = args;
+  update(index: number, args: UpdateTextArgs) {
+    const { value, position } = args;
     if (value) {
       const msdfText = this.formatText(value, {
         pixelScale: 1 / 256,
@@ -263,7 +264,7 @@ export class TextRenderer {
         mat4.translate(transform, [position[0], position[1], 0], transform);
         msdfText.setTransform(transform);
       }
-      this.texts[index] = msdfText;
+      this.instances[index] = msdfText;
     }
   }
 

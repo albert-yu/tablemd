@@ -143,10 +143,10 @@ export class RectRenderer {
   }
 
   /**
-   *  * Pushes a rectangle to the buffer.
-   *  * Returns the index of the rectangle.
+   * Pushes a rectangle to the buffer.
+   * Returns the index of the rectangle.
    */
-  rectangle(args: RectangleArgs): number {
+  push(args: RectangleArgs): number {
     const { color, position, size, corners, sigma } = args;
     const struct = 16;
     const UNUSED = 0;
@@ -172,7 +172,7 @@ export class RectRenderer {
     return index;
   }
 
-  updateRect(index: number, args: Partial<RectangleArgs>): void {
+  update(index: number, args: Partial<RectangleArgs>): void {
     const { color, position, size, corners, sigma } = args;
     const struct = 16;
     if (color) {

@@ -51,32 +51,7 @@ async function main() {
   await ui.init();
 
   const str = "Hello, world!";
-  ui.pushText({ value: str, position });
-  ui.pushText({
-    value: "Nother",
-    position: vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3),
-  });
-  // ui.rectangle({
-  //   color: vec4.create(1, 0.5, 1, 1),
-  //   position: position,
-  //   size: vec2.scale(vec2.create(100, 100), SCALE),
-  //   corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-  //   sigma: 0.01,
-  // });
-  // ui.rectangle({
-  //   color: vec4.create(0.5, 0.25, 0.5, 1),
-  //   position: position,
-  //   size: vec2.scale(vec2.create(100, 100), SCALE),
-  //   corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-  //   sigma: SCALE * 0.01,
-  // });
-  // ui.rectangle({
-  //   color: vec4.create(1, 0.5, 1, 1),
-  //   position: vec2.add(position, vec2.create(SCALE, SCALE)),
-  //   size: vec2.scale(vec2.create(98, 98), SCALE),
-  //   corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
-  //   sigma: SCALE * 0.01,
-  // });
+  ui.texts.push({ value: str, position });
 
   function frame() {
     ui.render();
@@ -148,14 +123,13 @@ async function main() {
         const text = e.key;
         if (activeRectIndex && rectIndicesToTextIndices.has(activeRectIndex)) {
           const index = rectIndicesToTextIndices.get(activeRectIndex)!;
-          ui.updateText({
-            index: index,
+          ui.texts.update(index, {
             value: text,
           });
           return;
         }
 
-        ui.pushText({
+        ui.texts.push({
           value: text,
           // TODO: get index of cell
           position: vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3),
@@ -173,7 +147,7 @@ async function main() {
       const { x, y, w, h } = ui.getCellRect(cell);
 
       if (typeof activeRectIndex === "number") {
-        ui.updateRect(activeRectIndex, {
+        ui.rects.update(activeRectIndex, {
           color: vec4.create(0, 1, 0, 1),
           position: vec2.create(x, y),
           size: vec2.create(w, h),
@@ -181,7 +155,7 @@ async function main() {
           sigma: 1e-6,
         });
       } else {
-        const i = ui.rectangle({
+        const i = ui.rects.push({
           color: vec4.create(0, 1, 0, 1),
           position: vec2.create(x, y),
           size: vec2.create(w, h),
@@ -202,7 +176,7 @@ async function main() {
       const { x, y, w, h } = ui.getCellRect(cell);
 
       if (typeof hoverRectIndex === "number") {
-        ui.updateRect(hoverRectIndex, {
+        ui.rects.update(hoverRectIndex, {
           color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
           position: vec2.create(x, y),
           size: vec2.create(w, h),
@@ -210,7 +184,7 @@ async function main() {
           sigma: 1e-6,
         });
       } else {
-        const i = ui.rectangle({
+        const i = ui.rects.push({
           color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
           position: vec2.create(x, y),
           size: vec2.create(w, h),

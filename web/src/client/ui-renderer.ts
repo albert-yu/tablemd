@@ -81,10 +81,10 @@ const getRectCorners = (x: number, y: number) => {
 };
 
 export class UIRenderer {
-  private rectangleRenderer: RectRenderer;
+  public rects: RectRenderer;
+  public texts: TextRenderer;
   private gridRenderer: DotGridRenderer;
   private uniformsProvider: UniformsProvider;
-  private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
   private depthTexture: GPUTexture;
   private canvasDimensions: {
@@ -117,8 +117,8 @@ export class UIRenderer {
       this.uniformsProvider,
       gridPoints,
     );
-    this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
-    this.textRenderer = new TextRenderer(device, format, this.uniformsProvider);
+    this.rects = new RectRenderer(device, this.uniformsProvider);
+    this.texts = new TextRenderer(device, format, this.uniformsProvider);
     this.canvasDimensions = {
       w: context.canvas.width,
       h: context.canvas.height,
@@ -126,23 +126,7 @@ export class UIRenderer {
   }
 
   async init() {
-    await this.textRenderer.init();
-  }
-
-  rectangle(args: RectangleArgs): number {
-    return this.rectangleRenderer.rectangle(args);
-  }
-
-  updateRect(index: number, args: Partial<RectangleArgs>): void {
-    this.rectangleRenderer.updateRect(index, args);
-  }
-
-  pushText(args: PushTextArgs) {
-    return this.textRenderer.pushText(args);
-  }
-
-  updateText(args: UpdateTextArgs): void {
-    this.textRenderer.updateText(args);
+    await this.texts.init();
   }
 
   updateZoom(val: number[]) {
@@ -207,8 +191,8 @@ export class UIRenderer {
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
     this.gridRenderer.render(passEncoder);
-    this.rectangleRenderer.render(passEncoder);
-    this.textRenderer.render(passEncoder);
+    this.rects.render(passEncoder);
+    this.texts.render(passEncoder);
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
