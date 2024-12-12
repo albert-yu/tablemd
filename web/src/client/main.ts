@@ -95,6 +95,10 @@ async function main() {
       let handled = true;
       switch (e.key) {
         case "Escape":
+          if (typeof activeRectIndex !== "number") {
+            break;
+          }
+          ui.rects.delete(activeRectIndex);
           activeRectIndex = undefined;
           break;
         // TODO: Implement
