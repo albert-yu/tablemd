@@ -45,6 +45,7 @@ export class TextRenderer {
   private chars: { [x: number]: MsdfChar };
   private renderBundleDescriptor: GPURenderBundleEncoderDescriptor;
   private instances: MsdfText[] = [];
+  private values: string[] = [];
 
   constructor(
     private device: GPUDevice,
@@ -250,12 +251,13 @@ export class TextRenderer {
     mat4.scale(transform, [1, -1, 1], transform);
     msdfText.setTransform(transform);
     this.instances.push(msdfText);
+    this.values.push(value);
     return this.instances.length - 1;
   }
 
   update(index: number, args: UpdateTextArgs) {
     const { value, position } = args;
-    if (value) {
+    if (typeof value === "string") {
       const msdfText = this.formatText(value, {
         pixelScale: 1 / 256,
       });
@@ -265,6 +267,7 @@ export class TextRenderer {
         msdfText.setTransform(transform);
       }
       this.instances[index] = msdfText;
+      this.values[index] = value;
     }
   }
 
