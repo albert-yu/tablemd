@@ -3,7 +3,7 @@ import { DEPTH_STENCIL_TEXTURE_FORMAT, SAMPLE_COUNT } from "./constants";
 import rectangleShader from "./shaders/rectangle.wgsl";
 import type { UniformsProvider } from "./uniforms-provider";
 
-export type RectangleArgs = {
+type RectangleArgs = {
   color: Vec4;
   position: Vec2;
   size: Vec2;

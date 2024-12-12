@@ -12,12 +12,12 @@ import type { UniformsProvider } from "./uniforms-provider";
 import { mat4, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
 
-export type PushTextArgs = {
+type PushTextArgs = {
   value: string;
   position: Vec2;
 };
 
-export type UpdateTextArgs = {
+type UpdateTextArgs = {
   value?: string;
   position?: Vec2;
 };

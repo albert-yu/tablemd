@@ -1,5 +1,5 @@
 import { DotGridRenderer } from "./dot-grid-renderer";
-import { RectRenderer, type RectangleArgs } from "./rect-renderer";
+import { RectRenderer } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import {
   DEPTH_STENCIL_TEXTURE_FORMAT,
@@ -7,11 +7,7 @@ import {
   GRID_N as N,
   SAMPLE_COUNT,
 } from "./constants";
-import {
-  TextRenderer,
-  type PushTextArgs,
-  type UpdateTextArgs,
-} from "./text-renderer";
+import { TextRenderer } from "./text-renderer";
 import type { Point2D } from "./canvas-events";
 
 /**
