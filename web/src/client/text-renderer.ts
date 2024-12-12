@@ -17,10 +17,7 @@ type PushTextArgs = {
   position: Vec2;
 };
 
-type UpdateTextArgs = {
-  value?: string;
-  position?: Vec2;
-};
+type UpdateTextArgs = PushTextArgs;
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
@@ -29,6 +26,8 @@ interface MsdfTextFormattingOptions {
 }
 
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
+
+const PIXEL_SCALE = 1 / 2048;
 
 export class TextRenderer {
   private fontPipeline: GPURenderPipeline;
@@ -241,11 +240,12 @@ export class TextRenderer {
 
   /**
    * Returns the index of the pushed element
+   * TODO: return the width of the text also
    */
   push(args: PushTextArgs) {
     const { value, position } = args;
     const transform = mat4.identity();
-    const msdfText = this.formatText(value, { pixelScale: 1 / 2048 });
+    const msdfText = this.formatText(value, { pixelScale: PIXEL_SCALE });
     mat4.translate(transform, [position[0], position[1], 0], transform);
     // TODO: figure out why flipping the y axis is necessary
     mat4.scale(transform, [1, -1, 1], transform);
@@ -257,18 +257,23 @@ export class TextRenderer {
 
   update(index: number, args: UpdateTextArgs) {
     const { value, position } = args;
-    if (typeof value === "string") {
-      const msdfText = this.formatText(value, {
-        pixelScale: 1 / 256,
-      });
-      if (position) {
-        const transform = mat4.identity();
-        mat4.translate(transform, [position[0], position[1], 0], transform);
-        msdfText.setTransform(transform);
-      }
-      this.instances[index] = msdfText;
-      this.values[index] = value;
-    }
+    const msdfText = this.formatText(value, {
+      pixelScale: PIXEL_SCALE,
+    });
+    const transform = mat4.identity();
+    mat4.translate(transform, [position[0], position[1], 0], transform);
+    mat4.scale(transform, [1, -1, 1], transform);
+    msdfText.setTransform(transform);
+    this.instances[index] = msdfText;
+    this.values[index] = value;
+  }
+
+  append(index: number, args: UpdateTextArgs) {
+    const text = args.value;
+    const oldValue = this.values[index];
+    const newValue = oldValue + text;
+    args.value = newValue;
+    return this.update(index, args);
   }
 
   private formatText(text: string, options: MsdfTextFormattingOptions) {

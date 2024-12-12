@@ -123,21 +123,24 @@ async function main() {
         return;
       }
       const isAlphaNumericOrSpace = e.key.match(/^[a-zA-Z0-9\s]$/);
-      if (isAlphaNumericOrSpace) {
-        const text = e.key;
-        if (activeRectIndex && rectIndicesToTextIndices.has(activeRectIndex)) {
+      if (isAlphaNumericOrSpace && typeof activeRectIndex === "number") {
+        const char = e.key;
+        // TODO: get index of cell
+        const position = vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3);
+        if (rectIndicesToTextIndices.has(activeRectIndex)) {
           const index = rectIndicesToTextIndices.get(activeRectIndex)!;
-          ui.texts.update(index, {
-            value: text,
+          ui.texts.append(index, {
+            value: char,
+            position,
           });
           return;
+        } else if (typeof activeRectIndex === "number") {
+          const textIndex = ui.texts.push({
+            value: char,
+            position: position,
+          });
+          rectIndicesToTextIndices.set(activeRectIndex, textIndex);
         }
-
-        ui.texts.push({
-          value: text,
-          // TODO: get index of cell
-          position: vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3),
-        });
       }
     },
   });
