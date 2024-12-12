@@ -9,9 +9,8 @@ import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-regular";
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
-import { mat4, vec2, type Vec2 } from "wgpu-matrix";
+import { mat4, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
-import type { Point2D } from "./canvas-events";
 
 export type PushTextArgs = {
   value: string;

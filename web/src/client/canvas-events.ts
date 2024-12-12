@@ -2,10 +2,17 @@ export type Point2D = {
   x: number;
   y: number;
 };
+type KeyboardArgs = {
+  key: string;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+};
 type Interval = [number, number];
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type ClickCallback = (args: Point2D) => void;
 type HoverCallback = (args: Point2D) => void;
+type KeyboardCallback = (args: KeyboardArgs) => void;
 
 type AddListenerArgs =
   | {
@@ -19,6 +26,10 @@ type AddListenerArgs =
   | {
       event: "hover";
       listener: HoverCallback;
+    }
+  | {
+      event: "keydown";
+      listener: KeyboardCallback;
     };
 
 export type CanvasMode = "pan" | "select";
@@ -60,7 +71,27 @@ export class CanvasEventHandler {
         return this.addClickListener(args.listener);
       case "hover":
         return this.addHoverListener(args.listener);
+      case "keydown":
+        return this.addKeyboardListener(args.listener);
     }
+  }
+
+  private addKeyboardListener(listener: KeyboardCallback) {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (this.mode !== "select") {
+        return;
+      }
+      listener({
+        key: e.key,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+      });
+    };
+    this.canvas.addEventListener("keydown", onKeyDown);
+    return () => {
+      this.canvas.removeEventListener("keydown", onKeyDown);
+    };
   }
 
   private addHoverListener(listener: HoverCallback) {

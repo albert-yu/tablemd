@@ -112,7 +112,57 @@ async function main() {
   });
   let hoverRectIndex: number | undefined = undefined;
   let activeRectIndex: number | undefined = undefined;
+  const rectIndicesToTextIndices = new Map<number, number>();
   canvasEvents.addListener({ event: "zoom", listener: zoomed });
+  canvasEvents.addListener({
+    event: "keydown",
+    listener: (e) => {
+      let handled = true;
+      switch (e.key) {
+        case "Escape":
+          activeRectIndex = undefined;
+          break;
+        // TODO: Implement
+        case "ArrowUp":
+          break;
+        case "ArrowDown":
+          break;
+        case "ArrowLeft":
+          break;
+        case "ArrowRight":
+          break;
+        case "Delete":
+          break;
+        case "Backspace":
+          break;
+        default:
+          handled = false;
+          break;
+      }
+
+      if (handled) {
+        return;
+      }
+      const isAlphaNumericOrSpace = e.key.match(/^[a-zA-Z0-9\s]$/);
+      if (isAlphaNumericOrSpace) {
+        const text = e.key;
+        if (activeRectIndex && rectIndicesToTextIndices.has(activeRectIndex)) {
+          const index = rectIndicesToTextIndices.get(activeRectIndex)!;
+          ui.updateText({
+            index: index,
+            value: text,
+          });
+          return;
+        }
+
+        ui.pushText({
+          value: text,
+          // TODO: get index of cell
+          position: vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3),
+        });
+      }
+    },
+  });
   canvasEvents.addListener({
     event: "click",
     listener: (p) => {
