@@ -1,5 +1,9 @@
 import { vec2, vec4 } from "wgpu-matrix";
-import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
+import {
+  type CanvasMode,
+  type Point2D,
+  CanvasEventHandler,
+} from "./canvas-events";
 import { GRID_CELL_HEIGHT, GRID_CELL_WIDTH, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
@@ -46,12 +50,8 @@ async function main() {
 
   const fpsSpan = document.querySelector("#fps")!;
 
-  const position = vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 2);
   const ui = new UIRenderer(device, context, format);
   await ui.init();
-
-  const str = "Hello, world!";
-  ui.texts.push({ value: str, position });
 
   function frame() {
     ui.render();
@@ -86,8 +86,9 @@ async function main() {
     mode,
   });
   let hoverRectIndex: number | undefined = undefined;
-  let activeRectIndex: number | undefined = undefined;
+  let activeRect: (Point2D & { index: number }) | undefined = undefined;
   const rectIndicesToTextIndices = new Map<number, number>();
+  const rectIndicesCoords = new Map<number, Point2D>();
   canvasEvents.addListener({ event: "zoom", listener: zoomed });
   canvasEvents.addListener({
     event: "keydown",
@@ -95,11 +96,11 @@ async function main() {
       let handled = true;
       switch (e.key) {
         case "Escape":
-          if (typeof activeRectIndex !== "number") {
+          if (typeof activeRect === "undefined") {
             break;
           }
-          ui.rects.delete(activeRectIndex);
-          activeRectIndex = undefined;
+          ui.rects.delete(activeRect.index);
+          activeRect = undefined;
           break;
         // TODO: Implement
         case "ArrowUp":
@@ -122,25 +123,40 @@ async function main() {
       if (handled) {
         return;
       }
+      // TODO: allow for non-alphanumeric characters
       const isAlphaNumericOrSpace = e.key.match(/^[a-zA-Z0-9\s]$/);
-      if (isAlphaNumericOrSpace && typeof activeRectIndex === "number") {
-        const char = e.key;
-        // TODO: get index of cell
-        const position = vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3);
-        if (rectIndicesToTextIndices.has(activeRectIndex)) {
-          const index = rectIndicesToTextIndices.get(activeRectIndex)!;
-          ui.texts.append(index, {
-            value: char,
-            position,
-          });
-          return;
-        } else if (typeof activeRectIndex === "number") {
-          const textIndex = ui.texts.push({
-            value: char,
-            position: position,
-          });
-          rectIndicesToTextIndices.set(activeRectIndex, textIndex);
-        }
+      if (!isAlphaNumericOrSpace) {
+        return;
+      }
+      if (!activeRect) {
+        return;
+      }
+      const char = e.key;
+      if (
+        rectIndicesToTextIndices.has(activeRect.index) &&
+        rectIndicesCoords.has(activeRect.index)
+      ) {
+        const index = rectIndicesToTextIndices.get(activeRect.index)!;
+        const point = rectIndicesCoords.get(activeRect.index)!;
+        const position = vec2.create(
+          GRID_CELL_WIDTH * point.x,
+          GRID_CELL_HEIGHT * point.y,
+        );
+        ui.texts.append(index, {
+          value: char,
+          position,
+        });
+      } else {
+        const position = vec2.create(
+          GRID_CELL_WIDTH * activeRect.x,
+          GRID_CELL_HEIGHT * activeRect.y,
+        );
+        const textIndex = ui.texts.push({
+          value: char,
+          position: position,
+        });
+        rectIndicesToTextIndices.set(activeRect.index, textIndex);
+        rectIndicesCoords.set(activeRect.index, activeRect);
       }
     },
   });
@@ -153,14 +169,16 @@ async function main() {
 
       const { x, y, w, h } = ui.getCellRect(cell);
 
-      if (typeof activeRectIndex === "number") {
-        ui.rects.update(activeRectIndex, {
+      if (activeRect) {
+        ui.rects.update(activeRect.index, {
           color: vec4.create(0, 1, 0, 1),
           position: vec2.create(x, y),
           size: vec2.create(w, h),
           corners: vec4.create(0, 0, 0, 0),
           sigma: 1e-6,
         });
+        activeRect.x = cell.x;
+        activeRect.y = cell.y;
       } else {
         const i = ui.rects.push({
           color: vec4.create(0, 1, 0, 1),
@@ -169,7 +187,11 @@ async function main() {
           corners: vec4.create(0, 0, 0, 0),
           sigma: 1e-6,
         });
-        activeRectIndex = i;
+        activeRect = {
+          x: cell.x,
+          y: cell.y,
+          index: i,
+        };
       }
     },
   });
