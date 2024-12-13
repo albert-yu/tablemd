@@ -1,9 +1,5 @@
 import { vec2, vec4 } from "wgpu-matrix";
-import {
-  type CanvasMode,
-  type Point2D,
-  CanvasEventHandler,
-} from "./canvas-events";
+import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { GRID_CELL_HEIGHT, GRID_CELL_WIDTH, UIRenderer } from "./ui-renderer";
 
 const cursorStyle = {
@@ -86,9 +82,10 @@ async function main() {
     mode,
   });
   let hoverRectIndex: number | undefined = undefined;
-  let activeRect: (Point2D & { index: number }) | undefined = undefined;
+  let activeRect: { row: number; col: number; index: number } | undefined =
+    undefined;
   const rectIndicesToTextIndices = new Map<number, number>();
-  const rectIndicesCoords = new Map<number, Point2D>();
+  const rectIndicesCoords = new Map<number, { row: number; col: number }>();
   canvasEvents.addListener({ event: "zoom", listener: zoomed });
   canvasEvents.addListener({
     event: "keydown",
@@ -139,8 +136,8 @@ async function main() {
         const index = rectIndicesToTextIndices.get(activeRect.index)!;
         const point = rectIndicesCoords.get(activeRect.index)!;
         const position = vec2.create(
-          GRID_CELL_WIDTH * point.x,
-          GRID_CELL_HEIGHT * point.y,
+          GRID_CELL_WIDTH * point.col,
+          GRID_CELL_HEIGHT * point.row,
         );
         ui.texts.append(index, {
           value: char,
@@ -148,8 +145,8 @@ async function main() {
         });
       } else {
         const position = vec2.create(
-          GRID_CELL_WIDTH * activeRect.x,
-          GRID_CELL_HEIGHT * activeRect.y,
+          GRID_CELL_WIDTH * activeRect.col,
+          GRID_CELL_HEIGHT * activeRect.row,
         );
         const textIndex = ui.texts.push({
           value: char,
@@ -177,8 +174,8 @@ async function main() {
           corners: vec4.create(0, 0, 0, 0),
           sigma: 1e-6,
         });
-        activeRect.x = cell.x;
-        activeRect.y = cell.y;
+        activeRect.row = cell.row;
+        activeRect.col = cell.col;
       } else {
         const i = ui.rects.push({
           color: vec4.create(0, 1, 0, 1),
@@ -188,8 +185,8 @@ async function main() {
           sigma: 1e-6,
         });
         activeRect = {
-          x: cell.x,
-          y: cell.y,
+          row: cell.row,
+          col: cell.col,
           index: i,
         };
       }

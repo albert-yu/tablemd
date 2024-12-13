@@ -34,6 +34,17 @@ const gridPoints: [Float32Array, Float32Array] = [
 export const GRID_CELL_HEIGHT = gridPoints[0][1] - gridPoints[0][0];
 export const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
 
+type CellPoint = {
+  /**
+   * Index of row in grid, starts at 0 at top
+   */
+  row: number;
+  /**
+   * Index of column in grid
+   */
+  col: number;
+};
+
 const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
 
 /**
@@ -59,15 +70,15 @@ const getGridPointXY = (x: number, y: number): Point2D => {
 };
 
 /**
- * @param x coordinate of cell
- * @param y coordinate of cell
+ * @param row index of cell row
+ * @param col index of cell column
  * @returns
  */
-const getRectCorners = (x: number, y: number) => {
-  const topLeft = getGridPointXY(x, y);
-  const topRight = getGridPointXY(x + 1, y);
-  const bottomLeft = getGridPointXY(x, y + 1);
-  const bottomRight = getGridPointXY(x + 1, y + 1);
+const getRectCorners = ({ row, col }: CellPoint) => {
+  const topLeft = getGridPointXY(col, row);
+  const topRight = getGridPointXY(col + 1, row);
+  const bottomLeft = getGridPointXY(col, row + 1);
+  const bottomRight = getGridPointXY(col + 1, row + 1);
   return {
     tl: topLeft,
     tr: topRight,
@@ -134,7 +145,7 @@ export class UIRenderer {
     this.uniformsProvider.updateWindowData(w, h);
   }
 
-  getCell(point: Point2D): Point2D {
+  getCell(point: Point2D): CellPoint {
     const maxWidth = this.canvasDimensions.w;
     const maxHeight = this.canvasDimensions.h;
     const maxGridDim = Math.min(maxWidth, maxHeight);
@@ -143,13 +154,13 @@ export class UIRenderer {
     const x = getIndexOfMaxGridPointBoundedBy(gridX);
     const y = getIndexOfMaxGridPointBoundedBy(gridY);
     return {
-      x,
-      y,
+      row: y,
+      col: x,
     };
   }
 
-  getCellRect(cell: Point2D): { x: number; y: number; w: number; h: number } {
-    const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
+  getCellRect(cell: CellPoint): { x: number; y: number; w: number; h: number } {
+    const { tl, tr, bl } = getRectCorners(cell);
     const cellWidth = tr.x - tl.x;
     const cellHeight = bl.y - tl.y;
     return {
