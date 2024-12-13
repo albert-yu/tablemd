@@ -145,8 +145,26 @@ async function main() {
         case "ArrowRight":
           break;
         case "Delete":
-          break;
         case "Backspace":
+          {
+            if (activeRectIndex === -1) {
+              break;
+            }
+            const rect = rectElements[activeRectIndex];
+            const start = rect.point;
+            const existingTextIndex = textElements.findIndex((t) =>
+              cellPointsEqual(t.start, start),
+            );
+            if (existingTextIndex === -1) {
+              break;
+            }
+            const existingText = textElements[existingTextIndex];
+            existingText.value = existingText.value.slice(0, -1);
+            if (existingText.value.length === 0) {
+              textElements.splice(existingTextIndex, 1);
+              // activeRectIndex = -1;
+            }
+          }
           break;
         default:
           handled = false;
