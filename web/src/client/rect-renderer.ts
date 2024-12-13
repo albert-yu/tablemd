@@ -27,13 +27,13 @@ const W = 3;
  * Copied from https://codesandbox.io/p/sandbox/7qt3v6?file=%2Findex.ts%3A61%2C5-61%2C14
  */
 export class RectRenderer {
-  rectangleData: Float32Array = new Float32Array(RECTANGLE_BUFFER_SIZE);
-  rectangleCount = 0;
+  private rectangleData: Float32Array = new Float32Array(RECTANGLE_BUFFER_SIZE);
+  private rectangleCount = 0;
 
-  vertexBuffer: GPUBuffer;
-  rectangleBuffer: GPUBuffer;
-  rectangleBindGroup: GPUBindGroup;
-  rectanglePipeline: GPURenderPipeline;
+  private vertexBuffer: GPUBuffer;
+  private rectangleBuffer: GPUBuffer;
+  private rectangleBindGroup: GPUBindGroup;
+  private rectanglePipeline: GPURenderPipeline;
 
   constructor(
     private device: GPUDevice,
