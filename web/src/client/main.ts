@@ -1,6 +1,11 @@
 import { vec2, vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
-import { GRID_CELL_HEIGHT, GRID_CELL_WIDTH, UIRenderer } from "./ui-renderer";
+import {
+  GRID_CELL_HEIGHT,
+  GRID_CELL_WIDTH,
+  UIRenderer,
+  type CellPoint,
+} from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
@@ -82,10 +87,10 @@ async function main() {
     mode,
   });
   let hoverRectIndex: number | undefined = undefined;
-  let activeRect: { row: number; col: number; index: number } | undefined =
-    undefined;
+  let activeRect: { point: CellPoint; index: number } | undefined = undefined;
+  undefined;
   const rectIndicesToTextIndices = new Map<number, number>();
-  const rectIndicesCoords = new Map<number, { row: number; col: number }>();
+  const rectIndicesCoords = new Map<number, CellPoint>();
   canvasEvents.addListener({ event: "zoom", listener: zoomed });
   canvasEvents.addListener({
     event: "keydown",
@@ -145,15 +150,15 @@ async function main() {
         });
       } else {
         const position = vec2.create(
-          GRID_CELL_WIDTH * activeRect.col,
-          GRID_CELL_HEIGHT * activeRect.row,
+          GRID_CELL_WIDTH * activeRect.point.col,
+          GRID_CELL_HEIGHT * activeRect.point.row,
         );
         const textIndex = ui.texts.push({
           value: char,
           position: position,
         });
         rectIndicesToTextIndices.set(activeRect.index, textIndex);
-        rectIndicesCoords.set(activeRect.index, activeRect);
+        rectIndicesCoords.set(activeRect.index, activeRect.point);
       }
     },
   });
@@ -174,8 +179,7 @@ async function main() {
           corners: vec4.create(0, 0, 0, 0),
           sigma: 1e-6,
         });
-        activeRect.row = cell.row;
-        activeRect.col = cell.col;
+        activeRect.point = cell;
       } else {
         const i = ui.rects.push({
           color: vec4.create(0, 1, 0, 1),
@@ -185,8 +189,7 @@ async function main() {
           sigma: 1e-6,
         });
         activeRect = {
-          row: cell.row,
-          col: cell.col,
+          point: cell,
           index: i,
         };
       }
