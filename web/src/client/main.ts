@@ -1,6 +1,7 @@
 import { vec2, vec4, type Vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import {
+  cellPointsEqual,
   GRID_CELL_HEIGHT,
   GRID_CELL_WIDTH,
   UIRenderer,
@@ -12,7 +13,7 @@ const cursorStyle = {
   pan: "grab",
 } as const;
 
-type TextElement = { start: CellPoint; length: number; value: string };
+type TextElement = { start: CellPoint; value: string };
 type RectElement = {
   point: CellPoint;
   color: Vec4;
@@ -164,6 +165,19 @@ async function main() {
         return;
       }
       const char = e.key;
+      const rect = rectElements[activeRectIndex];
+      const start = rect.point;
+      const existingText = textElements.find((t) =>
+        cellPointsEqual(t.start, start),
+      );
+      if (existingText) {
+        existingText.value += char;
+      } else {
+        textElements.push({
+          start,
+          value: char,
+        });
+      }
     },
   });
   canvasEvents.addListener({

@@ -45,6 +45,10 @@ export type CellPoint = {
   col: number;
 };
 
+export const cellPointsEqual = (a: CellPoint, b: CellPoint): boolean => {
+  return a.row === b.row && a.col === b.col;
+};
+
 const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
 
 /**
