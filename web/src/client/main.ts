@@ -1,16 +1,24 @@
-import { vec2, vec4 } from "wgpu-matrix";
+import { vec2, vec4, type Vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import {
-  getRectCorners,
+  cellPointsEqual,
   GRID_CELL_HEIGHT,
   GRID_CELL_WIDTH,
   UIRenderer,
+  type CellPoint,
 } from "./ui-renderer";
 
 const cursorStyle = {
   select: "auto",
   pan: "grab",
 } as const;
+
+type TextElement = { start: CellPoint; value: string };
+type RectElement = {
+  point: CellPoint;
+  color: Vec4;
+  corners: Vec4;
+};
 
 async function main() {
   const canvas = document.querySelector("canvas")!;
@@ -51,39 +59,38 @@ async function main() {
 
   const fpsSpan = document.querySelector("#fps")!;
 
-  const position = vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 2);
   const ui = new UIRenderer(device, context, format);
   await ui.init();
-
-  const str = "Hello, world!";
-  ui.pushText({ value: str, position });
-  ui.pushText({
-    value: "Nother",
-    position: vec2.create(GRID_CELL_WIDTH * 2, GRID_CELL_HEIGHT * 3),
-  });
-  // ui.rectangle({
-  //   color: vec4.create(1, 0.5, 1, 1),
-  //   position: position,
-  //   size: vec2.scale(vec2.create(100, 100), SCALE),
-  //   corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-  //   sigma: 0.01,
-  // });
-  // ui.rectangle({
-  //   color: vec4.create(0.5, 0.25, 0.5, 1),
-  //   position: position,
-  //   size: vec2.scale(vec2.create(100, 100), SCALE),
-  //   corners: vec4.scale(vec4.create(10, 10, 10, 10), SCALE),
-  //   sigma: SCALE * 0.01,
-  // });
-  // ui.rectangle({
-  //   color: vec4.create(1, 0.5, 1, 1),
-  //   position: vec2.add(position, vec2.create(SCALE, SCALE)),
-  //   size: vec2.scale(vec2.create(98, 98), SCALE),
-  //   corners: vec4.scale(vec4.create(9, 9, 9, 9), SCALE),
-  //   sigma: SCALE * 0.01,
-  // });
+  // UI state start
+  let hoverRectIndex = -1;
+  let activeRectIndex = -1;
+  const textElements: TextElement[] = [];
+  const rectElements: RectElement[] = [];
+  // UI state end
 
   function frame() {
+    ui.reset();
+    for (const textElement of textElements) {
+      ui.texts.push({
+        value: textElement.value,
+        position: vec2.create(
+          GRID_CELL_WIDTH * textElement.start.col,
+          GRID_CELL_HEIGHT * textElement.start.row,
+        ),
+      });
+    }
+    for (const rectElement of rectElements) {
+      ui.rects.push({
+        color: rectElement.color,
+        position: vec2.create(
+          GRID_CELL_WIDTH * rectElement.point.col,
+          GRID_CELL_HEIGHT * rectElement.point.row,
+        ),
+        size: vec2.create(GRID_CELL_WIDTH, GRID_CELL_HEIGHT),
+        corners: rectElement.corners,
+        sigma: 1e-6,
+      });
+    }
     ui.render();
 
     frames++;
@@ -111,51 +118,130 @@ async function main() {
 
   const DEFAULT_SCALE = 1;
   let mode: CanvasMode = getCanvasSelectMode() ?? "select";
-  const zoom = new CanvasEventHandler(canvas, {
+  const canvasEvents = new CanvasEventHandler(canvas, {
     k: DEFAULT_SCALE,
     mode,
   });
-  zoom.addListener({ event: "zoom", listener: zoomed });
-  zoom.addListener({
+  canvasEvents.addListener({ event: "zoom", listener: zoomed });
+  canvasEvents.addListener({
+    event: "keydown",
+    listener: (e) => {
+      let handled = true;
+      switch (e.key) {
+        case "Escape":
+          if (activeRectIndex === -1) {
+            break;
+          }
+          rectElements.splice(activeRectIndex, 1);
+          activeRectIndex = -1;
+          break;
+        // TODO: Implement
+        case "ArrowUp":
+          break;
+        case "ArrowDown":
+          break;
+        case "ArrowLeft":
+          break;
+        case "ArrowRight":
+          break;
+        case "Delete":
+        case "Backspace":
+          {
+            if (activeRectIndex === -1) {
+              break;
+            }
+            const rect = rectElements[activeRectIndex];
+            const start = rect.point;
+            const existingTextIndex = textElements.findIndex((t) =>
+              cellPointsEqual(t.start, start),
+            );
+            if (existingTextIndex === -1) {
+              break;
+            }
+            const existingText = textElements[existingTextIndex];
+            existingText.value = existingText.value.slice(0, -1);
+            if (existingText.value.length === 0) {
+              textElements.splice(existingTextIndex, 1);
+              // activeRectIndex = -1;
+            }
+          }
+          break;
+        default:
+          handled = false;
+          break;
+      }
+
+      if (handled) {
+        return;
+      }
+      // TODO: allow for non-alphanumeric characters
+      const isAlphaNumericOrSpace = e.key.match(/^[a-zA-Z0-9\s]$/);
+      if (!isAlphaNumericOrSpace) {
+        return;
+      }
+      if (activeRectIndex === -1) {
+        return;
+      }
+      const char = e.key;
+      const rect = rectElements[activeRectIndex];
+      const start = rect.point;
+      const existingText = textElements.find((t) =>
+        cellPointsEqual(t.start, start),
+      );
+      if (existingText) {
+        existingText.value += char;
+      } else {
+        textElements.push({
+          start,
+          value: char,
+        });
+      }
+    },
+  });
+  canvasEvents.addListener({
     event: "click",
     listener: (p) => {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
-      const cell = ui.getClickedCell(p);
+      const cell = ui.getCell(p);
+      if (activeRectIndex !== -1) {
+        const element = rectElements[activeRectIndex];
+        element.point = cell;
+      } else {
+        const index = rectElements.length;
+        rectElements.push({
+          point: cell,
+          color: vec4.create(0, 1, 0, 0.5),
+          corners: vec4.create(0, 0, 0, 0),
+        });
+        activeRectIndex = index;
+      }
+    },
+  });
+  canvasEvents.addListener({
+    event: "hover",
+    listener: (p) => {
+      // p is given relative to canvas dimensions.
+      // Need to map it back to grid space (N x N)
+      const cell = ui.getCell(p);
 
-      const CELL_W = 1;
-      // Round to nearest grid point
-      // Convert to cell coordinates
-      // console.log({
-      //   clickedPoint: p,
-      //   gridCoords: { x: gridX, y: gridY },
-      //   cell: { x: cellX, y: cellY },
-      // });
-      // const { tl: tl0, tr: tr0, bl: bl0 } = getRectCorners(cellX, cellY);
-      // console.log(tl0);
-      // const tr = zoom.invert(tr0);
-      // const tl = zoom.invert(tl0);
-      // const bl = zoom.invert(bl0);
-      const { tl, tr, bl } = getRectCorners(cell.x, cell.y);
-      const cellWidth = (tr.x - tl.x) * CELL_W;
-      const cellHeight = bl.y - tl.y;
-      console.log({
-        cell,
-        tl,
-      });
-
-      ui.rectangle({
-        color: vec4.create(1, 0, 0, 0.5), // semi-transparent red
-        position: vec2.create(tl.x, tl.y),
-        size: vec2.create(cellWidth, cellHeight),
-        corners: vec4.create(0, 0, 0, 0),
-        sigma: 1e-6,
-      });
+      if (hoverRectIndex !== -1) {
+        const element = rectElements[hoverRectIndex];
+        element.point = cell;
+      } else {
+        const i = rectElements.length;
+        rectElements.push({
+          point: cell,
+          color: vec4.create(0, 0, 1, 0.5),
+          corners: vec4.create(0, 0, 0, 0),
+        });
+        hoverRectIndex = i;
+      }
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
     const value = radio.value as CanvasMode;
-    zoom.mode = value;
+    canvasEvents.mode = value;
     canvas.style.cursor = cursorStyle[value];
   };
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });

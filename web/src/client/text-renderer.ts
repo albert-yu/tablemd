@@ -9,20 +9,15 @@ import { MsdfText, type MsdfTextMeasurements } from "./msdf-text";
 import { spaceMonoFontAtlas } from "./fonts/space-mono-regular-msdf/space-mono-regular";
 import spaceMonoFontJSON from "./fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import type { UniformsProvider } from "./uniforms-provider";
-import { mat4, vec2, type Vec2 } from "wgpu-matrix";
+import { mat4, type Vec2 } from "wgpu-matrix";
 import { SAMPLE_COUNT, DEPTH_STENCIL_TEXTURE_FORMAT } from "./constants";
-import type { Point2D } from "./canvas-events";
 
-export type PushTextArgs = {
+type PushTextArgs = {
   value: string;
   position: Vec2;
 };
 
-export type UpdateTextArgs = {
-  index: number;
-  value?: string;
-  position?: Vec2;
-};
+type UpdateTextArgs = PushTextArgs;
 
 interface MsdfTextFormattingOptions {
   centered?: boolean;
@@ -31,6 +26,8 @@ interface MsdfTextFormattingOptions {
 }
 
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
+
+const PIXEL_SCALE = 1 / 2048;
 
 export class TextRenderer {
   private fontPipeline: GPURenderPipeline;
@@ -46,7 +43,7 @@ export class TextRenderer {
   private textBindGroupLayout: GPUBindGroupLayout;
   private chars: { [x: number]: MsdfChar };
   private renderBundleDescriptor: GPURenderBundleEncoderDescriptor;
-  private texts: MsdfText[] = [];
+  private instances: MsdfText[] = [];
 
   constructor(
     private device: GPUDevice,
@@ -234,39 +231,52 @@ export class TextRenderer {
   }
 
   render(passEncoder: GPURenderPassEncoder): void {
-    const renderBundles = this.texts.map((t) => t.getRenderBundle());
+    const renderBundles = this.instances.map((t) =>
+      t.getRenderBundle(this.device),
+    );
     passEncoder.executeBundles(renderBundles);
+  }
+
+  reset(): void {
+    this.instances = [];
   }
 
   /**
    * Returns the index of the pushed element
+   * TODO: return the width of the text also
    */
-  pushText(args: PushTextArgs) {
+  push(args: PushTextArgs) {
     const { value, position } = args;
     const transform = mat4.identity();
-    const msdfText = this.formatText(value, { pixelScale: 1 / 2048 });
+    const msdfText = this.formatText(value, { pixelScale: PIXEL_SCALE });
     mat4.translate(transform, [position[0], position[1], 0], transform);
     // TODO: figure out why flipping the y axis is necessary
     mat4.scale(transform, [1, -1, 1], transform);
     msdfText.setTransform(transform);
-    this.texts.push(msdfText);
-    return this.texts.length - 1;
+    this.instances.push(msdfText);
+    return this.instances.length - 1;
   }
 
-  updateText(args: UpdateTextArgs) {
-    const { value, index, position } = args;
-    if (value) {
-      const msdfText = this.formatText(value, {
-        pixelScale: 1 / 256,
-      });
-      if (position) {
-        const transform = mat4.identity();
-        mat4.translate(transform, [position[0], position[1], 0], transform);
-        msdfText.setTransform(transform);
-      }
-      this.texts[index] = msdfText;
-    }
-  }
+  // update(index: number, args: UpdateTextArgs) {
+  //   const { value, position } = args;
+  //   const msdfText = this.formatText(value, {
+  //     pixelScale: PIXEL_SCALE,
+  //   });
+  //   const transform = mat4.identity();
+  //   mat4.translate(transform, [position[0], position[1], 0], transform);
+  //   mat4.scale(transform, [1, -1, 1], transform);
+  //   msdfText.setTransform(transform);
+  //   this.instances[index] = msdfText;
+  //   this.values[index] = value;
+  // }
+
+  // append(index: number, args: UpdateTextArgs) {
+  //   const text = args.value;
+  //   const oldValue = this.values[index];
+  //   const newValue = oldValue + text;
+  //   args.value = newValue;
+  //   return this.update(index, args);
+  // }
 
   private formatText(text: string, options: MsdfTextFormattingOptions) {
     if (!this.font) {
@@ -340,13 +350,7 @@ export class TextRenderer {
     encoder.draw(4, measurements.printedCharCount);
     const renderBundle = encoder.finish();
 
-    const msdfText = new MsdfText(
-      this.device,
-      renderBundle,
-      measurements,
-      font,
-      textBuffer,
-    );
+    const msdfText = new MsdfText(renderBundle, measurements, font, textBuffer);
     if (options.pixelScale !== undefined) {
       msdfText.setPixelScale(options.pixelScale);
     }

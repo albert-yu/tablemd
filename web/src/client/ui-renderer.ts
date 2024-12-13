@@ -1,5 +1,5 @@
 import { DotGridRenderer } from "./dot-grid-renderer";
-import { RectRenderer, type RectangleArgs } from "./rect-renderer";
+import { RectRenderer } from "./rect-renderer";
 import { UniformsProvider } from "./uniforms-provider";
 import {
   DEPTH_STENCIL_TEXTURE_FORMAT,
@@ -7,11 +7,7 @@ import {
   GRID_N as N,
   SAMPLE_COUNT,
 } from "./constants";
-import {
-  TextRenderer,
-  type PushTextArgs,
-  type UpdateTextArgs,
-} from "./text-renderer";
+import { TextRenderer } from "./text-renderer";
 import type { Point2D } from "./canvas-events";
 
 /**
@@ -38,6 +34,21 @@ const gridPoints: [Float32Array, Float32Array] = [
 export const GRID_CELL_HEIGHT = gridPoints[0][1] - gridPoints[0][0];
 export const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
 
+export type CellPoint = {
+  /**
+   * Index of row in grid, starts at 0 at top
+   */
+  row: number;
+  /**
+   * Index of column in grid
+   */
+  col: number;
+};
+
+export const cellPointsEqual = (a: CellPoint, b: CellPoint): boolean => {
+  return a.row === b.row && a.col === b.col;
+};
+
 const BG_COLOR = { r: 37 / 256, g: 38 / 256, b: 56 / 256, a: 1 };
 
 /**
@@ -63,15 +74,15 @@ const getGridPointXY = (x: number, y: number): Point2D => {
 };
 
 /**
- * @param x coordinate of cell
- * @param y coordinate of cell
+ * @param row index of cell row
+ * @param col index of cell column
  * @returns
  */
-export const getRectCorners = (x: number, y: number) => {
-  const topLeft = getGridPointXY(x, y);
-  const topRight = getGridPointXY(x + 1, y);
-  const bottomLeft = getGridPointXY(x, y + 1);
-  const bottomRight = getGridPointXY(x + 1, y + 1);
+const getRectCorners = ({ row, col }: CellPoint) => {
+  const topLeft = getGridPointXY(col, row);
+  const topRight = getGridPointXY(col + 1, row);
+  const bottomLeft = getGridPointXY(col, row + 1);
+  const bottomRight = getGridPointXY(col + 1, row + 1);
   return {
     tl: topLeft,
     tr: topRight,
@@ -81,10 +92,10 @@ export const getRectCorners = (x: number, y: number) => {
 };
 
 export class UIRenderer {
-  private rectangleRenderer: RectRenderer;
+  public rects: RectRenderer;
+  public texts: TextRenderer;
   private gridRenderer: DotGridRenderer;
   private uniformsProvider: UniformsProvider;
-  private textRenderer: TextRenderer;
   private colorTexture: GPUTexture;
   private depthTexture: GPUTexture;
   private canvasDimensions: {
@@ -117,8 +128,8 @@ export class UIRenderer {
       this.uniformsProvider,
       gridPoints,
     );
-    this.rectangleRenderer = new RectRenderer(device, this.uniformsProvider);
-    this.textRenderer = new TextRenderer(device, format, this.uniformsProvider);
+    this.rects = new RectRenderer(device, this.uniformsProvider);
+    this.texts = new TextRenderer(device, format, this.uniformsProvider);
     this.canvasDimensions = {
       w: context.canvas.width,
       h: context.canvas.height,
@@ -126,19 +137,7 @@ export class UIRenderer {
   }
 
   async init() {
-    await this.textRenderer.init();
-  }
-
-  rectangle(args: RectangleArgs): void {
-    this.rectangleRenderer.rectangle(args);
-  }
-
-  pushText(args: PushTextArgs) {
-    return this.textRenderer.pushText(args);
-  }
-
-  updateText(args: UpdateTextArgs): void {
-    this.textRenderer.updateText(args);
+    await this.texts.init();
   }
 
   updateZoom(val: number[]) {
@@ -150,7 +149,7 @@ export class UIRenderer {
     this.uniformsProvider.updateWindowData(w, h);
   }
 
-  getClickedCell(point: Point2D): Point2D {
+  getCell(point: Point2D): CellPoint {
     const maxWidth = this.canvasDimensions.w;
     const maxHeight = this.canvasDimensions.h;
     const maxGridDim = Math.min(maxWidth, maxHeight);
@@ -159,8 +158,20 @@ export class UIRenderer {
     const x = getIndexOfMaxGridPointBoundedBy(gridX);
     const y = getIndexOfMaxGridPointBoundedBy(gridY);
     return {
-      x,
-      y,
+      row: y,
+      col: x,
+    };
+  }
+
+  getCellRect(cell: CellPoint): { x: number; y: number; w: number; h: number } {
+    const { tl, tr, bl } = getRectCorners(cell);
+    const cellWidth = tr.x - tl.x;
+    const cellHeight = bl.y - tl.y;
+    return {
+      x: tl.x,
+      y: tl.y,
+      w: cellWidth,
+      h: cellHeight,
     };
   }
 
@@ -191,10 +202,15 @@ export class UIRenderer {
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
 
     this.gridRenderer.render(passEncoder);
-    this.rectangleRenderer.render(passEncoder);
-    this.textRenderer.render(passEncoder);
+    this.rects.render(passEncoder);
+    this.texts.render(passEncoder);
 
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
+  }
+
+  reset() {
+    this.rects.reset();
+    this.texts.reset();
   }
 }

@@ -3,7 +3,7 @@ import { DEPTH_STENCIL_TEXTURE_FORMAT, SAMPLE_COUNT } from "./constants";
 import rectangleShader from "./shaders/rectangle.wgsl";
 import type { UniformsProvider } from "./uniforms-provider";
 
-export type RectangleArgs = {
+type RectangleArgs = {
   color: Vec4;
   position: Vec2;
   size: Vec2;
@@ -11,10 +11,12 @@ export type RectangleArgs = {
   sigma: number;
 };
 
+const STRUCT_SIZE = 16;
+
 // First number is the size of Rectangle struct (with padding).
 // Second is in this case maximum number of allowed elements (can easily go into
 // high thousands).
-const RECTANGLE_BUFFER_SIZE = 16 * 1024;
+const RECTANGLE_BUFFER_SIZE = STRUCT_SIZE * 1024;
 
 const X = 0;
 const Y = 1;
@@ -25,13 +27,13 @@ const W = 3;
  * Copied from https://codesandbox.io/p/sandbox/7qt3v6?file=%2Findex.ts%3A61%2C5-61%2C14
  */
 export class RectRenderer {
-  rectangleData: Float32Array = new Float32Array(RECTANGLE_BUFFER_SIZE);
-  rectangleCount = 0;
+  private rectangleData: Float32Array = new Float32Array(RECTANGLE_BUFFER_SIZE);
+  private rectangleCount = 0;
 
-  vertexBuffer: GPUBuffer;
-  rectangleBuffer: GPUBuffer;
-  rectangleBindGroup: GPUBindGroup;
-  rectanglePipeline: GPURenderPipeline;
+  private vertexBuffer: GPUBuffer;
+  private rectangleBuffer: GPUBuffer;
+  private rectangleBindGroup: GPUBindGroup;
+  private rectanglePipeline: GPURenderPipeline;
 
   constructor(
     private device: GPUDevice,
@@ -142,28 +144,72 @@ export class RectRenderer {
     device.queue.writeBuffer(this.vertexBuffer, 0, new Float32Array(vertices));
   }
 
-  rectangle(args: RectangleArgs): void {
+  /**
+   * Pushes a rectangle to the buffer.
+   * Returns the index of the rectangle.
+   */
+  push(args: RectangleArgs): number {
     const { color, position, size, corners, sigma } = args;
-    const struct = 16;
     const UNUSED = 0;
-    this.rectangleData[this.rectangleCount * struct + 0] = color[X];
-    this.rectangleData[this.rectangleCount * struct + 1] = color[Y];
-    this.rectangleData[this.rectangleCount * struct + 2] = color[Z];
-    this.rectangleData[this.rectangleCount * struct + 3] = color[W];
-    this.rectangleData[this.rectangleCount * struct + 4] = position[X];
-    this.rectangleData[this.rectangleCount * struct + 5] = position[Y];
-    this.rectangleData[this.rectangleCount * struct + 6] = UNUSED;
-    this.rectangleData[this.rectangleCount * struct + 7] = sigma;
-    this.rectangleData[this.rectangleCount * struct + 8] = corners[X];
-    this.rectangleData[this.rectangleCount * struct + 9] = corners[Y];
-    this.rectangleData[this.rectangleCount * struct + 10] = corners[Z];
-    this.rectangleData[this.rectangleCount * struct + 11] = corners[W];
-    this.rectangleData[this.rectangleCount * struct + 12] = size[X];
-    this.rectangleData[this.rectangleCount * struct + 13] = size[Y];
-    this.rectangleData[this.rectangleCount * struct + 14] = UNUSED;
-    this.rectangleData[this.rectangleCount * struct + 15] = UNUSED;
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 0] = color[X];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 1] = color[Y];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 2] = color[Z];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 3] = color[W];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 4] = position[X];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 5] = position[Y];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 6] = UNUSED;
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 7] = sigma;
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 8] = corners[X];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 9] = corners[Y];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 10] = corners[Z];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 11] = corners[W];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 12] = size[X];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 13] = size[Y];
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 14] = UNUSED;
+    this.rectangleData[this.rectangleCount * STRUCT_SIZE + 15] = UNUSED;
 
+    const index = this.rectangleCount;
     this.rectangleCount += 1;
+    return index;
+  }
+
+  update(index: number, args: Partial<RectangleArgs>): void {
+    const { color, position, size, corners, sigma } = args;
+    if (color) {
+      this.rectangleData[index * STRUCT_SIZE + 0] = color[X];
+      this.rectangleData[index * STRUCT_SIZE + 1] = color[Y];
+      this.rectangleData[index * STRUCT_SIZE + 2] = color[Z];
+      this.rectangleData[index * STRUCT_SIZE + 3] = color[W];
+    }
+    if (position) {
+      this.rectangleData[index * STRUCT_SIZE + 4] = position[X];
+      this.rectangleData[index * STRUCT_SIZE + 5] = position[Y];
+    }
+    if (sigma) {
+      this.rectangleData[index * STRUCT_SIZE + 7] = sigma;
+    }
+    if (corners) {
+      this.rectangleData[index * STRUCT_SIZE + 8] = corners[X];
+      this.rectangleData[index * STRUCT_SIZE + 9] = corners[Y];
+      this.rectangleData[index * STRUCT_SIZE + 10] = corners[Z];
+      this.rectangleData[index * STRUCT_SIZE + 11] = corners[W];
+    }
+    if (size) {
+      this.rectangleData[index * STRUCT_SIZE + 12] = size[X];
+      this.rectangleData[index * STRUCT_SIZE + 13] = size[Y];
+    }
+  }
+
+  /**
+   * Doesn't actually delete the rect, just sets it to zero,
+   * which makes it disappear.
+   */
+  delete(index: number) {
+    this.rectangleData.fill(
+      0,
+      index * STRUCT_SIZE,
+      index * STRUCT_SIZE + STRUCT_SIZE,
+    );
   }
 
   render(passEncoder: GPURenderPassEncoder): void {
