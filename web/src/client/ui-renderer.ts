@@ -204,4 +204,9 @@ export class UIRenderer {
     passEncoder.end();
     this.device.queue.submit([commandEncoder.finish()]);
   }
+
+  reset() {
+    this.rects.reset();
+    this.texts.reset();
+  }
 }

@@ -44,7 +44,6 @@ export class TextRenderer {
   private chars: { [x: number]: MsdfChar };
   private renderBundleDescriptor: GPURenderBundleEncoderDescriptor;
   private instances: MsdfText[] = [];
-  private values: string[] = [];
 
   constructor(
     private device: GPUDevice,
@@ -238,6 +237,10 @@ export class TextRenderer {
     passEncoder.executeBundles(renderBundles);
   }
 
+  reset(): void {
+    this.instances = [];
+  }
+
   /**
    * Returns the index of the pushed element
    * TODO: return the width of the text also
@@ -251,30 +254,29 @@ export class TextRenderer {
     mat4.scale(transform, [1, -1, 1], transform);
     msdfText.setTransform(transform);
     this.instances.push(msdfText);
-    this.values.push(value);
     return this.instances.length - 1;
   }
 
-  update(index: number, args: UpdateTextArgs) {
-    const { value, position } = args;
-    const msdfText = this.formatText(value, {
-      pixelScale: PIXEL_SCALE,
-    });
-    const transform = mat4.identity();
-    mat4.translate(transform, [position[0], position[1], 0], transform);
-    mat4.scale(transform, [1, -1, 1], transform);
-    msdfText.setTransform(transform);
-    this.instances[index] = msdfText;
-    this.values[index] = value;
-  }
+  // update(index: number, args: UpdateTextArgs) {
+  //   const { value, position } = args;
+  //   const msdfText = this.formatText(value, {
+  //     pixelScale: PIXEL_SCALE,
+  //   });
+  //   const transform = mat4.identity();
+  //   mat4.translate(transform, [position[0], position[1], 0], transform);
+  //   mat4.scale(transform, [1, -1, 1], transform);
+  //   msdfText.setTransform(transform);
+  //   this.instances[index] = msdfText;
+  //   this.values[index] = value;
+  // }
 
-  append(index: number, args: UpdateTextArgs) {
-    const text = args.value;
-    const oldValue = this.values[index];
-    const newValue = oldValue + text;
-    args.value = newValue;
-    return this.update(index, args);
-  }
+  // append(index: number, args: UpdateTextArgs) {
+  //   const text = args.value;
+  //   const oldValue = this.values[index];
+  //   const newValue = oldValue + text;
+  //   args.value = newValue;
+  //   return this.update(index, args);
+  // }
 
   private formatText(text: string, options: MsdfTextFormattingOptions) {
     if (!this.font) {
