@@ -7,6 +7,7 @@ import {
   UIRenderer,
   type CellPoint,
 } from "./ui-renderer";
+import { GRID_N } from "./constants";
 
 const cursorStyle = {
   select: "auto",
@@ -135,14 +136,33 @@ async function main() {
           rectElements.splice(activeRectIndex, 1);
           activeRectIndex = -1;
           break;
-        // TODO: Implement
         case "ArrowUp":
+          {
+            const rect = rectElements[activeRectIndex];
+            const { row, col } = rect.point;
+            rect.point = { row: Math.max(0, row - 1), col };
+          }
           break;
         case "ArrowDown":
+          {
+            const rect = rectElements[activeRectIndex];
+            const { row, col } = rect.point;
+            rect.point = { row: Math.min(GRID_N - 1, row + 1), col };
+          }
           break;
         case "ArrowLeft":
+          {
+            const rect = rectElements[activeRectIndex];
+            const { row, col } = rect.point;
+            rect.point = { row, col: Math.max(0, col - 1) };
+          }
           break;
         case "ArrowRight":
+          {
+            const rect = rectElements[activeRectIndex];
+            const { row, col } = rect.point;
+            rect.point = { row, col: Math.min(GRID_N - 1, col + 1) };
+          }
           break;
         case "Delete":
         case "Backspace":
