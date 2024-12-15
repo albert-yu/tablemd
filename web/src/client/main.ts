@@ -126,12 +126,12 @@ async function main() {
   canvasEvents.addListener({
     event: "keydown",
     listener: (e) => {
+      if (activeRectIndex === -1) {
+        return;
+      }
       let handled = true;
       switch (e.key) {
         case "Escape":
-          if (activeRectIndex === -1) {
-            break;
-          }
           rectElements.splice(activeRectIndex, 1);
           activeRectIndex = -1;
           break;
@@ -147,9 +147,6 @@ async function main() {
         case "Delete":
         case "Backspace":
           {
-            if (activeRectIndex === -1) {
-              break;
-            }
             const rect = rectElements[activeRectIndex];
             const start = rect.point;
             const existingTextIndex = textElements.findIndex((t) =>
@@ -177,9 +174,6 @@ async function main() {
       // TODO: allow for non-alphanumeric characters
       const isAlphaNumericOrSpace = e.key.match(/^[a-zA-Z0-9\s]$/);
       if (!isAlphaNumericOrSpace) {
-        return;
-      }
-      if (activeRectIndex === -1) {
         return;
       }
       const char = e.key;
