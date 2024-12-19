@@ -196,12 +196,11 @@ async function main() {
       if (handled) {
         return;
       }
-      // TODO: allow for non-alphanumeric characters
-      const isAlphaNumericOrSpace = e.key.match(/^[a-zA-Z0-9\s]$/);
-      if (!isAlphaNumericOrSpace) {
+      const char = getCharFromEvent(e);
+      const isPrintable = isPrintableChar(char);
+      if (!isPrintable) {
         return;
       }
-      const char = e.key;
       const rect = rectElements[activeRectIndex];
       const start = rect.point;
       let textElement = textElements.find((t) =>
@@ -355,6 +354,64 @@ function getCanvasSelectMode() {
     'input[name="canvas-input-mode"]:checked',
   )?.value as CanvasMode | undefined;
   return checked;
+}
+
+function getCharFromEvent(e: KeyboardEvent) {
+  if (e.key.length !== 1) {
+    // Ignore Shift, Alt, Ctrl, etc.
+    return "";
+  }
+  if (e.shiftKey) {
+    switch (e.key) {
+      case "1":
+        return "!";
+      case "2":
+        return "@";
+      case "3":
+        return "#";
+      case "4":
+        return "$";
+      case "5":
+        return "%";
+      case "6":
+        return "^";
+      case "7":
+        return "&";
+      case "8":
+        return "*";
+      case "9":
+        return "(";
+      case "0":
+        return ")";
+      case "-":
+        return "_";
+      case "=":
+        return "+";
+      case "[":
+        return "{";
+      case "]":
+        return "}";
+      case "\\":
+        return "|";
+      case ";":
+        return ":";
+      case "'":
+        return '"';
+      case ",":
+        return "<";
+      case ".":
+        return ">";
+      case "/":
+        return "?";
+      default:
+        return e.key;
+    }
+  }
+  return e.key;
+}
+
+function isPrintableChar(char: string) {
+  return char.match(/^[\P{Cc}\P{Cn}\P{Cs}]+$/gu);
 }
 
 await main();
