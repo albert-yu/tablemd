@@ -14,11 +14,13 @@ const cursorStyle = {
   pan: "grab",
 } as const;
 
-type TextElement = { start: CellPoint; value: string };
+type TextElement = { start: CellPoint; value: string; rect: RectElement };
 type RectElement = {
   point: CellPoint;
   color: Vec4;
   corners: Vec4;
+  width: number;
+  height: number;
 };
 
 async function main() {
@@ -87,7 +89,10 @@ async function main() {
           GRID_CELL_WIDTH * rectElement.point.col,
           GRID_CELL_HEIGHT * rectElement.point.row,
         ),
-        size: vec2.create(GRID_CELL_WIDTH, GRID_CELL_HEIGHT),
+        size: vec2.create(
+          GRID_CELL_WIDTH * rectElement.width,
+          GRID_CELL_HEIGHT * rectElement.height,
+        ),
         corners: rectElement.corners,
         sigma: 1e-6,
       });
@@ -199,16 +204,31 @@ async function main() {
       const char = e.key;
       const rect = rectElements[activeRectIndex];
       const start = rect.point;
-      const existingText = textElements.find((t) =>
+      let textElement = textElements.find((t) =>
         cellPointsEqual(t.start, start),
       );
-      if (existingText) {
-        existingText.value += char;
+      if (textElement) {
+        textElement.value += char;
+        const textWidth = ui.texts.getTextWidth(textElement.value);
+        // Find minimum number of cells to fit the text
+        const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
+        textElement.rect.width = cellsToFit;
       } else {
-        textElements.push({
+        const textWidth = ui.texts.getTextWidth(char);
+        const newRect: RectElement = {
+          point: start,
+          color: vec4.create(0, 0, 1, 0.5),
+          corners: vec4.create(0, 0, 0, 0),
+          width: textWidth,
+          height: 1,
+        };
+        rectElements.push(newRect);
+        textElement = {
           start,
           value: char,
-        });
+          rect: newRect,
+        };
+        textElements.push(textElement);
       }
     },
   });
@@ -227,6 +247,8 @@ async function main() {
           point: cell,
           color: vec4.create(0, 1, 0, 0.5),
           corners: vec4.create(0, 0, 0, 0),
+          width: 1,
+          height: 1,
         });
         activeRectIndex = index;
       }
@@ -248,6 +270,8 @@ async function main() {
           point: cell,
           color: vec4.create(0, 0, 1, 0.5),
           corners: vec4.create(0, 0, 0, 0),
+          width: 1,
+          height: 1,
         });
         hoverRectIndex = i;
       }
