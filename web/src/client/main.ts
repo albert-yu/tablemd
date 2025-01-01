@@ -76,7 +76,8 @@ async function main() {
 
   const ui = new UIRenderer(device, context, format);
   await ui.init();
-  const textCursorWidth = ui.texts.getTextWidth("a") / GRID_CELL_WIDTH;
+  const charWidth = ui.texts.getTextWidth("a");
+  const textCursorWidth = charWidth / GRID_CELL_WIDTH;
   // UI state start
   let textCursorIndex = -1;
   let activeRectIndex = -1;
@@ -311,18 +312,31 @@ async function main() {
       );
       const width = textElement ? textCursorWidth : 1;
 
-      const point = (() => {
-        // if (textElement) {
-        //   const { start, rect } = textElement;
-        //   const { col, row } = cell;
-        // }
-        return cell;
+      const position = (() => {
+        if (textElement) {
+          const { start } = textElement;
+          let { x, y } = ui.normalizePoint(p);
+          let { col, row } = start;
+          let cursorX = col * GRID_CELL_WIDTH;
+          while (cursorX + charWidth < x) {
+            cursorX += charWidth;
+          }
+          let cursorY = row * GRID_CELL_HEIGHT;
+          while (cursorY + GRID_CELL_HEIGHT < y) {
+            cursorY += GRID_CELL_HEIGHT;
+          }
+          return {
+            x: cursorX,
+            y: cursorY,
+          };
+        }
+        return {
+          x: GRID_CELL_WIDTH * cell.col,
+          y: GRID_CELL_HEIGHT * cell.row,
+        };
       })();
 
-      hoverRect.position = vec2.create(
-        GRID_CELL_WIDTH * point.col,
-        GRID_CELL_HEIGHT * point.row,
-      );
+      hoverRect.position = vec2.create(position.x, position.y);
       hoverRect.width = width * GRID_CELL_WIDTH;
       hoverRect.height = GRID_CELL_HEIGHT;
     },

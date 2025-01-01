@@ -149,12 +149,20 @@ export class UIRenderer {
     this.uniformsProvider.updateWindowData(w, h);
   }
 
-  getCell(point: Point2D): CellPoint {
+  normalizePoint(point: Point2D): Point2D {
     const maxWidth = this.canvasDimensions.w;
     const maxHeight = this.canvasDimensions.h;
     const maxGridDim = Math.min(maxWidth, maxHeight);
     const gridX = point.x / maxGridDim;
     const gridY = point.y / maxGridDim;
+    return {
+      x: gridX,
+      y: gridY,
+    };
+  }
+
+  getCell(point: Point2D): CellPoint {
+    const { x: gridX, y: gridY } = this.normalizePoint(point);
     const x = getIndexOfMaxGridPointBoundedBy(gridX);
     const y = getIndexOfMaxGridPointBoundedBy(gridY);
     return {
