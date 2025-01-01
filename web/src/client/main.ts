@@ -18,24 +18,27 @@ const cursorStyle = {
   pan: "grab",
 } as const;
 
+type Color = [number, number, number, number];
+type Corners = [number, number, number, number];
+
+type CellRect = {
+  point: CellPosition;
+  color: Color;
+  corners: Corners;
+  width: number;
+  height: number;
+};
+
 type TextElement = {
   start: CellPosition;
   value: string;
   rect: CellRect;
 };
 
-type CellRect = {
-  point: CellPosition;
-  color: Vec4;
-  corners: Vec4;
-  width: number;
-  height: number;
-};
-
 type RectElement = {
   worldXY: Point2D;
-  color: [number, number, number, number];
-  corners: [number, number, number, number];
+  color: Color;
+  corners: Corners;
   width: number;
   height: number;
 };
@@ -178,7 +181,7 @@ async function main() {
     }
     for (const rectElement of rectElements) {
       ui.rects.push({
-        color: rectElement.color,
+        color: vec4.create(...rectElement.color),
         position: vec2.create(
           GRID_CELL_WIDTH * rectElement.point.col,
           GRID_CELL_HEIGHT * rectElement.point.row,
@@ -187,7 +190,7 @@ async function main() {
           GRID_CELL_WIDTH * rectElement.width,
           GRID_CELL_HEIGHT * rectElement.height,
         ),
-        corners: rectElement.corners,
+        corners: vec4.create(...rectElement.corners),
         sigma: 1e-6,
       });
     }
@@ -327,8 +330,8 @@ async function main() {
         const textWidth = ui.texts.getTextWidth(char);
         const newRect: CellRect = {
           point: cursorCellPosition,
-          color: vec4.create(0, 0, 1, 0.5),
-          corners: vec4.create(0, 0, 0, 0),
+          color: [0, 0, 1, 0.5],
+          corners: [0, 0, 0, 0],
           width: textWidth,
           height: 1,
         };
