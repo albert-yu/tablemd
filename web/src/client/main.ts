@@ -1,4 +1,4 @@
-import { vec2, vec4, type Vec4 } from "wgpu-matrix";
+import { vec2, vec4, type Vec2, type Vec4 } from "wgpu-matrix";
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import {
   cellPointsEqual,
@@ -14,9 +14,21 @@ const cursorStyle = {
   pan: "grab",
 } as const;
 
-type TextElement = { start: CellPoint; value: string; rect: RectElement };
-type RectElement = {
+type TextElement = {
+  start: CellPoint;
+  value: string;
+  rect: CellAlignedRectElement;
+};
+type CellAlignedRectElement = {
   point: CellPoint;
+  color: Vec4;
+  corners: Vec4;
+  width: number;
+  height: number;
+};
+
+type RectElement = {
+  position: Vec2;
   color: Vec4;
   corners: Vec4;
   width: number;
@@ -64,11 +76,21 @@ async function main() {
 
   const ui = new UIRenderer(device, context, format);
   await ui.init();
+  const textCursorWidth = ui.texts.getTextWidth("a") / GRID_CELL_WIDTH;
   // UI state start
-  let hoverRectIndex = -1;
+  let textCursorIndex = -1;
   let activeRectIndex = -1;
   const textElements: TextElement[] = [];
-  const rectElements: RectElement[] = [];
+  const rectElements: CellAlignedRectElement[] = [];
+
+  const hoverRect: RectElement = {
+    color: vec4.create(1, 1, 1, 0.25),
+    position: vec2.create(0, 0),
+    width: 0,
+    height: GRID_CELL_HEIGHT,
+    corners: vec4.create(0, 0, 0, 0),
+  };
+
   // UI state end
 
   function frame() {
@@ -97,6 +119,14 @@ async function main() {
         sigma: 1e-6,
       });
     }
+    // Hover rect
+    ui.rects.push({
+      color: hoverRect.color,
+      position: hoverRect.position,
+      size: vec2.create(hoverRect.width, hoverRect.height),
+      corners: hoverRect.corners,
+      sigma: 1e-6,
+    });
     ui.render();
 
     frames++;
@@ -214,7 +244,7 @@ async function main() {
         textElement.rect.width = cellsToFit;
       } else {
         const textWidth = ui.texts.getTextWidth(char);
-        const newRect: RectElement = {
+        const newRect: CellAlignedRectElement = {
           point: start,
           color: vec4.create(0, 0, 1, 0.5),
           corners: vec4.create(0, 0, 0, 0),
@@ -237,6 +267,21 @@ async function main() {
       // p is given relative to canvas dimensions.
       // Need to map it back to grid space (N x N)
       const cell = ui.getCell(p);
+      // see if we hit a text box
+      const textElement = textElements.find((t) =>
+        rectContainsPoint(t.rect, cell),
+      );
+      if (textElement) {
+        // get cursor position within element
+        const { start, rect } = textElement;
+        const { col, row } = cell;
+        if (textCursorIndex !== -1) {
+          const existingRect = rectElements[textCursorIndex];
+          existingRect.point = { row, col: col - start.col };
+        }
+        const cursorCol = Math.min(start.col + rect.width, col);
+        return;
+      }
       if (activeRectIndex !== -1) {
         const element = rectElements[activeRectIndex];
         element.point = cell;
@@ -260,20 +305,26 @@ async function main() {
       // Need to map it back to grid space (N x N)
       const cell = ui.getCell(p);
 
-      if (hoverRectIndex !== -1) {
-        const element = rectElements[hoverRectIndex];
-        element.point = cell;
-      } else {
-        const i = rectElements.length;
-        rectElements.push({
-          point: cell,
-          color: vec4.create(0, 0, 1, 0.5),
-          corners: vec4.create(0, 0, 0, 0),
-          width: 1,
-          height: 1,
-        });
-        hoverRectIndex = i;
-      }
+      // see if we hit a text box
+      const textElement = textElements.find((t) =>
+        rectContainsPoint(t.rect, cell),
+      );
+      const width = textElement ? textCursorWidth : 1;
+
+      const point = (() => {
+        // if (textElement) {
+        //   const { start, rect } = textElement;
+        //   const { col, row } = cell;
+        // }
+        return cell;
+      })();
+
+      hoverRect.position = vec2.create(
+        GRID_CELL_WIDTH * point.col,
+        GRID_CELL_HEIGHT * point.row,
+      );
+      hoverRect.width = width * GRID_CELL_WIDTH;
+      hoverRect.height = GRID_CELL_HEIGHT;
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
@@ -347,6 +398,17 @@ async function main() {
   } catch (err) {
     console.log(err);
   }
+}
+
+function rectContainsPoint(rect: CellAlignedRectElement, point: CellPoint) {
+  const { row, col } = point;
+  const { point: rectPoint, width, height } = rect;
+  return (
+    rectPoint.row <= row &&
+    rectPoint.col <= col &&
+    rectPoint.row + height > row &&
+    rectPoint.col + width > col
+  );
 }
 
 function getCanvasSelectMode() {
