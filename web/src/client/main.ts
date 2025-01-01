@@ -9,7 +9,7 @@ import {
   GRID_CELL_HEIGHT,
   GRID_CELL_WIDTH,
   UIRenderer,
-  type CellPoint,
+  type CellPosition,
 } from "./ui-renderer";
 import { GRID_N } from "./constants";
 
@@ -19,12 +19,13 @@ const cursorStyle = {
 } as const;
 
 type TextElement = {
-  start: CellPoint;
+  start: CellPosition;
   value: string;
-  rect: CellAlignedRectElement;
+  rect: CellRect;
 };
-type CellAlignedRectElement = {
-  point: CellPoint;
+
+type CellRect = {
+  point: CellPosition;
   color: Vec4;
   corners: Vec4;
   width: number;
@@ -32,11 +33,16 @@ type CellAlignedRectElement = {
 };
 
 type RectElement = {
-  position: Vec2;
-  color: Vec4;
-  corners: Vec4;
+  worldXY: Point2D;
+  color: [number, number, number, number];
+  corners: [number, number, number, number];
   width: number;
   height: number;
+};
+
+type Cursor = {
+  active: boolean;
+  rect: RectElement;
 };
 
 async function main() {
@@ -83,17 +89,26 @@ async function main() {
   const charWidth = ui.texts.getTextWidth("a");
   const textCursorWidth = charWidth / GRID_CELL_WIDTH;
   // UI state start
-  let textCursorIndex = -1;
-  let activeRectIndex = -1;
   const textElements: TextElement[] = [];
-  const rectElements: CellAlignedRectElement[] = [];
+  const rectElements: CellRect[] = [];
 
   const hoverRect: RectElement = {
-    color: vec4.create(1, 1, 1, 0.25),
-    position: vec2.create(0, 0),
+    color: [1, 1, 1, 0.25],
+    worldXY: { x: 0, y: 0 },
     width: 0,
     height: GRID_CELL_HEIGHT,
-    corners: vec4.create(0, 0, 0, 0),
+    corners: [0, 0, 0, 0],
+  };
+
+  const cursor: Cursor = {
+    active: false,
+    rect: {
+      color: [1, 1, 1, 0.5],
+      worldXY: { x: 0, y: 0 },
+      width: 0,
+      height: GRID_CELL_HEIGHT,
+      corners: [0, 0, 0, 0],
+    },
   };
 
   // UI state end
@@ -103,12 +118,12 @@ async function main() {
   /**
    * Returns the cursor dimensions, aware of
    * text elements
-   * @param p
+   * @param p canvas-relative point
    * @returns
    */
   const getCursorRect = (
     p: Point2D,
-  ): Pick<RectElement, "position" | "width" | "height"> => {
+  ): Pick<RectElement, "worldXY" | "width" | "height"> => {
     // p is given relative to canvas dimensions.
     // Need to map it back to grid space (N x N)
     const cell = ui.getCell(p);
@@ -144,7 +159,7 @@ async function main() {
     })();
 
     return {
-      position: vec2.create(position.x, position.y),
+      worldXY: position,
       width: width * GRID_CELL_WIDTH,
       height: GRID_CELL_HEIGHT,
     };
@@ -177,13 +192,10 @@ async function main() {
       });
     }
     // Hover rect
-    ui.rects.push({
-      color: hoverRect.color,
-      position: hoverRect.position,
-      size: vec2.create(hoverRect.width, hoverRect.height),
-      corners: hoverRect.corners,
-      sigma: 1e-6,
-    });
+    ui.rects.push(rectToRenderable(hoverRect));
+    if (cursor.active) {
+      ui.rects.push(rectToRenderable(cursor.rect));
+    }
     ui.render();
 
     frames++;
@@ -219,48 +231,59 @@ async function main() {
   canvasEvents.addListener({
     event: "keydown",
     listener: (e) => {
-      if (activeRectIndex === -1) {
+      if (!cursor.active) {
         return;
       }
       let handled = true;
+      const cursorCellPosition = ui.getCellPosition(cursor.rect.worldXY);
       switch (e.key) {
         case "Escape":
-          rectElements.splice(activeRectIndex, 1);
-          activeRectIndex = -1;
+          cursor.active = false;
           break;
         case "ArrowUp":
           {
-            const rect = rectElements[activeRectIndex];
-            const { row, col } = rect.point;
-            rect.point = { row: Math.max(0, row - 1), col };
+            const { row, col } = cursorCellPosition;
+            const newCellPosition = { row: Math.max(0, row - 1), col };
+            cursor.rect.worldXY = {
+              x: newCellPosition.col * GRID_CELL_WIDTH,
+              y: newCellPosition.row * GRID_CELL_HEIGHT,
+            };
           }
           break;
         case "ArrowDown":
           {
-            const rect = rectElements[activeRectIndex];
-            const { row, col } = rect.point;
-            rect.point = { row: Math.min(GRID_N - 1, row + 1), col };
+            const { row, col } = cursorCellPosition;
+            const newCellPosition = { row: Math.min(GRID_N - 1, row + 1), col };
+            cursor.rect.worldXY = {
+              x: newCellPosition.col * GRID_CELL_WIDTH,
+              y: newCellPosition.row * GRID_CELL_HEIGHT,
+            };
           }
           break;
         case "ArrowLeft":
           {
-            const rect = rectElements[activeRectIndex];
-            const { row, col } = rect.point;
-            rect.point = { row, col: Math.max(0, col - 1) };
+            const { row, col } = cursorCellPosition;
+            const newCellPosition = { row, col: Math.max(0, col - 1) };
+            cursor.rect.worldXY = {
+              x: newCellPosition.col * GRID_CELL_WIDTH,
+              y: newCellPosition.row * GRID_CELL_HEIGHT,
+            };
           }
           break;
         case "ArrowRight":
           {
-            const rect = rectElements[activeRectIndex];
-            const { row, col } = rect.point;
-            rect.point = { row, col: Math.min(GRID_N - 1, col + 1) };
+            const { row, col } = cursorCellPosition;
+            const newCellPosition = { row, col: Math.min(GRID_N - 1, col + 1) };
+            cursor.rect.worldXY = {
+              x: newCellPosition.col * GRID_CELL_WIDTH,
+              y: newCellPosition.row * GRID_CELL_HEIGHT,
+            };
           }
           break;
         case "Delete":
         case "Backspace":
           {
-            const rect = rectElements[activeRectIndex];
-            const start = rect.point;
+            const start = cursorCellPosition;
             const existingTextIndex = textElements.findIndex((t) =>
               cellPointsEqual(t.start, start),
             );
@@ -271,15 +294,17 @@ async function main() {
             existingText.value = existingText.value.slice(0, -1);
             if (existingText.value.length === 0) {
               textElements.splice(existingTextIndex, 1);
-              // activeRectIndex = -1;
             }
+            const textWidth = ui.texts.getTextWidth(existingText.value);
+            // Find minimum number of cells to fit the text
+            const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
+            existingText.rect.width = cellsToFit;
           }
           break;
         default:
           handled = false;
           break;
       }
-
       if (handled) {
         return;
       }
@@ -288,10 +313,9 @@ async function main() {
       if (!isPrintable) {
         return;
       }
-      const rect = rectElements[activeRectIndex];
-      const start = rect.point;
+
       let textElement = textElements.find((t) =>
-        cellPointsEqual(t.start, start),
+        cellPointsEqual(t.start, cursorCellPosition),
       );
       if (textElement) {
         textElement.value += char;
@@ -301,8 +325,8 @@ async function main() {
         textElement.rect.width = cellsToFit;
       } else {
         const textWidth = ui.texts.getTextWidth(char);
-        const newRect: CellAlignedRectElement = {
-          point: start,
+        const newRect: CellRect = {
+          point: cursorCellPosition,
           color: vec4.create(0, 0, 1, 0.5),
           corners: vec4.create(0, 0, 0, 0),
           width: textWidth,
@@ -310,7 +334,7 @@ async function main() {
         };
         rectElements.push(newRect);
         textElement = {
-          start,
+          start: cursorCellPosition,
           value: char,
           rect: newRect,
         };
@@ -321,45 +345,18 @@ async function main() {
   canvasEvents.addListener({
     event: "click",
     listener: (p) => {
-      // p is given relative to canvas dimensions.
-      // Need to map it back to grid space (N x N)
-      const cell = ui.getCell(p);
-      // see if we hit a text box
-      const textElement = textElements.find((t) =>
-        rectContainsPoint(t.rect, cell),
-      );
-      if (textElement) {
-        // get cursor position within element
-        const { start, rect } = textElement;
-        const { col, row } = cell;
-        if (textCursorIndex !== -1) {
-          const existingRect = rectElements[textCursorIndex];
-          existingRect.point = { row, col: col - start.col };
-        }
-        const cursorCol = Math.min(start.col + rect.width, col);
-        return;
-      }
-      if (activeRectIndex !== -1) {
-        const element = rectElements[activeRectIndex];
-        element.point = cell;
-      } else {
-        const index = rectElements.length;
-        rectElements.push({
-          point: cell,
-          color: vec4.create(0, 1, 0, 0.5),
-          corners: vec4.create(0, 0, 0, 0),
-          width: 1,
-          height: 1,
-        });
-        activeRectIndex = index;
-      }
+      const { worldXY, width, height } = getCursorRect(p);
+      cursor.rect.worldXY = worldXY;
+      cursor.rect.width = width;
+      cursor.rect.height = height;
+      cursor.active = true;
     },
   });
   canvasEvents.addListener({
     event: "hover",
     listener: (p) => {
-      const { position, width, height } = getCursorRect(p);
-      hoverRect.position = position;
+      const { worldXY, width, height } = getCursorRect(p);
+      hoverRect.worldXY = worldXY;
       hoverRect.width = width;
       hoverRect.height = height;
     },
@@ -437,7 +434,7 @@ async function main() {
   }
 }
 
-function rectContainsPoint(rect: CellAlignedRectElement, point: CellPoint) {
+function rectContainsPoint(rect: CellRect, point: CellPosition) {
   const { row, col } = point;
   const { point: rectPoint, width, height } = rect;
   return (
@@ -511,6 +508,16 @@ function getCharFromEvent(e: KeyboardEvent) {
 
 function isPrintableChar(char: string) {
   return char.match(/^[\P{Cc}\P{Cn}\P{Cs}]+$/gu);
+}
+
+function rectToRenderable(rect: RectElement) {
+  return {
+    color: vec4.create(...rect.color),
+    position: vec2.create(rect.worldXY.x, rect.worldXY.y),
+    size: vec2.create(rect.width, rect.height),
+    corners: vec4.create(...rect.corners),
+    sigma: 1e-6,
+  };
 }
 
 await main();

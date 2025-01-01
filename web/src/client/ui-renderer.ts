@@ -34,7 +34,7 @@ const gridPoints: [Float32Array, Float32Array] = [
 export const GRID_CELL_HEIGHT = gridPoints[0][1] - gridPoints[0][0];
 export const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
 
-export type CellPoint = {
+export type CellPosition = {
   /**
    * Index of row in grid, starts at 0 at top
    */
@@ -45,7 +45,7 @@ export type CellPoint = {
   col: number;
 };
 
-export const cellPointsEqual = (a: CellPoint, b: CellPoint): boolean => {
+export const cellPointsEqual = (a: CellPosition, b: CellPosition): boolean => {
   return a.row === b.row && a.col === b.col;
 };
 
@@ -78,7 +78,7 @@ const getGridPointXY = (x: number, y: number): Point2D => {
  * @param col index of cell column
  * @returns
  */
-const getRectCorners = ({ row, col }: CellPoint) => {
+const getRectCorners = ({ row, col }: CellPosition) => {
   const topLeft = getGridPointXY(col, row);
   const topRight = getGridPointXY(col + 1, row);
   const bottomLeft = getGridPointXY(col, row + 1);
@@ -149,29 +149,38 @@ export class UIRenderer {
     this.uniformsProvider.updateWindowData(w, h);
   }
 
-  normalizePoint(point: Point2D): Point2D {
+  normalizePoint(canvasPoint: Point2D): Point2D {
     const maxWidth = this.canvasDimensions.w;
     const maxHeight = this.canvasDimensions.h;
     const maxGridDim = Math.min(maxWidth, maxHeight);
-    const gridX = point.x / maxGridDim;
-    const gridY = point.y / maxGridDim;
+    const gridX = canvasPoint.x / maxGridDim;
+    const gridY = canvasPoint.y / maxGridDim;
     return {
       x: gridX,
       y: gridY,
     };
   }
 
-  getCell(point: Point2D): CellPoint {
-    const { x: gridX, y: gridY } = this.normalizePoint(point);
-    const x = getIndexOfMaxGridPointBoundedBy(gridX);
-    const y = getIndexOfMaxGridPointBoundedBy(gridY);
+  getCellPosition(normalizedPoint: Point2D): CellPosition {
+    const x = getIndexOfMaxGridPointBoundedBy(normalizedPoint.x);
+    const y = getIndexOfMaxGridPointBoundedBy(normalizedPoint.y);
     return {
       row: y,
       col: x,
     };
   }
 
-  getCellRect(cell: CellPoint): { x: number; y: number; w: number; h: number } {
+  getCell(canvasPoint: Point2D): CellPosition {
+    const normalizedPoint = this.normalizePoint(canvasPoint);
+    return this.getCellPosition(normalizedPoint);
+  }
+
+  getCellRect(cell: CellPosition): {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } {
     const { tl, tr, bl } = getRectCorners(cell);
     const cellWidth = tr.x - tl.x;
     const cellHeight = bl.y - tl.y;
