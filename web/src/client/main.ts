@@ -1,5 +1,9 @@
 import { vec2, vec4, type Vec2, type Vec4 } from "wgpu-matrix";
-import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
+import {
+  type CanvasMode,
+  type Point2D,
+  CanvasEventHandler,
+} from "./canvas-events";
 import {
   cellPointsEqual,
   GRID_CELL_HEIGHT,
@@ -93,6 +97,58 @@ async function main() {
   };
 
   // UI state end
+
+  // helper functions
+
+  /**
+   * Returns the cursor dimensions, aware of
+   * text elements
+   * @param p
+   * @returns
+   */
+  const getCursorRect = (
+    p: Point2D,
+  ): Pick<RectElement, "position" | "width" | "height"> => {
+    // p is given relative to canvas dimensions.
+    // Need to map it back to grid space (N x N)
+    const cell = ui.getCell(p);
+
+    // see if we hit a text box
+    const textElement = textElements.find((t) =>
+      rectContainsPoint(t.rect, cell),
+    );
+    const width = textElement ? textCursorWidth : 1;
+
+    const position = (() => {
+      if (textElement) {
+        const { start } = textElement;
+        let { x, y } = ui.normalizePoint(p);
+        let { col, row } = start;
+        let cursorX = col * GRID_CELL_WIDTH;
+        while (cursorX + charWidth < x) {
+          cursorX += charWidth;
+        }
+        let cursorY = row * GRID_CELL_HEIGHT;
+        while (cursorY + GRID_CELL_HEIGHT < y) {
+          cursorY += GRID_CELL_HEIGHT;
+        }
+        return {
+          x: cursorX,
+          y: cursorY,
+        };
+      }
+      return {
+        x: GRID_CELL_WIDTH * cell.col,
+        y: GRID_CELL_HEIGHT * cell.row,
+      };
+    })();
+
+    return {
+      position: vec2.create(position.x, position.y),
+      width: width * GRID_CELL_WIDTH,
+      height: GRID_CELL_HEIGHT,
+    };
+  };
 
   function frame() {
     ui.reset();
@@ -302,43 +358,10 @@ async function main() {
   canvasEvents.addListener({
     event: "hover",
     listener: (p) => {
-      // p is given relative to canvas dimensions.
-      // Need to map it back to grid space (N x N)
-      const cell = ui.getCell(p);
-
-      // see if we hit a text box
-      const textElement = textElements.find((t) =>
-        rectContainsPoint(t.rect, cell),
-      );
-      const width = textElement ? textCursorWidth : 1;
-
-      const position = (() => {
-        if (textElement) {
-          const { start } = textElement;
-          let { x, y } = ui.normalizePoint(p);
-          let { col, row } = start;
-          let cursorX = col * GRID_CELL_WIDTH;
-          while (cursorX + charWidth < x) {
-            cursorX += charWidth;
-          }
-          let cursorY = row * GRID_CELL_HEIGHT;
-          while (cursorY + GRID_CELL_HEIGHT < y) {
-            cursorY += GRID_CELL_HEIGHT;
-          }
-          return {
-            x: cursorX,
-            y: cursorY,
-          };
-        }
-        return {
-          x: GRID_CELL_WIDTH * cell.col,
-          y: GRID_CELL_HEIGHT * cell.row,
-        };
-      })();
-
-      hoverRect.position = vec2.create(position.x, position.y);
-      hoverRect.width = width * GRID_CELL_WIDTH;
-      hoverRect.height = GRID_CELL_HEIGHT;
+      const { position, width, height } = getCursorRect(p);
+      hoverRect.position = position;
+      hoverRect.width = width;
+      hoverRect.height = height;
     },
   });
   (globalThis as any)["updateMode"] = function (radio: HTMLInputElement) {
