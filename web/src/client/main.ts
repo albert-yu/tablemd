@@ -44,8 +44,9 @@ type RectElement = {
 };
 
 type Cursor = {
+  cell: CellPosition;
   active: boolean;
-  rect: RectElement;
+  rect: Omit<RectElement, "worldXY">;
 };
 
 async function main() {
@@ -105,9 +106,9 @@ async function main() {
 
   const cursor: Cursor = {
     active: false,
+    cell: { row: 0, col: 0 },
     rect: {
       color: [1, 1, 1, 0.5],
-      worldXY: { x: 0, y: 0 },
       width: 0,
       height: GRID_CELL_HEIGHT,
       corners: [0, 0, 0, 0],
@@ -126,7 +127,10 @@ async function main() {
    */
   const getCursorRect = (
     p: Point2D,
-  ): Pick<RectElement, "worldXY" | "width" | "height"> => {
+  ): {
+    rect: Pick<RectElement, "worldXY" | "width" | "height">;
+    cell: CellPosition;
+  } => {
     // p is given relative to canvas dimensions.
     // Need to map it back to grid space (N x N)
     const cell = ui.getCell(p);
@@ -162,9 +166,12 @@ async function main() {
     })();
 
     return {
-      worldXY: position,
-      width: width * GRID_CELL_WIDTH,
-      height: GRID_CELL_HEIGHT,
+      cell,
+      rect: {
+        worldXY: position,
+        width: width * GRID_CELL_WIDTH,
+        height: GRID_CELL_HEIGHT,
+      },
     };
   };
 
@@ -197,7 +204,7 @@ async function main() {
     // Hover rect
     ui.rects.push(rectToRenderable(hoverRect));
     if (cursor.active) {
-      ui.rects.push(rectToRenderable(cursor.rect));
+      ui.rects.push(cursorToRenderable(cursor));
     }
     ui.render();
 
@@ -238,55 +245,27 @@ async function main() {
         return;
       }
       let handled = true;
-      const cursorCellPosition = ui.getCellPosition(cursor.rect.worldXY);
+      const { row, col } = cursor.cell;
       switch (e.key) {
         case "Escape":
           cursor.active = false;
           break;
         case "ArrowUp":
-          {
-            const { row, col } = cursorCellPosition;
-            const newCellPosition = { row: Math.max(0, row - 1), col };
-            cursor.rect.worldXY = {
-              x: newCellPosition.col * GRID_CELL_WIDTH,
-              y: newCellPosition.row * GRID_CELL_HEIGHT,
-            };
-          }
+          cursor.cell.row = Math.max(0, row - 1);
           break;
         case "ArrowDown":
-          {
-            const { row, col } = cursorCellPosition;
-            const newCellPosition = { row: Math.min(GRID_N - 1, row + 1), col };
-            cursor.rect.worldXY = {
-              x: newCellPosition.col * GRID_CELL_WIDTH,
-              y: newCellPosition.row * GRID_CELL_HEIGHT,
-            };
-          }
+          cursor.cell.row = Math.min(GRID_N - 1, row + 1);
           break;
         case "ArrowLeft":
-          {
-            const { row, col } = cursorCellPosition;
-            const newCellPosition = { row, col: Math.max(0, col - 1) };
-            cursor.rect.worldXY = {
-              x: newCellPosition.col * GRID_CELL_WIDTH,
-              y: newCellPosition.row * GRID_CELL_HEIGHT,
-            };
-          }
+          cursor.cell.col = Math.max(0, col - 1);
           break;
         case "ArrowRight":
-          {
-            const { row, col } = cursorCellPosition;
-            const newCellPosition = { row, col: Math.min(GRID_N - 1, col + 1) };
-            cursor.rect.worldXY = {
-              x: newCellPosition.col * GRID_CELL_WIDTH,
-              y: newCellPosition.row * GRID_CELL_HEIGHT,
-            };
-          }
+          cursor.cell.col = Math.min(GRID_N - 1, col + 1);
           break;
         case "Delete":
         case "Backspace":
           {
-            const start = cursorCellPosition;
+            const start = cursor.cell;
             const existingTextIndex = textElements.findIndex((t) =>
               cellPointsEqual(t.start, start),
             );
@@ -318,7 +297,7 @@ async function main() {
       }
 
       let textElement = textElements.find((t) =>
-        cellPointsEqual(t.start, cursorCellPosition),
+        cellPointsEqual(t.start, cursor.cell),
       );
       if (textElement) {
         textElement.value += char;
@@ -329,7 +308,7 @@ async function main() {
       } else {
         const textWidth = ui.texts.getTextWidth(char);
         const newRect: CellRect = {
-          point: cursorCellPosition,
+          point: cursor.cell,
           color: [0, 0, 1, 0.5],
           corners: [0, 0, 0, 0],
           width: textWidth,
@@ -337,7 +316,7 @@ async function main() {
         };
         rectElements.push(newRect);
         textElement = {
-          start: cursorCellPosition,
+          start: cursor.cell,
           value: char,
           rect: newRect,
         };
@@ -348,8 +327,12 @@ async function main() {
   canvasEvents.addListener({
     event: "click",
     listener: (p) => {
-      const { worldXY, width, height } = getCursorRect(p);
-      cursor.rect.worldXY = worldXY;
+      const {
+        rect: { worldXY, width, height },
+        cell,
+      } = getCursorRect(p);
+      // cursor.rect.worldXY = worldXY;
+      cursor.cell = cell;
       cursor.rect.width = width;
       cursor.rect.height = height;
       cursor.active = true;
@@ -358,7 +341,9 @@ async function main() {
   canvasEvents.addListener({
     event: "hover",
     listener: (p) => {
-      const { worldXY, width, height } = getCursorRect(p);
+      const {
+        rect: { worldXY, width, height },
+      } = getCursorRect(p);
       hoverRect.worldXY = worldXY;
       hoverRect.width = width;
       hoverRect.height = height;
@@ -519,6 +504,19 @@ function rectToRenderable(rect: RectElement) {
     position: vec2.create(rect.worldXY.x, rect.worldXY.y),
     size: vec2.create(rect.width, rect.height),
     corners: vec4.create(...rect.corners),
+    sigma: 1e-6,
+  };
+}
+
+function cursorToRenderable(cursor: Cursor) {
+  return {
+    color: vec4.create(...cursor.rect.color),
+    position: vec2.create(
+      GRID_CELL_WIDTH * cursor.cell.col,
+      GRID_CELL_HEIGHT * cursor.cell.row,
+    ),
+    size: vec2.create(cursor.rect.width, cursor.rect.height),
+    corners: vec4.create(...cursor.rect.corners),
     sigma: 1e-6,
   };
 }

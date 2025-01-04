@@ -161,15 +161,6 @@ export class UIRenderer {
     };
   }
 
-  getCellPosition(normalizedPoint: Point2D): CellPosition {
-    const x = getIndexOfMaxGridPointBoundedBy(normalizedPoint.x);
-    const y = getIndexOfMaxGridPointBoundedBy(normalizedPoint.y);
-    return {
-      row: y,
-      col: x,
-    };
-  }
-
   getCell(canvasPoint: Point2D): CellPosition {
     const normalizedPoint = this.normalizePoint(canvasPoint);
     return this.getCellPosition(normalizedPoint);
@@ -229,5 +220,14 @@ export class UIRenderer {
   reset() {
     this.rects.reset();
     this.texts.reset();
+  }
+
+  private getCellPosition(normalizedPoint: Point2D): CellPosition {
+    const x = getIndexOfMaxGridPointBoundedBy(normalizedPoint.x);
+    const y = getIndexOfMaxGridPointBoundedBy(normalizedPoint.y);
+    return {
+      row: y,
+      col: x,
+    };
   }
 }
