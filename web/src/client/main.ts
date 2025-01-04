@@ -1,4 +1,4 @@
-import { vec2, vec4, type Vec2, type Vec4 } from "wgpu-matrix";
+import { vec2, vec4 } from "wgpu-matrix";
 import {
   type CanvasMode,
   type Point2D,
@@ -35,8 +35,7 @@ type TextElement = {
   rect: CellRect;
 };
 
-type RectElement = {
-  worldXY: Point2D;
+type RectElement = Point2D & {
   color: Color;
   corners: Corners;
   width: number;
@@ -46,7 +45,7 @@ type RectElement = {
 type Cursor = {
   cell: CellPosition;
   active: boolean;
-  rect: Omit<RectElement, "worldXY">;
+  rect: Omit<RectElement, "x" | "y">;
 };
 
 async function main() {
@@ -98,7 +97,8 @@ async function main() {
 
   const hoverRect: RectElement = {
     color: [1, 1, 1, 0.25],
-    worldXY: { x: 0, y: 0 },
+    x: 0,
+    y: 0,
     width: 0,
     height: GRID_CELL_HEIGHT,
     corners: [0, 0, 0, 0],
@@ -128,7 +128,7 @@ async function main() {
   const getCursorRect = (
     p: Point2D,
   ): {
-    rect: Pick<RectElement, "worldXY" | "width" | "height">;
+    rect: Pick<RectElement, "x" | "y" | "width" | "height">;
     cell: CellPosition;
   } => {
     // p is given relative to canvas dimensions.
@@ -168,7 +168,8 @@ async function main() {
     return {
       cell,
       rect: {
-        worldXY: position,
+        x: position.x,
+        y: position.y,
         width: width * GRID_CELL_WIDTH,
         height: GRID_CELL_HEIGHT,
       },
@@ -328,7 +329,7 @@ async function main() {
     event: "click",
     listener: (p) => {
       const {
-        rect: { worldXY, width, height },
+        rect: { x, y, width, height },
         cell,
       } = getCursorRect(p);
       // cursor.rect.worldXY = worldXY;
@@ -342,9 +343,10 @@ async function main() {
     event: "hover",
     listener: (p) => {
       const {
-        rect: { worldXY, width, height },
+        rect: { x, y, width, height },
       } = getCursorRect(p);
-      hoverRect.worldXY = worldXY;
+      hoverRect.x = x;
+      hoverRect.y = y;
       hoverRect.width = width;
       hoverRect.height = height;
     },
@@ -501,7 +503,7 @@ function isPrintableChar(char: string) {
 function rectToRenderable(rect: RectElement) {
   return {
     color: vec4.create(...rect.color),
-    position: vec2.create(rect.worldXY.x, rect.worldXY.y),
+    position: vec2.create(rect.x, rect.y),
     size: vec2.create(rect.width, rect.height),
     corners: vec4.create(...rect.corners),
     sigma: 1e-6,
