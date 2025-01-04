@@ -48,6 +48,14 @@ type Cursor = {
   rect: Omit<RectElement, "x" | "y">;
 };
 
+const CORNER_VAL = 1 / 512;
+const DEFAULT_CORNERS: Corners = [
+  CORNER_VAL,
+  CORNER_VAL,
+  CORNER_VAL,
+  CORNER_VAL,
+];
+
 async function main() {
   const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
@@ -101,7 +109,7 @@ async function main() {
     y: 0,
     width: 0,
     height: GRID_CELL_HEIGHT,
-    corners: [0, 0, 0, 0],
+    corners: DEFAULT_CORNERS,
   };
 
   const cursor: Cursor = {
@@ -111,7 +119,7 @@ async function main() {
       color: [1, 1, 1, 0.5],
       width: 0,
       height: GRID_CELL_HEIGHT,
-      corners: [0, 0, 0, 0],
+      corners: DEFAULT_CORNERS,
     },
   };
 
@@ -313,7 +321,7 @@ async function main() {
         const newRect: CellRect = {
           point: cursor.cell,
           color: [0, 0, 1, 0.5],
-          corners: [0, 0, 0, 0],
+          corners: DEFAULT_CORNERS,
           width: textWidth,
           height: 1,
         };
