@@ -56,6 +56,8 @@ const DEFAULT_CORNERS: Corners = [
   CORNER_VAL,
 ];
 
+const TEXT_BG_COLOR: Color = [0, 0, 0, 0.5];
+
 async function main() {
   const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
@@ -320,7 +322,7 @@ async function main() {
         const textWidth = ui.texts.getTextWidth(char);
         const newRect: CellRect = {
           point: cursor.cell,
-          color: [0, 0, 1, 0.5],
+          color: TEXT_BG_COLOR,
           corners: DEFAULT_CORNERS,
           width: textWidth,
           height: 1,
