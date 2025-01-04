@@ -252,9 +252,11 @@ async function main() {
           cursor.active = false;
           break;
         case "ArrowUp":
+          e.preventDefault();
           cursor.cell.row = Math.max(0, row - 1);
           break;
         case "ArrowDown":
+          e.preventDefault();
           cursor.cell.row = Math.min(GRID_N - 1, row + 1);
           break;
         case "ArrowLeft":
