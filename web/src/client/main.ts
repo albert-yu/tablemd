@@ -42,11 +42,23 @@ type RectElement = Point2D & {
   height: number;
 };
 
-type Cursor = {
+type InactiveCursor = {
+  status: "inactive";
+};
+
+type TextCursor = {
+  status: "text";
+  rect: RectElement;
+  text: TextElement;
+};
+
+type CellCursor = {
+  status: "cell";
   cell: CellPosition;
-  active: boolean;
   rect: Omit<RectElement, "x" | "y">;
 };
+
+type Cursor = InactiveCursor | TextCursor | CellCursor;
 
 const CORNER_VAL = 1 / 512;
 const DEFAULT_CORNERS: Corners = [
@@ -55,8 +67,9 @@ const DEFAULT_CORNERS: Corners = [
   CORNER_VAL,
   CORNER_VAL,
 ];
-
 const TEXT_BG_COLOR: Color = [0, 0, 0, 0.5];
+const ACTIVE_CURSOR_COLOR: Color = [1, 1, 1, 0.5];
+const DEFAULT_SIGMA = 1e-6;
 
 async function main() {
   const canvas = document.querySelector("canvas")!;
@@ -114,15 +127,8 @@ async function main() {
     corners: DEFAULT_CORNERS,
   };
 
-  const cursor: Cursor = {
-    active: false,
-    cell: { row: 0, col: 0 },
-    rect: {
-      color: [1, 1, 1, 0.5],
-      width: 0,
-      height: GRID_CELL_HEIGHT,
-      corners: DEFAULT_CORNERS,
-    },
+  let cursor: Cursor = {
+    status: "inactive",
   };
 
   // UI state end
@@ -138,6 +144,7 @@ async function main() {
   const getCursorRect = (
     p: Point2D,
   ): {
+    textElement: TextElement | undefined;
     rect: Pick<RectElement, "x" | "y" | "width" | "height">;
     cell: CellPosition;
   } => {
@@ -176,6 +183,7 @@ async function main() {
     })();
 
     return {
+      textElement,
       cell,
       rect: {
         x: position.x,
@@ -209,12 +217,12 @@ async function main() {
           GRID_CELL_HEIGHT * rectElement.height,
         ),
         corners: vec4.create(...rectElement.corners),
-        sigma: 1e-6,
+        sigma: DEFAULT_SIGMA,
       });
     }
     // Hover rect
     ui.rects.push(rectToRenderable(hoverRect));
-    if (cursor.active) {
+    if (cursor.status !== "inactive") {
       ui.rects.push(cursorToRenderable(cursor));
     }
     ui.render();
@@ -252,33 +260,37 @@ async function main() {
   canvasEvents.addListener({
     event: "keydown",
     listener: (e) => {
-      if (!cursor.active) {
+      if (cursor.status === "inactive") {
         return;
       }
       let handled = true;
-      const { row, col } = cursor.cell;
+      // TODO: handle text cursor
+      const cell = cursor.status === "cell" ? cursor.cell : cursor.text.start;
+      const { row, col } = cell;
       switch (e.key) {
         case "Escape":
-          cursor.active = false;
+          cursor = {
+            status: "inactive",
+          };
           break;
         case "ArrowUp":
           e.preventDefault();
-          cursor.cell.row = Math.max(0, row - 1);
+          cell.row = Math.max(0, row - 1);
           break;
         case "ArrowDown":
           e.preventDefault();
-          cursor.cell.row = Math.min(GRID_N - 1, row + 1);
+          cell.row = Math.min(GRID_N - 1, row + 1);
           break;
         case "ArrowLeft":
-          cursor.cell.col = Math.max(0, col - 1);
+          cell.col = Math.max(0, col - 1);
           break;
         case "ArrowRight":
-          cursor.cell.col = Math.min(GRID_N - 1, col + 1);
+          cell.col = Math.min(GRID_N - 1, col + 1);
           break;
         case "Delete":
         case "Backspace":
           {
-            const start = cursor.cell;
+            const start = cell;
             const existingTextIndex = textElements.findIndex((t) =>
               cellPointsEqual(t.start, start),
             );
@@ -310,7 +322,7 @@ async function main() {
       }
 
       let textElement = textElements.find((t) =>
-        cellPointsEqual(t.start, cursor.cell),
+        cellPointsEqual(t.start, cell),
       );
       if (textElement) {
         textElement.value += char;
@@ -321,7 +333,7 @@ async function main() {
       } else {
         const textWidth = ui.texts.getTextWidth(char);
         const newRect: CellRect = {
-          point: cursor.cell,
+          point: cell,
           color: TEXT_BG_COLOR,
           corners: DEFAULT_CORNERS,
           width: textWidth,
@@ -329,7 +341,7 @@ async function main() {
         };
         rectElements.push(newRect);
         textElement = {
-          start: cursor.cell,
+          start: cell,
           value: char,
           rect: newRect,
         };
@@ -341,14 +353,35 @@ async function main() {
     event: "click",
     listener: (p) => {
       const {
+        textElement,
         rect: { x, y, width, height },
         cell,
       } = getCursorRect(p);
-      // cursor.rect.worldXY = worldXY;
-      cursor.cell = cell;
-      cursor.rect.width = width;
-      cursor.rect.height = height;
-      cursor.active = true;
+      if (textElement) {
+        cursor = {
+          status: "text",
+          rect: {
+            x,
+            y,
+            width,
+            height,
+            color: ACTIVE_CURSOR_COLOR,
+            corners: DEFAULT_CORNERS,
+          },
+          text: textElement,
+        };
+      } else {
+        cursor = {
+          status: "cell",
+          cell,
+          rect: {
+            width: width,
+            height: height,
+            color: ACTIVE_CURSOR_COLOR,
+            corners: DEFAULT_CORNERS,
+          },
+        };
+      }
     },
   });
   canvasEvents.addListener({
@@ -518,21 +551,40 @@ function rectToRenderable(rect: RectElement) {
     position: vec2.create(rect.x, rect.y),
     size: vec2.create(rect.width, rect.height),
     corners: vec4.create(...rect.corners),
-    sigma: 1e-6,
+    sigma: DEFAULT_SIGMA,
   };
 }
 
 function cursorToRenderable(cursor: Cursor) {
-  return {
-    color: vec4.create(...cursor.rect.color),
-    position: vec2.create(
-      GRID_CELL_WIDTH * cursor.cell.col,
-      GRID_CELL_HEIGHT * cursor.cell.row,
-    ),
-    size: vec2.create(cursor.rect.width, cursor.rect.height),
-    corners: vec4.create(...cursor.rect.corners),
-    sigma: 1e-6,
-  };
+  switch (cursor.status) {
+    case "inactive":
+      return {
+        color: vec4.create(0, 0, 0, 0),
+        position: vec2.create(0, 0),
+        size: vec2.create(0, 0),
+        corners: vec4.create(0, 0, 0, 0),
+        sigma: DEFAULT_SIGMA,
+      };
+    case "cell":
+      return {
+        color: vec4.create(...cursor.rect.color),
+        position: vec2.create(
+          GRID_CELL_WIDTH * cursor.cell.col,
+          GRID_CELL_HEIGHT * cursor.cell.row,
+        ),
+        size: vec2.create(cursor.rect.width, cursor.rect.height),
+        corners: vec4.create(...cursor.rect.corners),
+        sigma: DEFAULT_SIGMA,
+      };
+    case "text":
+      return {
+        color: vec4.create(...cursor.rect.color),
+        position: vec2.create(cursor.rect.x, cursor.rect.y),
+        size: vec2.create(cursor.rect.width, cursor.rect.height),
+        corners: vec4.create(...cursor.rect.corners),
+        sigma: DEFAULT_SIGMA,
+      };
+  }
 }
 
 await main();
