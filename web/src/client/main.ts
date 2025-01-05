@@ -266,7 +266,6 @@ async function main() {
       let handled = true;
       // TODO: handle text cursor
       const cell = cursor.status === "cell" ? cursor.cell : cursor.text.start;
-      const { row, col } = cell;
       switch (e.key) {
         case "Escape":
           cursor = {
@@ -274,18 +273,11 @@ async function main() {
           };
           break;
         case "ArrowUp":
-          e.preventDefault();
-          cell.row = Math.max(0, row - 1);
-          break;
         case "ArrowDown":
-          e.preventDefault();
-          cell.row = Math.min(GRID_N - 1, row + 1);
-          break;
         case "ArrowLeft":
-          cell.col = Math.max(0, col - 1);
-          break;
         case "ArrowRight":
-          cell.col = Math.min(GRID_N - 1, col + 1);
+          e.preventDefault();
+          cursor = handleArrowKey(cursor, e);
           break;
         case "Delete":
         case "Backspace":
@@ -585,6 +577,58 @@ function cursorToRenderable(cursor: Cursor) {
         sigma: DEFAULT_SIGMA,
       };
   }
+}
+
+/**
+ * Changes the cursor position based on the key pressed
+ * @param cursor
+ * @param e
+ * @returns
+ */
+function handleArrowKey(
+  cursor: TextCursor | CellCursor,
+  e: KeyboardEvent,
+): TextCursor | CellCursor {
+  // TODO: look ahead at the next character or cell
+  switch (cursor.status) {
+    case "cell": {
+      const cell = cursor.cell;
+      const { row, col } = cell;
+      switch (e.key) {
+        case "ArrowUp":
+          cell.row = Math.max(0, row - 1);
+          break;
+        case "ArrowDown":
+          cell.row = Math.min(GRID_N - 1, row + 1);
+          break;
+        case "ArrowLeft":
+          cell.col = Math.max(0, col - 1);
+          break;
+        case "ArrowRight":
+          cell.col = Math.min(GRID_N - 1, col + 1);
+          break;
+      }
+      break;
+    }
+    case "text": {
+      switch (e.key) {
+        case "ArrowUp":
+          // TODO: handle
+          break;
+        case "ArrowDown":
+          // TODO: handle
+          break;
+        case "ArrowLeft":
+          // move to previous character
+          cursor.rect.x -= cursor.rect.width;
+          break;
+        case "ArrowRight":
+          cursor.rect.x += cursor.rect.width;
+          break;
+      }
+    }
+  }
+  return cursor;
 }
 
 await main();
