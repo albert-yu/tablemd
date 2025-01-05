@@ -113,7 +113,7 @@ async function main() {
   const ui = new UIRenderer(device, context, format);
   await ui.init();
   const charWidth = ui.texts.getTextWidth("a");
-  const charWidthActual = charWidth / GRID_CELL_WIDTH;
+  const textCursorWidth = charWidth / GRID_CELL_WIDTH;
   // UI state start
   const textElements: TextElement[] = [];
   const rectElements: CellRect[] = [];
@@ -136,64 +136,12 @@ async function main() {
   // helper functions
 
   /**
-   * Returns cursor rect
-   * @param p
-   * @returns
-   */
-  const getCursorRect = (p: Point2D) => {
-    // p is given relative to canvas dimensions.
-    // Need to map it back to grid space (N x N)
-    const cell = ui.getCell(p);
-
-    // see if we hit a text box
-    const textElement = textElements.find((t) =>
-      rectContainsPoint(t.rect, cell),
-    );
-    const width = textElement ? charWidthActual : 1;
-
-    const position = (() => {
-      if (textElement) {
-        const { start } = textElement;
-        let { x, y } = ui.normalizePoint(p);
-        let { col, row } = start;
-        let cursorX = col * GRID_CELL_WIDTH;
-        while (cursorX + charWidth < x) {
-          cursorX += charWidth;
-        }
-        let cursorY = row * GRID_CELL_HEIGHT;
-        while (cursorY + GRID_CELL_HEIGHT < y) {
-          cursorY += GRID_CELL_HEIGHT;
-        }
-        return {
-          x: cursorX,
-          y: cursorY,
-        };
-      }
-      return {
-        x: GRID_CELL_WIDTH * cell.col,
-        y: GRID_CELL_HEIGHT * cell.row,
-      };
-    })();
-
-    return {
-      textElement,
-      cell,
-      rect: {
-        x: position.x,
-        y: position.y,
-        width: width * GRID_CELL_WIDTH,
-        height: GRID_CELL_HEIGHT,
-      },
-    };
-  };
-
-  /**
-   * Returns the hover cursor dimensions, aware of
+   * Returns the cursor dimensions, aware of
    * text elements
    * @param p canvas-relative point
    * @returns
    */
-  const getHoverCursorRect = (
+  const getCursorRect = (
     p: Point2D,
   ): {
     textElement: TextElement | undefined;
@@ -215,6 +163,30 @@ async function main() {
       x: GRID_CELL_WIDTH * cursorPosition.col,
       y: GRID_CELL_HEIGHT * cursorPosition.row,
     };
+
+    // const position = (() => {
+    //   if (textElement) {
+    //     const { start } = textElement;
+    //     let { x, y } = ui.normalizePoint(p);
+    //     let { col, row } = start;
+    //     let cursorX = col * GRID_CELL_WIDTH;
+    //     while (cursorX + charWidth < x) {
+    //       cursorX += charWidth;
+    //     }
+    //     let cursorY = row * GRID_CELL_HEIGHT;
+    //     while (cursorY + GRID_CELL_HEIGHT < y) {
+    //       cursorY += GRID_CELL_HEIGHT;
+    //     }
+    //     return {
+    //       x: cursorX,
+    //       y: cursorY,
+    //     };
+    //   }
+    //   return {
+    //     x: GRID_CELL_WIDTH * cell.col,
+    //     y: GRID_CELL_HEIGHT * cell.row,
+    //   };
+    // })();
 
     return {
       textElement,
@@ -423,7 +395,7 @@ async function main() {
     listener: (p) => {
       const {
         rect: { x, y, width, height },
-      } = getHoverCursorRect(p);
+      } = getCursorRect(p);
       hoverRect.x = x;
       hoverRect.y = y;
       hoverRect.width = width;
