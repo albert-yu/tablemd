@@ -156,37 +156,31 @@ async function main() {
     const textElement = textElements.find((t) =>
       rectContainsPoint(t.rect, cell),
     );
-    const width = textElement ? textElement.rect.width : 1;
+    const width = textElement ? textCursorWidth : 1;
 
-    const cursorPosition = textElement ? textElement.start : cell;
-    const position = {
-      x: GRID_CELL_WIDTH * cursorPosition.col,
-      y: GRID_CELL_HEIGHT * cursorPosition.row,
-    };
-
-    // const position = (() => {
-    //   if (textElement) {
-    //     const { start } = textElement;
-    //     let { x, y } = ui.normalizePoint(p);
-    //     let { col, row } = start;
-    //     let cursorX = col * GRID_CELL_WIDTH;
-    //     while (cursorX + charWidth < x) {
-    //       cursorX += charWidth;
-    //     }
-    //     let cursorY = row * GRID_CELL_HEIGHT;
-    //     while (cursorY + GRID_CELL_HEIGHT < y) {
-    //       cursorY += GRID_CELL_HEIGHT;
-    //     }
-    //     return {
-    //       x: cursorX,
-    //       y: cursorY,
-    //     };
-    //   }
-    //   return {
-    //     x: GRID_CELL_WIDTH * cell.col,
-    //     y: GRID_CELL_HEIGHT * cell.row,
-    //   };
-    // })();
+    const position = (() => {
+      if (textElement) {
+        const { start } = textElement;
+        let { x, y } = ui.normalizePoint(p);
+        let { col, row } = start;
+        let cursorX = col * GRID_CELL_WIDTH;
+        while (cursorX + charWidth < x) {
+          cursorX += charWidth;
+        }
+        let cursorY = row * GRID_CELL_HEIGHT;
+        while (cursorY + GRID_CELL_HEIGHT < y) {
+          cursorY += GRID_CELL_HEIGHT;
+        }
+        return {
+          x: cursorX,
+          y: cursorY,
+        };
+      }
+      return {
+        x: GRID_CELL_WIDTH * cell.col,
+        y: GRID_CELL_HEIGHT * cell.row,
+      };
+    })();
 
     return {
       textElement,
