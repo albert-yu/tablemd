@@ -228,8 +228,8 @@ export class UI {
           // otherwise, we don't need to do anything, since
           // there is no extra text to delete
           if (text.value.length === 0) {
-            const existingTextIndex = this.textElements.findIndex(
-              (t) => t === text,
+            const existingTextIndex = this.textElements.findIndex((t) =>
+              cellPointsEqual(t.start, text.start),
             );
             if (existingTextIndex === -1) {
               // shouldn't happen
