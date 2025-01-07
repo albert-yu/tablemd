@@ -262,6 +262,7 @@ export class UI {
       cellPointsEqual(t.start, cell),
     );
     if (textElement) {
+      // TODO: more efficient text editing structure like a rope
       textElement.value =
         textElement.value.slice(0, charIndex) +
         char +
