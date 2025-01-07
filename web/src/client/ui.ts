@@ -230,8 +230,6 @@ export class UI {
           existingText.value = existingText.value.slice(0, -1);
           if (existingText.value.length === 0) {
             this.textElements.splice(existingTextIndex, 1);
-          } else {
-            retreatTextCursor(this.cursor, this.charWidth);
           }
           const textWidth = this.renderer.texts.getTextWidth(
             existingText.value,
@@ -239,6 +237,7 @@ export class UI {
           // Find minimum number of cells to fit the text
           const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
           existingText.rect.width = cellsToFit;
+          retreatTextCursor(this.cursor, this.charWidth);
         }
         break;
       default:
@@ -258,11 +257,15 @@ export class UI {
     }
     const cell =
       this.cursor.status === "cell" ? this.cursor.cell : this.cursor.text.start;
+    const charIndex = this.cursor.status === "text" ? this.cursor.charIndex : 0;
     let textElement = this.textElements.find((t) =>
       cellPointsEqual(t.start, cell),
     );
     if (textElement) {
-      textElement.value += char;
+      textElement.value =
+        textElement.value.slice(0, charIndex) +
+        char +
+        textElement.value.slice(charIndex, textElement.value.length);
       const textWidth = this.renderer.texts.getTextWidth(textElement.value);
       // Find minimum number of cells to fit the text
       const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
