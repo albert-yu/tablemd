@@ -218,25 +218,29 @@ export class UI {
           if (this.cursor.status !== "text") {
             break;
           }
-          const cell = this.cursor.text.start;
-          const start = cell;
-          const existingTextIndex = this.textElements.findIndex((t) =>
-            cellPointsEqual(t.start, start),
-          );
-          if (existingTextIndex === -1) {
-            break;
+          const text = this.cursor.text;
+          const gapEnd = this.cursor.charIndex - text.value.length;
+          if (gapEnd <= 0) {
+            const index = this.cursor.charIndex;
+            text.value =
+              text.value.slice(0, index - 1) + text.value.slice(index);
           }
-          const existingText = this.textElements[existingTextIndex];
-          existingText.value = existingText.value.slice(0, -1);
-          if (existingText.value.length === 0) {
+          // otherwise, we don't need to do anything, since
+          // there is no extra text to delete
+          if (text.value.length === 0) {
+            const existingTextIndex = this.textElements.findIndex(
+              (t) => t === text,
+            );
+            if (existingTextIndex === -1) {
+              // shouldn't happen
+              throw new Error("Text not found");
+            }
             this.textElements.splice(existingTextIndex, 1);
           }
-          const textWidth = this.renderer.texts.getTextWidth(
-            existingText.value,
-          );
+          const textWidth = this.renderer.texts.getTextWidth(text.value);
           // Find minimum number of cells to fit the text
           const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
-          existingText.rect.width = cellsToFit;
+          text.rect.width = cellsToFit;
           retreatTextCursor(this.cursor, this.charWidth);
         }
         break;
