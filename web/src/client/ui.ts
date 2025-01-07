@@ -263,10 +263,19 @@ export class UI {
     );
     if (textElement) {
       // TODO: more efficient text editing structure like a rope
-      textElement.value =
-        textElement.value.slice(0, charIndex) +
-        char +
-        textElement.value.slice(charIndex, textElement.value.length);
+      const gapEnd = charIndex - textElement.value.length;
+      if (gapEnd > 0) {
+        let gap = "";
+        for (let i = 0; i < gapEnd; i++) {
+          gap += " ";
+        }
+        textElement.value = textElement.value + gap + char;
+      } else {
+        textElement.value =
+          textElement.value.slice(0, charIndex) +
+          char +
+          textElement.value.slice(charIndex, textElement.value.length);
+      }
       const textWidth = this.renderer.texts.getTextWidth(textElement.value);
       // Find minimum number of cells to fit the text
       const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
