@@ -217,6 +217,9 @@ export class UIRenderer {
     this.device.queue.submit([commandEncoder.finish()]);
   }
 
+  /**
+   * Clears out all frame data for rendering
+   */
   reset() {
     this.rects.reset();
     this.texts.reset();
