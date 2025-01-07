@@ -17,8 +17,6 @@ type PushTextArgs = {
   position: Vec2;
 };
 
-type UpdateTextArgs = PushTextArgs;
-
 interface MsdfTextFormattingOptions {
   centered?: boolean;
   pixelScale?: number;
@@ -28,6 +26,10 @@ interface MsdfTextFormattingOptions {
 const depthFormat = DEPTH_STENCIL_TEXTURE_FORMAT;
 
 const PIXEL_SCALE = 1 / 2048;
+
+const CHAR_NEWLINE = 10;
+const CHAR_CR = 13;
+const CHAR_SPACE = 32;
 
 export class TextRenderer {
   private fontPipeline: GPURenderPipeline;
@@ -278,6 +280,24 @@ export class TextRenderer {
   //   return this.update(index, args);
   // }
 
+  /**
+   * Returns the width of the text in pixels
+   */
+  getTextWidth(s: string): number {
+    if (!this.font) {
+      throw new Error(`Need to call first ${this.init.name}`);
+    }
+    let xAdvance = 0;
+    for (let i = 0; i < s.length; ++i) {
+      const charCode = s.charCodeAt(i);
+      if (charCode === CHAR_NEWLINE || charCode === CHAR_CR) {
+        break;
+      }
+      xAdvance += this.font.getXAdvance(charCode);
+    }
+    return xAdvance * PIXEL_SCALE;
+  }
+
   private formatText(text: string, options: MsdfTextFormattingOptions) {
     if (!this.font) {
       throw new Error(`Need to call first ${this.init.name}`);
@@ -398,16 +418,16 @@ function measureText(
     nextCharCode = i < text.length - 1 ? text.charCodeAt(i + 1) : -1;
 
     switch (charCode) {
-      case 10: // Newline
+      case CHAR_NEWLINE:
         lineWidths.push(textOffsetX);
         line++;
         maxWidth = Math.max(maxWidth, textOffsetX);
         textOffsetX = 0;
         textOffsetY -= font.lineHeight;
         break;
-      case 13: // CR
+      case CHAR_CR: // CR
         break;
-      case 32: // Space
+      case CHAR_SPACE: // Space
         // For spaces, advance the offset without actually adding a character.
         textOffsetX += font.getXAdvance(charCode);
         break;

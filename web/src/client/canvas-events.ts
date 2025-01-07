@@ -2,17 +2,11 @@ export type Point2D = {
   x: number;
   y: number;
 };
-type KeyboardArgs = {
-  key: string;
-  ctrlKey: boolean;
-  shiftKey: boolean;
-  altKey: boolean;
-};
 type Interval = [number, number];
 type ZoomCallback = (args: { k: number; x: number; y: number }) => void;
 type ClickCallback = (args: Point2D) => void;
 type HoverCallback = (args: Point2D) => void;
-type KeyboardCallback = (args: KeyboardArgs) => void;
+type KeyboardCallback = (e: KeyboardEvent) => void;
 
 type AddListenerArgs =
   | {
@@ -81,12 +75,7 @@ export class CanvasEventHandler {
       if (this.mode !== "select") {
         return;
       }
-      listener({
-        key: e.key,
-        ctrlKey: e.ctrlKey,
-        shiftKey: e.shiftKey,
-        altKey: e.altKey,
-      });
+      listener(e);
     };
     this.canvas.addEventListener("keydown", onKeyDown);
     return () => {
