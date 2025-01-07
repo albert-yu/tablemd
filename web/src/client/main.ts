@@ -50,7 +50,6 @@ async function main() {
   await ui.init();
 
   function frame() {
-    ui.reset();
     ui.render();
     frames++;
     const now = Date.now();
@@ -59,6 +58,7 @@ async function main() {
       fpsSpan.innerHTML = `${frames}`;
       frames = 0;
     }
+    ui.reset();
     requestAnimationFrame(frame);
   }
 
