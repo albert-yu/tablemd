@@ -199,10 +199,6 @@ export class UI {
     if (this.cursor.status === "inactive") {
       return;
     }
-    let handled = true;
-    // TODO: handle text cursor
-    const cell =
-      this.cursor.status === "cell" ? this.cursor.cell : this.cursor.text.start;
     switch (e.key) {
       case "Escape":
         this.cursor = {
@@ -219,6 +215,10 @@ export class UI {
       case "Delete":
       case "Backspace":
         {
+          if (this.cursor.status !== "text") {
+            break;
+          }
+          const cell = this.cursor.text.start;
           const start = cell;
           const existingTextIndex = this.textElements.findIndex((t) =>
             cellPointsEqual(t.start, start),
@@ -230,6 +230,8 @@ export class UI {
           existingText.value = existingText.value.slice(0, -1);
           if (existingText.value.length === 0) {
             this.textElements.splice(existingTextIndex, 1);
+          } else {
+            retreatTextCursor(this.cursor, this.charWidth);
           }
           const textWidth = this.renderer.texts.getTextWidth(
             existingText.value,
@@ -240,10 +242,13 @@ export class UI {
         }
         break;
       default:
-        handled = false;
+        this.handlePrintChar(e);
         break;
     }
-    if (handled) {
+  }
+
+  private handlePrintChar(e: KeyboardEvent) {
+    if (this.cursor.status === "inactive") {
       return;
     }
     const char = getCharFromEvent(e);
@@ -251,7 +256,8 @@ export class UI {
     if (!isPrintable) {
       return;
     }
-
+    const cell =
+      this.cursor.status === "cell" ? this.cursor.cell : this.cursor.text.start;
     let textElement = this.textElements.find((t) =>
       cellPointsEqual(t.start, cell),
     );
@@ -278,6 +284,23 @@ export class UI {
       };
       this.textElements.push(textElement);
     }
+    // change cursor to text cursor if not already
+    if (this.cursor.status !== "text") {
+      this.cursor = {
+        charIndex: 0,
+        status: "text",
+        rect: {
+          x: textElement.start.col * GRID_CELL_WIDTH,
+          y: textElement.start.row * GRID_CELL_HEIGHT,
+          width: this.charWidth,
+          height: GRID_CELL_HEIGHT,
+          color: ACTIVE_CURSOR_COLOR,
+          corners: DEFAULT_CORNERS,
+        },
+        text: textElement,
+      };
+    }
+    advanceTextCursor(this.cursor, this.charWidth);
   }
 
   private getCursorRect(p: Point2D): {
@@ -359,6 +382,16 @@ function rectToRenderable(rect: RectElement) {
     corners: vec4.create(...rect.corners),
     sigma: DEFAULT_SIGMA,
   };
+}
+
+function advanceTextCursor(cursor: TextCursor, charWidth: number) {
+  cursor.charIndex++;
+  cursor.rect.x += charWidth;
+}
+
+function retreatTextCursor(cursor: TextCursor, charWidth: number) {
+  cursor.charIndex--;
+  cursor.rect.x -= charWidth;
 }
 
 function cursorToRenderable(cursor: Cursor) {
