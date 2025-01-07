@@ -50,6 +50,10 @@ type TextCursor = {
   status: "text";
   rect: RectElement;
   text: TextElement;
+  /**
+   * Index of character that the cursor is on
+   */
+  charIndex: number;
 };
 
 type CellCursor = {
@@ -144,6 +148,10 @@ async function main() {
   const getCursorRect = (
     p: Point2D,
   ): {
+    /**
+     * -1 means not a text element
+     */
+    charIndex: number;
     textElement: TextElement | undefined;
     rect: Pick<RectElement, "x" | "y" | "width" | "height">;
     cell: CellPosition;
@@ -158,14 +166,17 @@ async function main() {
     );
     const width = textElement ? textCursorWidth : 1;
 
+    let charIndex = -1;
     const position = (() => {
       if (textElement) {
+        charIndex = 0;
         const { start } = textElement;
         let { x, y } = ui.normalizePoint(p);
         let { col, row } = start;
         let cursorX = col * GRID_CELL_WIDTH;
         while (cursorX + charWidth < x) {
           cursorX += charWidth;
+          charIndex++;
         }
         let cursorY = row * GRID_CELL_HEIGHT;
         while (cursorY + GRID_CELL_HEIGHT < y) {
@@ -183,6 +194,7 @@ async function main() {
     })();
 
     return {
+      charIndex,
       textElement,
       cell,
       rect: {
@@ -345,12 +357,14 @@ async function main() {
     event: "click",
     listener: (p) => {
       const {
+        charIndex,
         textElement,
         rect: { x, y, width, height },
         cell,
       } = getCursorRect(p);
       if (textElement) {
         cursor = {
+          charIndex,
           status: "text",
           rect: {
             x,
