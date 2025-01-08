@@ -237,9 +237,7 @@ export class UI {
             }
             this.textElements.splice(existingTextIndex, 1);
           }
-          const textWidth = this.renderer.texts.getTextWidth(text.value);
-          // Find minimum number of cells to fit the text
-          const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
+          const cellsToFit = this.getCellsToFitText(text.value);
           text.rect.width = cellsToFit;
           retreatTextCursor(this.cursor, this.charWidth);
         }
@@ -280,17 +278,15 @@ export class UI {
           char +
           textElement.value.slice(charIndex, textElement.value.length);
       }
-      const textWidth = this.renderer.texts.getTextWidth(textElement.value);
-      // Find minimum number of cells to fit the text
-      const cellsToFit = Math.ceil(textWidth / GRID_CELL_WIDTH);
+      const cellsToFit = this.getCellsToFitText(textElement.value);
       textElement.rect.width = cellsToFit;
     } else {
-      const textWidth = this.renderer.texts.getTextWidth(char);
+      // Find minimum number of cells to fit the text
       const newRect: CellRect = {
         point: cell,
         color: TEXT_BG_COLOR,
         corners: DEFAULT_CORNERS,
-        width: textWidth,
+        width: 1,
         height: 1,
       };
       this.rectElements.push(newRect);
@@ -318,6 +314,12 @@ export class UI {
       };
     }
     advanceTextCursor(this.cursor, this.charWidth);
+  }
+
+  private getCellsToFitText(text: string): number {
+    const textWidth = this.renderer.texts.getTextWidth(text);
+    // Find minimum number of cells to fit the text
+    return Math.ceil(textWidth / GRID_CELL_WIDTH);
   }
 
   private getCursorRect(p: Point2D): {
