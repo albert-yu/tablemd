@@ -7,6 +7,36 @@ const cursorStyle = {
 } as const;
 
 async function main() {
+  // Start the WASM app
+  let memory: WebAssembly.Memory | undefined = undefined;
+  try {
+    const response = await fetch("core.wasm");
+    const bytes = await response.arrayBuffer();
+    const result = await WebAssembly.instantiate(bytes, {
+      env: {
+        print_u32: (x: number) => {
+          console.log(x);
+        },
+        print: (ptr: number, len: number) => {
+          const bytes = new Uint8Array(memory!.buffer, ptr, len);
+          const str = new TextDecoder("utf-8").decode(bytes);
+          console.log(str);
+        },
+      },
+    });
+    const exports = result.instance.exports;
+    memory = exports.memory as WebAssembly.Memory;
+
+    const initApp = exports.app_init as CallableFunction;
+    const deinitApp = exports.app_deinit as CallableFunction;
+    const app = initApp(100, 100, 1);
+    // deinitApp(app);
+  } catch (err) {
+    console.log(err);
+    // TODO: exit?
+  }
+
+  // Set up the GPU
   const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
     const errNode = document.createElement("div");
@@ -108,34 +138,6 @@ async function main() {
   window.addEventListener("resize", () => {
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
   });
-
-  try {
-    let memory: WebAssembly.Memory | undefined = undefined;
-
-    const response = await fetch("core.wasm");
-    const bytes = await response.arrayBuffer();
-    const result = await WebAssembly.instantiate(bytes, {
-      env: {
-        print_u32: (x: number) => {
-          console.log(x);
-        },
-        print: (ptr: number, len: number) => {
-          const bytes = new Uint8Array(memory!.buffer, ptr, len);
-          const str = new TextDecoder("utf-8").decode(bytes);
-          console.log(str);
-        },
-      },
-    });
-    const exports = result.instance.exports;
-    memory = exports.memory as WebAssembly.Memory;
-
-    const initApp = exports.app_init as CallableFunction;
-    const deinitApp = exports.app_deinit as CallableFunction;
-    const app = initApp(100, 100, 1);
-    // deinitApp(app);
-  } catch (err) {
-    console.log(err);
-  }
 }
 
 function getCanvasSelectMode() {
