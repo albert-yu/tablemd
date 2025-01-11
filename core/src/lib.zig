@@ -3,6 +3,8 @@ const engine = @import("engine.zig");
 
 const Sheet = engine.Sheet;
 
+const float = f32;
+
 /// Don't use directly, use consoleLog instead
 extern fn print(ptr: [*]const u8, len: u32) void;
 
@@ -16,6 +18,44 @@ fn consoleLog(str: []const u8) void {
 const CellPosition = struct {
     row: u32,
     col: u32,
+};
+
+/// TODO: derive this instead of hardcoding
+const GRID_CELL_HEIGHT = 0.03200000151991844;
+const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
+const DEFAULT_SIGMA = 1e-6;
+const GRID_N = 1000;
+const GRID_DENSITY = 1 / 32;
+
+const Point2D = struct {
+    x: float,
+    y: float,
+};
+
+const RectElement = struct {
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    color: [4]float,
+    corners: [4]float,
+    sigma: float,
+};
+
+const grid_x = blk: {
+    var arr: [GRID_N]float = undefined;
+    for (arr, 0..) |_, i| {
+        arr[i] = @as(float, @floatFromInt(i % GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
+    }
+    break :blk arr;
+};
+
+const grid_y = blk: {
+    var arr: [GRID_N]float = undefined;
+    for (arr, 0..) |_, i| {
+        arr[i] = @as(float, @floatFromInt(i / GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
+    }
+    break :blk arr;
 };
 
 fn setDword(buffer: []u8, idx: usize, dword: u32) void {
@@ -36,6 +76,7 @@ const App = struct {
     canvas_width: usize,
     canvas_height: usize,
     current_cell: ?CellPosition,
+    hover_rect: RectElement,
 
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
@@ -47,6 +88,15 @@ const App = struct {
             .sheets = sheets,
             .allocator = allocator,
             .current_cell = null,
+            .hover_rect = RectElement{
+                .x = 0,
+                .y = 0,
+                .width = GRID_CELL_WIDTH,
+                .height = GRID_CELL_HEIGHT,
+                .color = [4]float{ 0, 0, 0, 0.25 },
+                .corners = [4]float{ 0, 0, 0, 0 },
+                .sigma = DEFAULT_SIGMA,
+            },
         };
     }
 
@@ -61,6 +111,27 @@ const App = struct {
     pub fn setCanvasSize(self: *App, width: usize, height: usize) void {
         self.canvas_width = width;
         self.canvas_height = height;
+    }
+
+    pub fn onHover(self: *App, p: Point2D) void {
+        const normalizedPoint = self.normalizePoint(p);
+        const cell = getCellPosition(normalizedPoint);
+        // TODO: update cell width and height based on underlying content
+        // e.g. text, cell size
+        self.hover_rect.x = GRID_CELL_WIDTH * @as(float, @floatFromInt(cell.col));
+        self.hover_rect.y = GRID_CELL_HEIGHT * @as(float, @floatFromInt(cell.row));
+    }
+
+    fn normalizePoint(self: *App, canvasPoint: Point2D) Point2D {
+        const maxWidth = self.canvas_width;
+        const maxHeight = self.canvas_height;
+        const maxGridDim = @as(float, @floatFromInt(@min(maxWidth, maxHeight)));
+        const gridX = canvasPoint.x / maxGridDim;
+        const gridY = canvasPoint.y / maxGridDim;
+        return Point2D{
+            .x = gridX,
+            .y = gridY,
+        };
     }
 
     fn updateCurrentCell(self: *App, cell: ?CellPosition) void {
@@ -92,4 +163,29 @@ export fn app_deinit(app: *App) void {
 
 export fn app_set_canvas_size(app: *App, width: usize, height: usize) void {
     app.setCanvasSize(width, height);
+}
+
+export fn app_on_hover(app: *App, x: float, y: float) void {
+    app.onHover(Point2D{ .x = x, .y = y });
+}
+
+fn getCellPosition(normalizedPoint: Point2D) CellPosition {
+    const x = getIndexOfMaxGridPointBoundedBy(normalizedPoint.x);
+    const y = getIndexOfMaxGridPointBoundedBy(normalizedPoint.y);
+    return CellPosition{
+        .row = y,
+        .col = x,
+    };
+}
+
+fn getIndexOfMaxGridPointBoundedBy(upperBound: float) u32 {
+    var i: u32 = 0;
+    while (i < GRID_N) : (i += 1) {
+        const val = grid_x[i];
+        if (val > upperBound) {
+            i -= 1;
+            break;
+        }
+    }
+    return i;
 }
