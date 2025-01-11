@@ -1,6 +1,6 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { UI } from "./ui";
-import type { WASMExports } from "./wasm-types";
+import type { WASMApp, WASMExports } from "./wasm-types";
 
 const cursorStyle = {
   select: "auto",
@@ -9,7 +9,10 @@ const cursorStyle = {
 
 async function main() {
   // Start the WASM app
-  let memory: WebAssembly.Memory | undefined = undefined;
+  let memory: WebAssembly.Memory;
+  let app: WASMApp = 0;
+  let exports: WASMExports;
+
   try {
     const response = await fetch("core.wasm");
     const bytes = await response.arrayBuffer();
@@ -25,10 +28,9 @@ async function main() {
         },
       },
     });
-    const exports = result.instance.exports as WASMExports;
+    exports = result.instance.exports as WASMExports;
     memory = exports.memory as WebAssembly.Memory;
-
-    const app = exports.app_init(100, 100, 1);
+    app = exports.app_init(100, 100, 1);
   } catch (err) {
     console.log(err);
     // TODO: exit?
@@ -134,6 +136,7 @@ async function main() {
   ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
 
   window.addEventListener("resize", () => {
+    exports.app_set_canvas_size(app, canvas.clientWidth, canvas.clientHeight);
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
   });
 }

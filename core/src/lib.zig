@@ -58,6 +58,14 @@ const App = struct {
         return self.allocator;
     }
 
+    pub fn setCanvasSize(self: *App, width: usize, height: usize) void {
+        consoleLog("Canvas size");
+        print_u32(width);
+        print_u32(height);
+        self.canvas_width = width;
+        self.canvas_height = height;
+    }
+
     fn updateCurrentCell(self: *App, cell: ?CellCoords) void {
         self.current_cell = cell;
     }
@@ -83,4 +91,8 @@ export fn app_deinit(app: *App) void {
     app.deinit();
     allocator.destroy(app);
     consoleLog("App freed");
+}
+
+export fn app_set_canvas_size(app: *App, width: usize, height: usize) void {
+    app.setCanvasSize(width, height);
 }
