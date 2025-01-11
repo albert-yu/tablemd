@@ -35,8 +35,6 @@ const App = struct {
     allocator: std.mem.Allocator,
     canvas_width: usize,
     canvas_height: usize,
-    rows: usize,
-    cols: usize,
     current_cell: ?CellCoords,
 
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
@@ -44,8 +42,6 @@ const App = struct {
         errdefer allocator.free(sheets);
 
         return App{
-            .rows = 20,
-            .cols = 5,
             .canvas_width = canvas_width,
             .canvas_height = canvas_height,
             .sheets = sheets,
@@ -60,15 +56,6 @@ const App = struct {
 
     pub fn getAllocator(self: App) std.mem.Allocator {
         return self.allocator;
-    }
-
-    fn getClickedCell(self: *App, x: u32, y: u32) CellCoords {
-        const cell_height = self.canvas_height / self.rows;
-        const cell_width = self.canvas_width / self.cols;
-        return CellCoords{
-            .col = x / cell_width,
-            .row = y / cell_height,
-        };
     }
 
     fn updateCurrentCell(self: *App, cell: ?CellCoords) void {
