@@ -32,8 +32,8 @@ async function main() {
     memory = exports.memory as WebAssembly.Memory;
     app = exports.app_init(100, 100, 1);
   } catch (err) {
-    console.log(err);
-    // TODO: exit?
+    console.error(err);
+    return;
   }
 
   // Set up the GPU
