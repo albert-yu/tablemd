@@ -1,5 +1,6 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { UI } from "./ui";
+import type { WASMExports } from "./wasm-types";
 
 const cursorStyle = {
   select: "auto",
@@ -24,13 +25,10 @@ async function main() {
         },
       },
     });
-    const exports = result.instance.exports;
+    const exports = result.instance.exports as WASMExports;
     memory = exports.memory as WebAssembly.Memory;
 
-    const initApp = exports.app_init as CallableFunction;
-    const deinitApp = exports.app_deinit as CallableFunction;
-    const app = initApp(100, 100, 1);
-    // deinitApp(app);
+    const app = exports.app_init(100, 100, 1);
   } catch (err) {
     console.log(err);
     // TODO: exit?
