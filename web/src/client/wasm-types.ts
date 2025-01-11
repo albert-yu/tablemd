@@ -11,4 +11,5 @@ export type WASMExports = WebAssembly.Exports & {
   ) => WASMApp;
   app_deinit: (app: WASMApp) => void;
   app_set_canvas_size: (app: WASMApp, width: number, height: number) => void;
+  app_on_hover: (app: WASMApp, x: number, y: number) => void;
 };
