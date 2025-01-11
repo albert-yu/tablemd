@@ -13,9 +13,9 @@ fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
 }
 
-const CellCoords = struct {
-    col: u32,
+const CellPosition = struct {
     row: u32,
+    col: u32,
 };
 
 fn setDword(buffer: []u8, idx: usize, dword: u32) void {
@@ -35,7 +35,7 @@ const App = struct {
     allocator: std.mem.Allocator,
     canvas_width: usize,
     canvas_height: usize,
-    current_cell: ?CellCoords,
+    current_cell: ?CellPosition,
 
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
@@ -59,14 +59,11 @@ const App = struct {
     }
 
     pub fn setCanvasSize(self: *App, width: usize, height: usize) void {
-        consoleLog("Canvas size");
-        print_u32(width);
-        print_u32(height);
         self.canvas_width = width;
         self.canvas_height = height;
     }
 
-    fn updateCurrentCell(self: *App, cell: ?CellCoords) void {
+    fn updateCurrentCell(self: *App, cell: ?CellPosition) void {
         self.current_cell = cell;
     }
 };
