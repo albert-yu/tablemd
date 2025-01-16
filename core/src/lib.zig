@@ -22,6 +22,11 @@ const CellPosition = struct {
     col: u32,
 };
 
+const CellDimensions = struct {
+    width: float,
+    height: float,
+};
+
 const DEFAULT_SIGMA = 1e-6;
 const GRID_N = 1000;
 const GRID_DENSITY = 1 / 32;
@@ -41,24 +46,24 @@ const RectElement = struct {
     sigma: float,
 };
 
-const grid_x = blk: {
-    var arr: [GRID_N]float = undefined;
-    for (arr, 0..) |_, i| {
-        arr[i] = @as(float, @floatFromInt(i % GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
+fn createXArray(allocator: std.mem.Allocator) ![]f32 {
+    const array = try allocator.alloc(float, GRID_N * GRID_N);
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        array[i] = @as(float, @floatFromInt(i % GRID_N)) / (GRID_N * GRID_DENSITY);
     }
-    break :blk arr;
-};
+    return array;
+}
 
-const GRID_CELL_HEIGHT = grid_x[1] - grid_x[0];
-const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
-
-const grid_y = blk: {
-    var arr: [GRID_N]float = undefined;
-    for (arr, 0..) |_, i| {
-        arr[i] = @as(float, @floatFromInt(i / GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
+fn createYArray(allocator: std.mem.Allocator) ![]f32 {
+    const array = try allocator.alloc(float, GRID_N * GRID_N);
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        const val = @as(float, @floatFromInt(i / GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
+        array[i] = val;
     }
-    break :blk arr;
-};
+    return array;
+}
 
 fn setDword(buffer: []u8, idx: usize, dword: u32) void {
     const alpha: u8 = @truncate(dword & 0xff);
@@ -79,10 +84,18 @@ const App = struct {
     canvas_height: usize,
     current_cell: ?CellPosition,
     hover_rect: RectElement,
+    grid_x: []f32,
+    grid_y: []f32,
 
     pub fn init(allocator: std.mem.Allocator, canvas_width: usize, canvas_height: usize, sheet_count: usize) !App {
         const sheets = try allocator.alloc(Sheet, sheet_count);
         errdefer allocator.free(sheets);
+        const grid_x = try createXArray(allocator);
+        const grid_y = try createYArray(allocator);
+        errdefer allocator.free(grid_x);
+        errdefer allocator.free(grid_y);
+        const grid_cell_height = grid_x[1] - grid_x[0];
+        const grid_cell_width = grid_cell_height;
 
         return App{
             .canvas_width = canvas_width,
@@ -90,11 +103,13 @@ const App = struct {
             .sheets = sheets,
             .allocator = allocator,
             .current_cell = null,
+            .grid_x = grid_x,
+            .grid_y = grid_y,
             .hover_rect = RectElement{
                 .x = 0,
                 .y = 0,
-                .width = GRID_CELL_WIDTH,
-                .height = GRID_CELL_HEIGHT,
+                .width = grid_cell_width,
+                .height = grid_cell_height,
                 .color = [4]float{ 0, 0, 0, 0.25 },
                 .corners = [4]float{ 0, 0, 0, 0 },
                 .sigma = DEFAULT_SIGMA,
@@ -104,6 +119,8 @@ const App = struct {
 
     pub fn deinit(self: App) void {
         self.allocator.free(self.sheets);
+        self.allocator.free(self.grid_x);
+        self.allocator.free(self.grid_y);
     }
 
     pub fn getAllocator(self: App) std.mem.Allocator {
@@ -117,11 +134,13 @@ const App = struct {
 
     pub fn onHover(self: *App, p: Point2D) void {
         const normalizedPoint = self.normalizePoint(p);
-        const cell = getCellPosition(normalizedPoint);
+        print_float(self.cellDimensions().width);
+        const cell = self.getCellPosition(normalizedPoint);
         // TODO: update cell width and height based on underlying content
         // e.g. text, cell size
-        self.hover_rect.x = GRID_CELL_WIDTH * @as(float, @floatFromInt(cell.col));
-        self.hover_rect.y = GRID_CELL_HEIGHT * @as(float, @floatFromInt(cell.row));
+        const cell_dims = self.cellDimensions();
+        self.hover_rect.x = cell_dims.width * @as(float, @floatFromInt(cell.col));
+        self.hover_rect.y = cell_dims.height * @as(float, @floatFromInt(cell.row));
     }
 
     pub fn writeHoverRect(self: *App, float_array: [*c]float, offset: usize) void {
@@ -160,6 +179,35 @@ const App = struct {
     fn updateCurrentCell(self: *App, cell: ?CellPosition) void {
         self.current_cell = cell;
     }
+
+    fn cellDimensions(self: App) CellDimensions {
+        const width = self.grid_x[1] - self.grid_x[0];
+        return CellDimensions{
+            .width = width,
+            .height = width,
+        };
+    }
+
+    fn getCellPosition(self: App, normalizedPoint: Point2D) CellPosition {
+        const x = self.getIndexOfMaxGridPointBoundedBy(normalizedPoint.x);
+        const y = self.getIndexOfMaxGridPointBoundedBy(normalizedPoint.y);
+        return CellPosition{
+            .row = y,
+            .col = x,
+        };
+    }
+
+    fn getIndexOfMaxGridPointBoundedBy(self: App, upperBound: float) u32 {
+        var i: u32 = 0;
+        while (i < GRID_N) : (i += 1) {
+            const val = self.grid_x[i];
+            if (val > upperBound) {
+                i -= 1;
+                break;
+            }
+        }
+        return i;
+    }
 };
 
 /// Returns null if failed to allocate
@@ -194,25 +242,4 @@ export fn app_on_hover(app: *App, x: float, y: float) void {
 
 export fn app_write_hover_rect(app: *App, float_array: [*c]float, offset: usize) void {
     app.writeHoverRect(float_array, offset);
-}
-
-fn getCellPosition(normalizedPoint: Point2D) CellPosition {
-    const x = getIndexOfMaxGridPointBoundedBy(normalizedPoint.x);
-    const y = getIndexOfMaxGridPointBoundedBy(normalizedPoint.y);
-    return CellPosition{
-        .row = y,
-        .col = x,
-    };
-}
-
-fn getIndexOfMaxGridPointBoundedBy(upperBound: float) u32 {
-    var i: u32 = 0;
-    while (i < GRID_N) : (i += 1) {
-        const val = grid_x[i];
-        if (val > upperBound) {
-            i -= 1;
-            break;
-        }
-    }
-    return i;
 }
