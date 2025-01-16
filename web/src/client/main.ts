@@ -138,10 +138,11 @@ async function main() {
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
   ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
 
-  window.addEventListener("resize", () => {
+  const resizeObserver = new ResizeObserver(() => {
     exports.app_set_canvas_size(app, canvas.clientWidth, canvas.clientHeight);
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
   });
+  resizeObserver.observe(canvas);
 }
 
 function getCanvasSelectMode() {
