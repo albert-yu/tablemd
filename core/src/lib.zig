@@ -1,6 +1,6 @@
 const std = @import("std");
 const engine = @import("engine.zig");
-const rect_render = @import("render/rect.zig");
+const rect = @import("render/rect.zig");
 
 const Sheet = engine.Sheet;
 
@@ -35,16 +35,6 @@ const Point2D = struct {
     y: f32,
 };
 
-const RectElement = struct {
-    color: [4]f32,
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    corners: [4]f32,
-    sigma: f32,
-};
-
 /// Represents the running application
 const App = struct {
     sheets: []Sheet,
@@ -52,7 +42,7 @@ const App = struct {
     canvas_width: usize,
     canvas_height: usize,
     current_cell: ?CellPosition,
-    hover_rect: RectElement,
+    rects: rect.Renderer,
     grid_x: []f32,
     grid_y: []f32,
 
@@ -63,8 +53,7 @@ const App = struct {
         const grid_y = try createYArray(allocator);
         errdefer allocator.free(grid_x);
         errdefer allocator.free(grid_y);
-        const grid_cell_height = grid_x[1] - grid_x[0];
-        const grid_cell_width = grid_cell_height;
+        const rects = try rect.Renderer.init(allocator);
 
         return App{
             .canvas_width = canvas_width,
@@ -74,15 +63,7 @@ const App = struct {
             .current_cell = null,
             .grid_x = grid_x,
             .grid_y = grid_y,
-            .hover_rect = RectElement{
-                .x = 0,
-                .y = 0,
-                .width = grid_cell_width,
-                .height = grid_cell_height,
-                .color = [4]f32{ 0, 0, 0, 0.25 },
-                .corners = [4]f32{ 0, 0, 0, 0 },
-                .sigma = DEFAULT_SIGMA,
-            },
+            .rects = rects,
         };
     }
 
@@ -90,6 +71,7 @@ const App = struct {
         self.allocator.free(self.sheets);
         self.allocator.free(self.grid_x);
         self.allocator.free(self.grid_y);
+        self.rects.deinit(self.allocator);
     }
 
     pub fn getAllocator(self: App) std.mem.Allocator {
@@ -108,29 +90,8 @@ const App = struct {
         // TODO: update cell width and height based on underlying content
         // e.g. text, cell size
         const cell_dims = self.cellDimensions();
-        self.hover_rect.x = cell_dims.width * @as(f32, @floatFromInt(cell.col));
-        self.hover_rect.y = cell_dims.height * @as(f32, @floatFromInt(cell.row));
-    }
-
-    pub fn writeHoverRect(self: *App, float_array: [*c]f32, offset: usize) void {
-        const UNUSED = 0.0;
-        const rect = self.hover_rect;
-        float_array[offset] = rect.color[0];
-        float_array[offset + 1] = rect.color[1];
-        float_array[offset + 2] = rect.color[2];
-        float_array[offset + 3] = rect.color[3];
-        float_array[offset + 4] = rect.x;
-        float_array[offset + 5] = rect.y;
-        float_array[offset + 6] = UNUSED;
-        float_array[offset + 7] = rect.sigma;
-        float_array[offset + 8] = rect.corners[0];
-        float_array[offset + 9] = rect.corners[1];
-        float_array[offset + 10] = rect.corners[2];
-        float_array[offset + 11] = rect.corners[3];
-        float_array[offset + 12] = rect.width;
-        float_array[offset + 13] = rect.height;
-        float_array[offset + 14] = UNUSED;
-        float_array[offset + 15] = UNUSED;
+        self.rects.hover_rect.x = cell_dims.width * @as(f32, @floatFromInt(cell.col));
+        self.rects.hover_rect.y = cell_dims.height * @as(f32, @floatFromInt(cell.row));
     }
 
     fn normalizePoint(self: *App, canvasPoint: Point2D) Point2D {
@@ -207,10 +168,6 @@ export fn app_set_canvas_size(app: *App, width: usize, height: usize) void {
 
 export fn app_on_hover(app: *App, x: f32, y: f32) void {
     app.onHover(Point2D{ .x = x, .y = y });
-}
-
-export fn app_write_hover_rect(app: *App, float_array: [*c]f32, offset: usize) void {
-    app.writeHoverRect(float_array, offset);
 }
 
 fn createXArray(allocator: std.mem.Allocator) ![]f32 {
