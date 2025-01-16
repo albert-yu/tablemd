@@ -27,9 +27,9 @@ const CellDimensions = struct {
     height: float,
 };
 
-const DEFAULT_SIGMA = 1e-6;
+const DEFAULT_SIGMA: comptime_float = 1e-6;
 const GRID_N = 1000;
-const GRID_DENSITY = 1 / 32;
+const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
 const Point2D = struct {
     x: float,
@@ -104,8 +104,8 @@ const App = struct {
 
     pub fn onHover(self: *App, p: Point2D) void {
         const normalizedPoint = self.normalizePoint(p);
-        print_float(self.cellDimensions().width);
         const cell = self.getCellPosition(normalizedPoint);
+        print_u32(cell.row);
         // TODO: update cell width and height based on underlying content
         // e.g. text, cell size
         const cell_dims = self.cellDimensions();
@@ -217,8 +217,11 @@ export fn app_write_hover_rect(app: *App, float_array: [*c]float, offset: usize)
 fn createXArray(allocator: std.mem.Allocator) ![]f32 {
     const array = try allocator.alloc(float, GRID_N * GRID_N);
     var i: usize = 0;
+    print_float(GRID_DENSITY);
     while (i < GRID_N * GRID_N) : (i += 1) {
-        array[i] = @as(float, @floatFromInt(i % GRID_N)) / (GRID_N * GRID_DENSITY);
+        const numer = @as(float, @floatFromInt(i % GRID_N));
+        const denom = @as(float, @floatFromInt(GRID_N)) * @as(float, GRID_DENSITY);
+        array[i] = numer / denom;
     }
     return array;
 }
@@ -227,8 +230,9 @@ fn createYArray(allocator: std.mem.Allocator) ![]f32 {
     const array = try allocator.alloc(float, GRID_N * GRID_N);
     var i: usize = 0;
     while (i < GRID_N * GRID_N) : (i += 1) {
-        const val = @as(float, @floatFromInt(i / GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
-        array[i] = val;
+        const numer = @as(float, @floatFromInt(i / GRID_N));
+        const denom = @as(float, @floatFromInt(GRID_N)) * @as(float, GRID_DENSITY);
+        array[i] = numer / denom;
     }
     return array;
 }
