@@ -73,7 +73,7 @@ async function main() {
   const fpsSpan = document.querySelector("#fps")!;
 
   // UI state
-  const ui = new UI(device, context, format);
+  const ui = new UI(device, context, format, exports, app);
   await ui.init();
 
   function frame() {

@@ -20,9 +20,6 @@ const CellPosition = struct {
     col: u32,
 };
 
-/// TODO: derive this instead of hardcoding
-const GRID_CELL_HEIGHT = 0.03200000151991844;
-const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
 const DEFAULT_SIGMA = 1e-6;
 const GRID_N = 1000;
 const GRID_DENSITY = 1 / 32;
@@ -33,11 +30,11 @@ const Point2D = struct {
 };
 
 const RectElement = struct {
+    color: [4]float,
     x: float,
     y: float,
     width: float,
     height: float,
-    color: [4]float,
     corners: [4]float,
     sigma: float,
 };
@@ -49,6 +46,9 @@ const grid_x = blk: {
     }
     break :blk arr;
 };
+
+const GRID_CELL_HEIGHT = grid_x[1] - grid_x[0];
+const GRID_CELL_WIDTH = GRID_CELL_HEIGHT;
 
 const grid_y = blk: {
     var arr: [GRID_N]float = undefined;
@@ -122,6 +122,27 @@ const App = struct {
         self.hover_rect.y = GRID_CELL_HEIGHT * @as(float, @floatFromInt(cell.row));
     }
 
+    pub fn writeHoverRect(self: *App, float_array: [*c]float, offset: usize) void {
+        const UNUSED = 0;
+        const rect = self.hover_rect;
+        float_array[offset] = rect.color[0];
+        float_array[offset + 1] = rect.color[1];
+        float_array[offset + 2] = rect.color[2];
+        float_array[offset + 3] = rect.color[3];
+        float_array[offset + 4] = rect.x;
+        float_array[offset + 5] = rect.y;
+        float_array[offset + 6] = UNUSED;
+        float_array[offset + 7] = rect.sigma;
+        float_array[offset + 8] = rect.corners[0];
+        float_array[offset + 9] = rect.corners[1];
+        float_array[offset + 10] = rect.corners[2];
+        float_array[offset + 11] = rect.corners[3];
+        float_array[offset + 12] = rect.width;
+        float_array[offset + 13] = rect.height;
+        float_array[offset + 14] = UNUSED;
+        float_array[offset + 15] = UNUSED;
+    }
+
     fn normalizePoint(self: *App, canvasPoint: Point2D) Point2D {
         const maxWidth = self.canvas_width;
         const maxHeight = self.canvas_height;
@@ -167,6 +188,10 @@ export fn app_set_canvas_size(app: *App, width: usize, height: usize) void {
 
 export fn app_on_hover(app: *App, x: float, y: float) void {
     app.onHover(Point2D{ .x = x, .y = y });
+}
+
+export fn app_write_hover_rect(app: *App, float_array: [*c]float, offset: usize) void {
+    app.writeHoverRect(float_array, offset);
 }
 
 fn getCellPosition(normalizedPoint: Point2D) CellPosition {
