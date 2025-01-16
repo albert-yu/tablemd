@@ -46,36 +46,6 @@ const RectElement = struct {
     sigma: float,
 };
 
-fn createXArray(allocator: std.mem.Allocator) ![]f32 {
-    const array = try allocator.alloc(float, GRID_N * GRID_N);
-    var i: usize = 0;
-    while (i < GRID_N * GRID_N) : (i += 1) {
-        array[i] = @as(float, @floatFromInt(i % GRID_N)) / (GRID_N * GRID_DENSITY);
-    }
-    return array;
-}
-
-fn createYArray(allocator: std.mem.Allocator) ![]f32 {
-    const array = try allocator.alloc(float, GRID_N * GRID_N);
-    var i: usize = 0;
-    while (i < GRID_N * GRID_N) : (i += 1) {
-        const val = @as(float, @floatFromInt(i / GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
-        array[i] = val;
-    }
-    return array;
-}
-
-fn setDword(buffer: []u8, idx: usize, dword: u32) void {
-    const alpha: u8 = @truncate(dword & 0xff);
-    const blue: u8 = @truncate((dword >> 8) & 0xff);
-    const green: u8 = @truncate((dword >> 16) & 0xff);
-    const red: u8 = @truncate((dword >> 24) & 0xff);
-    buffer[idx] = red;
-    buffer[idx + 1] = green;
-    buffer[idx + 2] = blue;
-    buffer[idx + 3] = alpha;
-}
-
 /// Represents the running application
 const App = struct {
     sheets: []Sheet,
@@ -242,4 +212,34 @@ export fn app_on_hover(app: *App, x: float, y: float) void {
 
 export fn app_write_hover_rect(app: *App, float_array: [*c]float, offset: usize) void {
     app.writeHoverRect(float_array, offset);
+}
+
+fn createXArray(allocator: std.mem.Allocator) ![]f32 {
+    const array = try allocator.alloc(float, GRID_N * GRID_N);
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        array[i] = @as(float, @floatFromInt(i % GRID_N)) / (GRID_N * GRID_DENSITY);
+    }
+    return array;
+}
+
+fn createYArray(allocator: std.mem.Allocator) ![]f32 {
+    const array = try allocator.alloc(float, GRID_N * GRID_N);
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        const val = @as(float, @floatFromInt(i / GRID_N)) / @as(float, @floatFromInt(GRID_N * GRID_DENSITY));
+        array[i] = val;
+    }
+    return array;
+}
+
+fn setDword(buffer: []u8, idx: usize, dword: u32) void {
+    const alpha: u8 = @truncate(dword & 0xff);
+    const blue: u8 = @truncate((dword >> 8) & 0xff);
+    const green: u8 = @truncate((dword >> 16) & 0xff);
+    const red: u8 = @truncate((dword >> 24) & 0xff);
+    buffer[idx] = red;
+    buffer[idx + 1] = green;
+    buffer[idx + 2] = blue;
+    buffer[idx + 3] = alpha;
 }
