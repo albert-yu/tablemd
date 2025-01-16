@@ -21,6 +21,9 @@ async function main() {
         print_u32: (x: number) => {
           console.log(x);
         },
+        print_float: (x: number) => {
+          console.log(x);
+        },
         print: (ptr: number, len: number) => {
           const bytes = new Uint8Array(memory!.buffer, ptr, len);
           const str = new TextDecoder("utf-8").decode(bytes);

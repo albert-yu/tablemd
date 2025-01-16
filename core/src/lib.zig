@@ -10,6 +10,8 @@ extern fn print(ptr: [*]const u8, len: u32) void;
 
 extern fn print_u32(value: u32) void;
 
+extern fn print_float(value: float) void;
+
 /// Wrapper around `print` to make it easier to use
 fn consoleLog(str: []const u8) void {
     print(str.ptr, str.len);
