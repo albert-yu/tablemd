@@ -217,10 +217,9 @@ export fn app_write_hover_rect(app: *App, float_array: [*c]float, offset: usize)
 fn createXArray(allocator: std.mem.Allocator) ![]f32 {
     const array = try allocator.alloc(float, GRID_N * GRID_N);
     var i: usize = 0;
-    print_float(GRID_DENSITY);
     while (i < GRID_N * GRID_N) : (i += 1) {
         const numer = @as(float, @floatFromInt(i % GRID_N));
-        const denom = @as(float, @floatFromInt(GRID_N)) * @as(float, GRID_DENSITY);
+        const denom = @as(float, @floatFromInt(GRID_N)) * GRID_DENSITY;
         array[i] = numer / denom;
     }
     return array;
@@ -231,7 +230,7 @@ fn createYArray(allocator: std.mem.Allocator) ![]f32 {
     var i: usize = 0;
     while (i < GRID_N * GRID_N) : (i += 1) {
         const numer = @as(float, @floatFromInt(i / GRID_N));
-        const denom = @as(float, @floatFromInt(GRID_N)) * @as(float, GRID_DENSITY);
+        const denom = @as(float, @floatFromInt(GRID_N)) * GRID_DENSITY;
         array[i] = numer / denom;
     }
     return array;
