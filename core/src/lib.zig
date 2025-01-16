@@ -27,7 +27,7 @@ const CellDimensions = struct {
     height: float,
 };
 
-const DEFAULT_SIGMA: comptime_float = 1e-6;
+const DEFAULT_SIGMA = 1e-6;
 const GRID_N = 1000;
 const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
@@ -114,7 +114,7 @@ const App = struct {
     }
 
     pub fn writeHoverRect(self: *App, float_array: [*c]float, offset: usize) void {
-        const UNUSED = 0;
+        const UNUSED = 0.0;
         const rect = self.hover_rect;
         float_array[offset] = rect.color[0];
         float_array[offset + 1] = rect.color[1];
