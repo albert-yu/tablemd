@@ -101,7 +101,7 @@ fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.built
         .use_webgl2 = true,
         .use_emmalloc = true,
         .use_filesystem = false,
-        .shell_file_path = b.path("src/web/shell.html"),
+        .shell_file_path = dep_sokol.path("src/sokol/web/shell.html"),
     });
     // ...and a special run step to start the web build output via 'emrun'
     const run = sokol.emRunStep(b, .{ .name = "app", .emsdk = emsdk });
