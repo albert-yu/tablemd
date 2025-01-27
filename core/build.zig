@@ -1,5 +1,4 @@
 const std = @import("std");
-const sokol = @import("sokol");
 
 fn addUnitTest(b: *std.Build, options: std.Build.TestOptions) *std.Build.Step.Run {
     const unit_test = b.addTest(options);
@@ -22,16 +21,42 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const dep_sokol = b.dependency("sokol", .{
+    const exe = b.addExecutable(.{
+        .name = "spreadsheet",
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    // special case handling for native vs web build
-    if (target.result.isWasm()) {
-        try buildWeb(b, target, optimize, dep_sokol);
-    } else {
-        try buildNative(b, target, optimize, dep_sokol);
+
+    // This declares intent for the executable to be installed into the
+    // standard location when the user invokes the "install" step (the default
+    // step when running `zig build`).
+    b.installArtifact(exe);
+
+    // This *creates* a Run step in the build graph, to be executed when another
+    // step is evaluated that depends on it. The next line below will establish
+    // such a dependency.
+    const run_cmd = b.addRunArtifact(exe);
+
+    // By making the run step depend on the install step, it will be run from the
+    // installation directory rather than directly from within the cache directory.
+    // This is not necessary, however, if the application depends on other installed
+    // files, this ensures they will be present and in the expected location.
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    // This allows the user to pass arguments to the application in the build
+    // command itself, like this: `zig build run -- arg1 arg2 etc`
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
     }
+
+    // This creates a build step. It will be visible in the `zig build --help` menu,
+    // and can be selected like this: `zig build run`
+    // This will evaluate the `run` step rather than the default, which is "install".
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 
     const run_lexer_tests = addUnitTest(b, .{
         .root_source_file = b.path("src/lexer.zig"),
@@ -65,46 +90,4 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_parser_tests.step);
     test_step.dependOn(&run_engine_tests.step);
     test_step.dependOn(&run_map_tests.step);
-}
-
-// this is the regular build for all native platforms, nothing surprising here
-fn buildNative(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, dep_sokol: *std.Build.Dependency) !void {
-    const app = b.addExecutable(.{
-        .name = "app",
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("src/main.zig"),
-    });
-    app.root_module.addImport("sokol", dep_sokol.module("sokol"));
-    b.installArtifact(app);
-    const run = b.addRunArtifact(app);
-    b.step("run", "Run app").dependOn(&run.step);
-}
-
-// for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
-fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, dep_sokol: *std.Build.Dependency) !void {
-    const lib = b.addStaticLibrary(.{
-        .name = "app",
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("src/main.zig"),
-    });
-    lib.root_module.addImport("sokol", dep_sokol.module("sokol"));
-
-    // create a build step which invokes the Emscripten linker
-    const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-    const link_step = try sokol.emLinkStep(b, .{
-        .lib_main = lib,
-        .target = target,
-        .optimize = optimize,
-        .emsdk = emsdk,
-        .use_webgl2 = true,
-        .use_emmalloc = true,
-        .use_filesystem = false,
-        .shell_file_path = dep_sokol.path("src/sokol/web/shell.html"),
-    });
-    // ...and a special run step to start the web build output via 'emrun'
-    const run = sokol.emRunStep(b, .{ .name = "app", .emsdk = emsdk });
-    run.step.dependOn(&link_step.step);
-    b.step("run", "Run app").dependOn(&run.step);
 }
