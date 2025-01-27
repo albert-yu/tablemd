@@ -1,3 +1,0 @@
-[submodule "core/vendor/sokol-tools"]
-	path = core/vendor/sokol-tools
-	url = https://github.com/floooh/sokol-tools.git
