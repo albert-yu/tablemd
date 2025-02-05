@@ -1,5 +1,6 @@
 const sg = @import("sokol").gfx;
 const std = @import("std");
+const m = @import("../math.zig");
 //
 //    #version:1# (machine generated, don't edit!)
 //
@@ -29,9 +30,9 @@ pub const Xyvalues = extern struct {
     values: [1000][4]f32 align(16),
 };
 pub const VsParams = extern struct {
-    zoom: [16]f32 align(16),
-    window_scale: [16]f32 align(1),
-    untransform: [16]f32 align(1),
+    zoom: m.Mat4 align(16),
+    window_scale: m.Mat4 align(1),
+    untransform: m.Mat4 align(1),
 };
 //
 //    #version 410

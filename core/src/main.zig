@@ -44,9 +44,9 @@ const State = struct {
     pass_action: sg.PassAction = .{},
 
     // Add matrices for transformation
-    zoom: Mat4 = Mat4.identity,
-    window_scale: Mat4 = Mat4.identity,
-    untransform: Mat4 = Mat4.identity,
+    zoom: Mat4 = Mat4.identity(),
+    window_scale: Mat4 = Mat4.identity(),
+    untransform: Mat4 = Mat4.identity(),
 };
 
 var state: State = .{};
@@ -69,7 +69,7 @@ pub fn main() !void {
     // const allocator = gpa.allocator();
 }
 
-fn computeVSParams(s: State) shd.VSParams {
+fn computeVSParams(s: State) shd.VsParams {
     return .{
         .zoom = s.zoom,
         .window_scale = s.window_scale,

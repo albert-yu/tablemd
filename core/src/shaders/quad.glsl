@@ -1,3 +1,6 @@
+@header const m = @import("../math.zig")
+@ctype mat4 m.Mat4
+
 @vs vs
 
 // Buffer bindings for x and y values
