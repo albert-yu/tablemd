@@ -149,25 +149,3 @@ fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
         arr[i] = Vec2.new(x, y);
     }
 }
-
-fn createXArray(allocator: std.mem.Allocator) ![]f32 {
-    const array = try allocator.alloc(f32, GRID_N * GRID_N);
-    var i: usize = 0;
-    while (i < GRID_N * GRID_N) : (i += 1) {
-        const numer = @as(f32, @floatFromInt(i % GRID_N));
-        const denom = GRID_N * GRID_DENSITY;
-        array[i] = numer / denom;
-    }
-    return array;
-}
-
-fn createYArray(allocator: std.mem.Allocator) ![]f32 {
-    const array = try allocator.alloc(f32, GRID_N * GRID_N);
-    var i: usize = 0;
-    while (i < GRID_N * GRID_N) : (i += 1) {
-        const numer = @as(f32, @floatFromInt(i / GRID_N));
-        const denom = GRID_N * GRID_DENSITY;
-        array[i] = numer / denom;
-    }
-    return array;
-}
