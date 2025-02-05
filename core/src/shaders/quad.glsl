@@ -3,23 +3,19 @@
 
 @vs vs
 
-// Buffer bindings for x and y values
-layout(binding = 0) uniform XYValues {
-    vec4 values[1000];
-} xy_values;
-
 // Uniform block
-layout(binding = 1) uniform vs_params {
+layout(binding = 0) uniform vs_params {
     mat4 zoom;
     mat4 window_scale;
     mat4 untransform;
 };
 
+in vec2 xy;
 out vec2 quad_position;
 
 void main() {
-    float x = xy_values.values[gl_InstanceIndex].x;
-    float y = xy_values.values[gl_InstanceIndex].y;
+    float x = xy.x;
+    float y = xy.y;
     mat4 t = untransform * zoom * window_scale;
     float k = zoom[0][0];
     float size = exp(log(k) * 0.01) / 300.0;

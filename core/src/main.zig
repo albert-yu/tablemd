@@ -11,6 +11,7 @@ const sglue = sokol.glue;
 const shd = @import("shaders/quad.glsl.zig");
 
 const Mat4 = @import("math.zig").Mat4;
+const Vec2 = @import("math.zig").Vec2;
 
 const print = std.debug.print;
 
@@ -47,6 +48,9 @@ const State = struct {
     zoom: Mat4 = Mat4.identity(),
     window_scale: Mat4 = Mat4.identity(),
     untransform: Mat4 = Mat4.identity(),
+
+    // dot grid positions
+    pos: [GRID_N * GRID_N]Vec2 = undefined,
 };
 
 var state: State = .{};
@@ -78,7 +82,6 @@ fn computeVSParams(s: State) shd.VsParams {
 }
 
 export fn init() void {
-    // TODO: init
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -89,6 +92,7 @@ export fn init() void {
         .load_action = .CLEAR,
         .clear_value = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
     };
+    populateXYArray(&state.pos);
 }
 
 export fn frame() void {
@@ -131,6 +135,18 @@ export fn input(ev: ?*const sapp.Event) void {
         }
     } else if ((event.type == .TOUCHES_BEGAN) or (event.type == .TOUCHES_ENDED)) {
         state.input.anykey = event.type == .TOUCHES_BEGAN;
+    }
+}
+
+fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        const numerX = @as(f32, @floatFromInt(i % GRID_N));
+        const numerY = @as(f32, @floatFromInt(i / GRID_N));
+        const denom = GRID_N * GRID_DENSITY;
+        const x = numerX / denom;
+        const y = numerY / denom;
+        arr[i] = Vec2.new(x, y);
     }
 }
 
