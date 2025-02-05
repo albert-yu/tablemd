@@ -6,6 +6,11 @@ const fmt = std.fmt;
 const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
+const sg = sokol.gfx;
+const sglue = sokol.glue;
+const shd = @import("shaders/quad.zig");
+
+const Mat4 = @import("math.zig").Mat4;
 
 const print = std.debug.print;
 
@@ -15,8 +20,86 @@ const TICK_TOLERANCE_NS = 1_000_000; // max time tolerance of a game tick in nan
 const DISPLAY_PIXELS_X = 800;
 const DISPLAY_PIXELS_Y = 600;
 
+const GRID_N = 1000;
+const GRID_DENSITY: comptime_float = 1.0 / 32.0;
+
+const State = struct {
+    timing: struct {
+        tick: u32 = 0,
+        laptime_store: u64 = 0,
+        tick_accum: i32 = 0,
+    } = .{},
+
+    input: struct {
+        enabled: bool = false,
+        up: bool = false,
+        down: bool = false,
+        left: bool = false,
+        right: bool = false,
+        esc: bool = false,
+        anykey: bool = false,
+    } = .{},
+    pip: sg.Pipeline = undefined,
+    bind: sg.Bindings = undefined,
+    pass_action: sg.PassAction = .{},
+
+    // Add matrices for transformation
+    zoom: Mat4 = Mat4.identity,
+    window_scale: Mat4 = Mat4.identity,
+    untransform: Mat4 = Mat4.identity,
+};
+
+var state: State = .{};
+
+pub fn main() !void {
+    sapp.run(.{
+        .init_cb = init,
+        .frame_cb = frame,
+        .event_cb = input,
+        .cleanup_cb = cleanup,
+        .sample_count = 4,
+        .width = 2 * DISPLAY_PIXELS_X,
+        .height = 2 * DISPLAY_PIXELS_Y,
+        .window_title = "High Performance Spreadsheet Computing",
+        .logger = .{ .func = slog.func },
+    });
+
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    // const allocator = gpa.allocator();
+}
+
+fn computeVSParams(s: State) shd.VSParams {
+    return .{
+        .zoom = s.zoom,
+        .window_scale = s.window_scale,
+        .untransform = s.untransform,
+    };
+}
+
 export fn init() void {
     // TODO: init
+    sg.setup(.{
+        .environment = sglue.environment(),
+        .logger = .{ .func = slog.func },
+    });
+
+    // pass action to clear frame buffer to black
+    state.pass_action.colors[0] = .{
+        .load_action = .CLEAR,
+        .clear_value = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
+    };
+}
+
+export fn frame() void {
+    const vs_params = computeVSParams(state);
+    sg.beginPass(.{ .action = state.pass_action, .swapchain = sglue.swapchain() });
+    sg.applyPipeline(state.pip);
+    sg.applyBindings(state.bind);
+    sg.applyUniforms(shd.UB_vs_params, sg.asRange(&vs_params));
+    sg.draw(0, 36, 1);
+    sg.endPass();
+    sg.commit();
 }
 
 export fn cleanup() void {
@@ -51,54 +134,24 @@ export fn input(ev: ?*const sapp.Event) void {
     }
 }
 
-const State = struct {
-    timing: struct {
-        tick: u32 = 0,
-        laptime_store: u64 = 0,
-        tick_accum: i32 = 0,
-    } = .{},
-
-    input: struct {
-        enabled: bool = false,
-        up: bool = false,
-        down: bool = false,
-        left: bool = false,
-        right: bool = false,
-        esc: bool = false,
-        anykey: bool = false,
-    } = .{},
-};
-var state: State = .{};
-
-export fn frame() void {
-
-    // run the game at a fixed tick rate regardless of frame rate
-    var frame_time_ns = @as(f32, @floatCast(sapp.frameDuration() * 1000000000.0));
-    // clamp max frame duration (so the timing isn't messed up when stepping in debugger)
-    if (frame_time_ns > MAX_FRAME_TIME_NS) {
-        frame_time_ns = MAX_FRAME_TIME_NS;
+fn createXArray(allocator: std.mem.Allocator) ![]f32 {
+    const array = try allocator.alloc(f32, GRID_N * GRID_N);
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        const numer = @as(f32, @floatFromInt(i % GRID_N));
+        const denom = GRID_N * GRID_DENSITY;
+        array[i] = numer / denom;
     }
-
-    state.timing.tick_accum += @as(i32, @intFromFloat(frame_time_ns));
-    while (state.timing.tick_accum > -TICK_TOLERANCE_NS) {
-        state.timing.tick_accum -= TICK_DURATION_NS;
-        state.timing.tick += 1;
-    }
+    return array;
 }
 
-pub fn main() !void {
-    sapp.run(.{
-        .init_cb = init,
-        .frame_cb = frame,
-        .event_cb = input,
-        .cleanup_cb = cleanup,
-        .width = 2 * DISPLAY_PIXELS_X,
-        .height = 2 * DISPLAY_PIXELS_Y,
-        .window_title = "High Performance Spreadsheet Computing",
-        .logger = .{ .func = slog.func },
-    });
-
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer std.debug.assert(gpa.deinit() == .ok);
-    // const allocator = gpa.allocator();
+fn createYArray(allocator: std.mem.Allocator) ![]f32 {
+    const array = try allocator.alloc(f32, GRID_N * GRID_N);
+    var i: usize = 0;
+    while (i < GRID_N * GRID_N) : (i += 1) {
+        const numer = @as(f32, @floatFromInt(i / GRID_N));
+        const denom = GRID_N * GRID_DENSITY;
+        array[i] = numer / denom;
+    }
+    return array;
 }
