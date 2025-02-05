@@ -8,7 +8,7 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
-const shd = @import("shaders/quad.zig");
+const shd = @import("shaders/quad.glsl.zig");
 
 const Mat4 = @import("math.zig").Mat4;
 
