@@ -14,12 +14,15 @@ const sglue = sokol.glue;
 const Mat4 = @import("math.zig").Mat4;
 const Vec2 = @import("math.zig").Vec2;
 const Vec3 = @import("math.zig").Vec3;
+const Color = sg.Color;
 
 const print = std.debug.print;
 
 const GRID_N = 100;
 const POINTS_N = GRID_N * GRID_N;
 const GRID_DENSITY: comptime_float = 1.0 / 8.0;
+
+const BG_COLOR: Color = .{ .r = 37 / 256, .g = 38 / 256, .b = 56 / 256, .a = 1 };
 
 const WIDTH_START = 600;
 const HEIGHT_START = 600;
@@ -111,10 +114,10 @@ export fn init() void {
         },
     });
 
-    // clear to black
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
-        .clear_value = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
+        .store_action = .STORE,
+        .clear_value = BG_COLOR,
     };
 
     populateXYArray(&state.grid_pos);
