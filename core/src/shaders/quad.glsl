@@ -20,7 +20,7 @@ void main() {
     mat4 t = untransform * zoom * window_scale;
     // size to shrink non-linearlly
     float k = zoom[0][0];
-    float size = exp(log(k) * 0.01) / 100.0;
+    float size = exp(log(k) * 0.01) / 150.0;
 
     // vertex position
     vec2 qp = vec2(position.x, position.y) - 0.5;

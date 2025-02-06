@@ -62,7 +62,7 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    const k = 8.0;
+    const k = 1.0;
     const x = 0.0;
     const y = 0.0;
     state.zoom.m = [4][4]f32{
