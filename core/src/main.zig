@@ -19,7 +19,7 @@ const print = std.debug.print;
 
 const GRID_N = 100;
 const POINTS_N = GRID_N * GRID_N;
-const GRID_DENSITY: comptime_float = 1.0 / 32.0;
+const GRID_DENSITY: comptime_float = 1.0 / 16.0;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
@@ -100,9 +100,9 @@ export fn init() void {
         .layout = init: {
             var l = sg.VertexLayoutState{};
             l.buffers[1].step_func = .PER_INSTANCE;
-            l.attrs[shd.ATTR_quad_position].format = .FLOAT3;
-            l.attrs[shd.ATTR_quad_color0].format = .FLOAT4;
-            l.attrs[shd.ATTR_quad_instance_position].format = .FLOAT3;
+            l.attrs[shd.ATTR_quad_position] = .{ .format = .FLOAT3, .buffer_index = 0 };
+            l.attrs[shd.ATTR_quad_color0] = .{ .format = .FLOAT4, .buffer_index = 0 };
+            l.attrs[shd.ATTR_quad_instance_position] = .{ .format = .FLOAT3, .buffer_index = 1 };
             break :init l;
         },
         .index_type = .UINT16,
