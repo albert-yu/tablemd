@@ -1,14 +1,15 @@
 const std = @import("std");
 const parser = @import("parser.zig");
 const engine = @import("engine.zig");
+const sokol = @import("sokol");
+const shd = @import("shaders/quad.glsl.zig");
+
 const io = std.io;
 const fmt = std.fmt;
-const sokol = @import("sokol");
 const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
-const shd = @import("shaders/quad.glsl.zig");
 
 const Mat4 = @import("math.zig").Mat4;
 const Vec2 = @import("math.zig").Vec2;
@@ -93,15 +94,64 @@ export fn init() void {
         .clear_value = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
     };
     populateXYArray(&state.pos);
+
+    // a vertex buffer
+    state.bind.vertex_buffers[0] = sg.makeBuffer(.{
+        .data = sg.asRange(&[_]f32{
+            0, 0,
+            1, 0,
+            0, 1,
+            0, 1,
+            1, 0,
+            1, 1,
+        }),
+    });
+
+    // an index buffer
+    state.bind.index_buffer = sg.makeBuffer(.{
+        .type = .INDEXBUFFER,
+        .data = sg.asRange(&[_]u16{ 0, 1, 2, 4, 5 }),
+    });
+
+    // instancing data
+    state.bind.vertex_buffers[1] = sg.makeBuffer(.{
+        .usage = .STREAM,
+        .size = GRID_N * GRID_N * @sizeOf(Vec2),
+    });
+
+    // shader and pipeline object
+    // NOTE how the vertex layout is setup for instancing, with the instancing
+    // data provided by buffer-slot 1:
+    state.pip = sg.makePipeline(.{
+        .shader = sg.makeShader(shd.quadShaderDesc(sg.queryBackend())),
+        .layout = init: {
+            var l = sg.VertexLayoutState{};
+            l.buffers[1].step_func = .PER_INSTANCE;
+            l.attrs[shd.ATTR_quad_xy] = .{ .format = .FLOAT2, .buffer_index = 0 }; // quad position
+            // l.attrs[shd.ATTR_instancing_color0] = .{ .format = .FLOAT4, .buffer_index = 0 }; // colors
+            // l.attrs[shd.ATTR_instancing_inst_pos] = .{ .format = .FLOAT3, .buffer_index = 1 }; // instance positions
+            break :init l;
+        },
+        .index_type = .UINT16,
+        // .cull_mode = .BACK,
+        .depth = .{
+            .compare = .LESS_EQUAL,
+            .write_enabled = false,
+        },
+    });
 }
 
 export fn frame() void {
     const vs_params = computeVSParams(state);
+
+    sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.pos[0..(GRID_N * GRID_N)]));
+
     sg.beginPass(.{ .action = state.pass_action, .swapchain = sglue.swapchain() });
     sg.applyPipeline(state.pip);
     sg.applyBindings(state.bind);
     sg.applyUniforms(shd.UB_vs_params, sg.asRange(&vs_params));
-    sg.draw(0, 36, 1);
+    // 6 vertices per quad
+    sg.draw(0, 6, GRID_N * GRID_N);
     sg.endPass();
     sg.commit();
 }
