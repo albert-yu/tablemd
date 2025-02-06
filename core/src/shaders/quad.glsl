@@ -2,21 +2,31 @@
 @vs vs
 in vec4 position;
 in vec4 color0;
+out vec2 uv;
 out vec4 color;
 
 void main() {
     gl_Position = position;
+    // Convert from [-1,1] to [0,1] range for UV
+    uv = vec2(position.x, position.y) * 0.5 + 0.5;
     color = color0;
 }
 @end
 
 /* quad fragment shader */
 @fs fs
+in vec2 uv;
 in vec4 color;
 out vec4 frag_color;
 
 void main() {
-    frag_color = color;
+    vec2 center = vec2(0.5, 0.5);
+    float dist = distance(uv, center);
+    float radius = 0.4;
+    float smoothWidth = 0.01;
+    float alpha = 1.0 - smoothstep(radius - smoothWidth, radius + smoothWidth, dist);
+
+    frag_color = vec4(color.x, color.y, color.z, alpha);
 }
 @end
 

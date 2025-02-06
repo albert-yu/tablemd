@@ -29,13 +29,15 @@ export fn init() void {
     });
 
     // a vertex buffer
+    const opacity = 0.25;
+    const v = 1.0;
     state.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&[_]f32{
             // positions      colors
-            -0.5, 0.5,  0.5, 1.0, 0.0, 0.0, 1.0,
-            0.5,  0.5,  0.5, 0.0, 1.0, 0.0, 1.0,
-            0.5,  -0.5, 0.5, 0.0, 0.0, 1.0, 1.0,
-            -0.5, -0.5, 0.5, 1.0, 1.0, 0.0, 1.0,
+            -v, v,  v, 1.0, 1.0, 1.0, opacity,
+            v,  v,  v, 1.0, 1.0, 1.0, opacity,
+            v,  -v, v, 1.0, 1.0, 1.0, opacity,
+            -v, -v, v, 1.0, 1.0, 1.0, opacity,
         }),
     });
 
