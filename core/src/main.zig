@@ -68,7 +68,6 @@ export fn init() void {
         .{ 0.0, 0.0, 1.0, 0.0 },
         .{ x, y, 0.0, 1.0 },
     };
-    populateXYArray(&state.grid_pos);
 
     // a vertex buffer
     const opacity = 0.25;
@@ -117,13 +116,13 @@ export fn init() void {
         .load_action = .CLEAR,
         .clear_value = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
     };
+
+    populateXYArray(&state.grid_pos);
+    sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
 }
 
 export fn frame() void {
     const vs_params = computeVSParams();
-    populateXYArray(&state.grid_pos);
-
-    sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
 
     sg.beginPass(.{
         .action = state.pass_action,
