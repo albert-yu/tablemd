@@ -7,8 +7,7 @@ out vec4 color;
 
 void main() {
     gl_Position = position;
-    // Convert from [-1,1] to [0,1] range for UV
-    uv = vec2(position.x, position.y) * 0.5 + 0.5;
+    uv = vec2(position.x, position.y);
     color = color0;
 }
 @end
@@ -20,13 +19,14 @@ in vec4 color;
 out vec4 frag_color;
 
 void main() {
-    vec2 center = vec2(0.5, 0.5);
+    vec2 center = vec2(0.0, 0.0);
     float dist = distance(uv, center);
-    float radius = 0.4;
-    float smoothWidth = 0.01;
-    float alpha = 1.0 - smoothstep(radius - smoothWidth, radius + smoothWidth, dist);
+    float radius = 0.5;
+    if (dist > radius) {
+        discard;
+    }
 
-    frag_color = vec4(color.x, color.y, color.z, alpha);
+    frag_color = color;
 }
 @end
 
