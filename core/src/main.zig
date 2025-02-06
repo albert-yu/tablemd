@@ -19,9 +19,9 @@ const print = std.debug.print;
 
 const GRID_N = 100;
 const POINTS_N = GRID_N * GRID_N;
-const GRID_DENSITY: comptime_float = 1.0 / 16.0;
+const GRID_DENSITY: comptime_float = 1.0 / 8.0;
 
-const WIDTH_START = 800;
+const WIDTH_START = 600;
 const HEIGHT_START = 600;
 
 const Interval = struct {
@@ -59,9 +59,9 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    const k = 1;
-    const x = 0;
-    const y = 0;
+    const k = 8.0;
+    const x = 0.0;
+    const y = 0.0;
     state.zoom.m = [4][4]f32{
         .{ k, 0.0, 0.0, 0.0 },
         .{ 0.0, k, 0.0, 0.0 },
@@ -125,7 +125,10 @@ export fn frame() void {
 
     sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
 
-    sg.beginPass(.{ .action = state.pass_action, .swapchain = sglue.swapchain() });
+    sg.beginPass(.{
+        .action = state.pass_action,
+        .swapchain = sglue.swapchain(),
+    });
     sg.applyPipeline(state.pip);
     sg.applyBindings(state.bind);
     sg.applyUniforms(shd.UB_vs_params, sg.asRange(&vs_params));
@@ -149,6 +152,8 @@ pub fn main() void {
         .icon = .{ .sokol_default = true },
         .window_title = "quad.zig",
         .logger = .{ .func = slog.func },
+        // .sample_count = 4,
+        .high_dpi = true,
     });
 }
 
