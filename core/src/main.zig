@@ -302,31 +302,14 @@ fn computeVSParams() shd.VsParams {
 
 export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
-    print("event: {}\n", .{event.type});
-    // if ((event.type == .KEY_DOWN) or (event.type == .KEY_UP)) {
-    //     const key_pressed = event.type == .KEY_DOWN;
-    //     if (state.input.enabled) {
-    //         state.input.anykey = key_pressed;
-    //         switch (event.key_code) {
-    //             .W,
-    //             .UP,
-    //             => state.input.up = key_pressed,
-    //             .S,
-    //             .DOWN,
-    //             => state.input.down = key_pressed,
-    //             .A,
-    //             .LEFT,
-    //             => state.input.left = key_pressed,
-    //             .D,
-    //             .RIGHT,
-    //             => state.input.right = key_pressed,
-    //             .ESCAPE => state.input.esc = key_pressed,
-    //             else => {},
-    //         }
-    //     }
-    // } else if ((event.type == .TOUCHES_BEGAN) or (event.type == .TOUCHES_ENDED)) {
-    //     state.input.anykey = event.type == .TOUCHES_BEGAN;
-    // }
+    switch (event.type) {
+        .RESIZED => {
+            const w = @as(f32, @floatFromInt(event.window_width));
+            const h = @as(f32, @floatFromInt(event.window_height));
+            updateWindowData(w, h);
+        },
+        else => {},
+    }
 }
 
 fn updateWindowData(w: f32, h: f32) void {
