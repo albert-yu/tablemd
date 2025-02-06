@@ -143,6 +143,7 @@ pub fn main() void {
         .init_cb = init,
         .frame_cb = frame,
         .cleanup_cb = cleanup,
+        .event_cb = input,
         .width = 2 * WIDTH_START,
         .height = 2 * HEIGHT_START,
         .icon = .{ .sokol_default = true },
@@ -294,33 +295,34 @@ fn computeVSParams() shd.VsParams {
 //     // TODO: cleanup
 // }
 
-// export fn input(ev: ?*const sapp.Event) void {
-//     const event = ev.?;
-//     if ((event.type == .KEY_DOWN) or (event.type == .KEY_UP)) {
-//         const key_pressed = event.type == .KEY_DOWN;
-//         if (state.input.enabled) {
-//             state.input.anykey = key_pressed;
-//             switch (event.key_code) {
-//                 .W,
-//                 .UP,
-//                 => state.input.up = key_pressed,
-//                 .S,
-//                 .DOWN,
-//                 => state.input.down = key_pressed,
-//                 .A,
-//                 .LEFT,
-//                 => state.input.left = key_pressed,
-//                 .D,
-//                 .RIGHT,
-//                 => state.input.right = key_pressed,
-//                 .ESCAPE => state.input.esc = key_pressed,
-//                 else => {},
-//             }
-//         }
-//     } else if ((event.type == .TOUCHES_BEGAN) or (event.type == .TOUCHES_ENDED)) {
-//         state.input.anykey = event.type == .TOUCHES_BEGAN;
-//     }
-// }
+export fn input(ev: ?*const sapp.Event) void {
+    const event = ev.?;
+    print("event: {}\n", .{event.type});
+    // if ((event.type == .KEY_DOWN) or (event.type == .KEY_UP)) {
+    //     const key_pressed = event.type == .KEY_DOWN;
+    //     if (state.input.enabled) {
+    //         state.input.anykey = key_pressed;
+    //         switch (event.key_code) {
+    //             .W,
+    //             .UP,
+    //             => state.input.up = key_pressed,
+    //             .S,
+    //             .DOWN,
+    //             => state.input.down = key_pressed,
+    //             .A,
+    //             .LEFT,
+    //             => state.input.left = key_pressed,
+    //             .D,
+    //             .RIGHT,
+    //             => state.input.right = key_pressed,
+    //             .ESCAPE => state.input.esc = key_pressed,
+    //             else => {},
+    //         }
+    //     }
+    // } else if ((event.type == .TOUCHES_BEGAN) or (event.type == .TOUCHES_ENDED)) {
+    //     state.input.anykey = event.type == .TOUCHES_BEGAN;
+    // }
+}
 
 fn updateWindowData(w: f32, h: f32) void {
     const range = if (w < h) w else h;
