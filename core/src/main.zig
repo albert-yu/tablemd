@@ -22,7 +22,7 @@ const TICK_TOLERANCE_NS = 1_000_000; // max time tolerance of a game tick in nan
 const DISPLAY_PIXELS_X = 800;
 const DISPLAY_PIXELS_Y = 600;
 
-const GRID_N = 1000;
+const GRID_N = 100;
 const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
 const State = struct {
@@ -94,6 +94,8 @@ export fn init() void {
         .clear_value = .{ .r = 0, .g = 0, .b = 0, .a = 1 },
     };
     populateXYArray(&state.pos);
+    updateWindowData(sapp.widthf(), sapp.heightf());
+    sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.pos[0..(GRID_N * GRID_N)]));
 
     // a vertex buffer
     state.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -134,6 +136,8 @@ export fn init() void {
         },
         .index_type = .UINT16,
         // .cull_mode = .BACK,
+        // .primitive_type = .TRIANGLES,
+        // .sample_count = 4,
         .depth = .{
             .compare = .LESS_EQUAL,
             .write_enabled = false,
@@ -143,8 +147,6 @@ export fn init() void {
 
 export fn frame() void {
     const vs_params = computeVSParams(state);
-
-    sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.pos[0..(GRID_N * GRID_N)]));
 
     sg.beginPass(.{ .action = state.pass_action, .swapchain = sglue.swapchain() });
     sg.applyPipeline(state.pip);
@@ -188,6 +190,23 @@ export fn input(ev: ?*const sapp.Event) void {
     }
 }
 
+fn updateWindowData(w: f32, h: f32) void {
+    const range = if (w < h) w else h;
+    const scales: Scales = .{
+        .x = .{
+            .domain = .{ .low = 0, .high = 1 },
+            .range = .{ .low = 0, .high = range },
+        },
+        .y = .{
+            .domain = .{ .low = 0, .high = 1 },
+            .range = .{ .low = 0, .high = range },
+        },
+    };
+    const matrices = window_transform(scales, w, h);
+    state.zoom = matrices[0];
+    state.window_scale = matrices[1];
+}
+
 fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
     var i: usize = 0;
     while (i < GRID_N * GRID_N) : (i += 1) {
@@ -198,4 +217,62 @@ fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
         const y = numerY / denom;
         arr[i] = Vec2.new(x, y);
     }
+}
+
+const Interval = struct {
+    low: f32,
+    high: f32,
+};
+
+const ScaleDomainAndRange = struct {
+    domain: Interval,
+    range: Interval,
+};
+
+const Scales = struct {
+    x: ScaleDomainAndRange,
+    y: ScaleDomainAndRange,
+};
+
+fn mean(interval: Interval) f32 {
+    return (interval.high - interval.low) / 2.0;
+}
+
+fn gap(interval: Interval) f32 {
+    return interval.high - interval.low;
+}
+
+fn window_transform(scales: Scales, width: f32, height: f32) struct { Mat4, Mat4 } {
+    const x_domain = scales.x.domain;
+    const y_domain = scales.y.domain;
+    const x_range = scales.x.range;
+    const y_range = scales.y.range;
+
+    const x_domain_mid = mean(x_domain);
+    const y_domain_mid = mean(y_domain);
+    const x_range_mid = mean(x_range);
+    const y_range_mid = mean(y_range);
+
+    const xmulti = gap(x_range) / gap(x_domain);
+    const ymulti = gap(y_range) / gap(y_domain);
+
+    // translates from data space to scaled space
+    var m1 = Mat4.zero();
+    m1.m = [4][4]f32{
+        .{ xmulti, 0.0, 0.0, 0.0 },
+        .{ 0.0, ymulti, 0.0, 0.0 },
+        .{ 0.0, 0.0, 1.0, 0.0 },
+        .{ -xmulti * x_domain_mid + x_range_mid, -ymulti * y_domain_mid + y_range_mid, 0.0, 1.0 },
+    };
+
+    // translate from scaled space to webgl space
+    var m2 = Mat4.zero();
+    m2.m = [4][4]f32{
+        .{ 2.0 / width, 0.0, 0.0, 0.0 },
+        .{ 0.0, -2.0 / height, 0.0, 0.0 },
+        .{ 0.0, 0.0, 1.0, 0.0 },
+        .{ -1.0, 1.0, 0.0, 1.0 },
+    };
+
+    return .{ m1, m2 };
 }
