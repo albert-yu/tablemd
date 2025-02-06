@@ -42,6 +42,12 @@ const Scales = struct {
     y: ScaleDomainAndRange,
 };
 
+const Zoom = struct {
+    k: f32,
+    x: f32,
+    y: f32,
+};
+
 const state = struct {
     var bind: sg.Bindings = .{};
     var pip: sg.Pipeline = .{};
@@ -54,6 +60,23 @@ const state = struct {
 
     // dot grid positions
     var grid_pos: [GRID_N * GRID_N]Vec2 = undefined;
+
+    fn updateZoom(k: f32, x: f32, y: f32) void {
+        state.zoom.m = [4][4]f32{
+            .{ k, 0.0, 0.0, 0.0 },
+            .{ 0.0, k, 0.0, 0.0 },
+            .{ 0.0, 0.0, 1.0, 0.0 },
+            .{ x, y, 0.0, 1.0 },
+        };
+    }
+
+    fn getZoom() Zoom {
+        return .{
+            .k = state.zoom.m[0][0],
+            .x = state.zoom.m[2][0],
+            .y = state.zoom.m[2][1],
+        };
+    }
 };
 
 export fn init() void {
@@ -65,12 +88,7 @@ export fn init() void {
     const k = 1.0;
     const x = 0.0;
     const y = 0.0;
-    state.zoom.m = [4][4]f32{
-        .{ k, 0.0, 0.0, 0.0 },
-        .{ 0.0, k, 0.0, 0.0 },
-        .{ 0.0, 0.0, 1.0, 0.0 },
-        .{ x, y, 0.0, 1.0 },
-    };
+    state.updateZoom(k, x, y);
 
     // a vertex buffer
     const opacity = 0.25;
