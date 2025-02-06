@@ -1,12 +1,23 @@
 /* quad vertex shader */
+@header const m = @import("../math.zig")
+@ctype mat4 m.Mat4
+
 @vs vs
+layout(binding=0) uniform vs_params {
+    mat4 zoom;
+    mat4 window_scale;
+    mat4 untransform;
+};
+
 in vec4 position;
 in vec4 color0;
+in vec3 instance_position;
 out vec2 uv;
 out vec4 color;
 
 void main() {
-    gl_Position = position;
+    vec4 pos = vec4(position + instance_position, 1.0);
+    gl_Position = untransform * zoom * window_scale * pos;
     uv = vec2(position.x, position.y);
     color = color0;
 }
@@ -33,8 +44,6 @@ void main() {
 /* quad shader program */
 @program quad vs fs
 
-// @header const m = @import("../math.zig")
-// @ctype mat4 m.Mat4
 
 // @vs vs
 
