@@ -73,8 +73,8 @@ const state = struct {
     fn getZoom() Zoom {
         return .{
             .k = state.zoom.m[0][0],
-            .x = state.zoom.m[2][0],
-            .y = state.zoom.m[2][1],
+            .x = state.zoom.m[3][0],
+            .y = state.zoom.m[3][1],
         };
     }
 };
@@ -193,6 +193,27 @@ export fn input(ev: ?*const sapp.Event) void {
             const w = @as(f32, @floatFromInt(event.window_width));
             const h = @as(f32, @floatFromInt(event.window_height));
             updateWindowData(w, h);
+        },
+        .MOUSE_SCROLL => {
+            const scroll_x = event.scroll_x;
+            const scroll_y = event.scroll_y;
+            if (event.modifiers & sapp.modifier_ctrl != 0) {
+                const zoom_speed = 0.01;
+                const curr_k = state.getZoom().k;
+                const new_k = curr_k * (1.0 + scroll_y * zoom_speed);
+
+                // update zoom
+                state.updateZoom(new_k, state.getZoom().x, state.getZoom().y);
+            } else {
+                const pan_speed = 10.0;
+                const curr_x = state.getZoom().x;
+                const curr_y = state.getZoom().y;
+                const new_x = curr_x + scroll_x * pan_speed;
+                const new_y = curr_y + scroll_y * pan_speed;
+
+                // update zoom
+                state.updateZoom(state.getZoom().k, new_x, new_y);
+            }
         },
         else => {},
     }
