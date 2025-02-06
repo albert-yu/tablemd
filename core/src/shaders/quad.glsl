@@ -9,16 +9,26 @@ layout(binding=0) uniform vs_params {
     mat4 untransform;
 };
 
-in vec4 position;
+in vec3 position;
 in vec4 color0;
 in vec3 instance_position;
 out vec2 uv;
 out vec4 color;
 
 void main() {
-    vec4 pos = vec4(position + instance_position, 1.0);
-    gl_Position = untransform * zoom * window_scale * pos;
-    uv = vec2(position.x, position.y);
+    // get transform from uniforms
+    mat4 t = untransform * zoom * window_scale;
+    // size to shrink non-linearlly
+    float k = zoom[0][0];
+    float size = exp(log(k) * 0.01) / 300.0;
+
+    // vertex position
+    vec2 qp = vec2(position.x, position.y) - 0.5;
+    vec4 xy = vec4(instance_position.x, instance_position.y, 1.0, 1.0) + vec4(qp * size, 0.0, 0.0);
+
+    // return values
+    gl_Position = t * xy; // vertex position
+    uv = qp;
     color = color0;
 }
 @end

@@ -21,8 +21,8 @@ const GRID_N = 100;
 const POINTS_N = GRID_N * GRID_N;
 const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
-const WIDTH_START = 640;
-const HEIGHT_START = 480;
+const WIDTH_START = 800;
+const HEIGHT_START = 600;
 
 const Interval = struct {
     low: f32,
@@ -68,6 +68,8 @@ export fn init() void {
         .{ 0.0, 0.0, 1.0, 0.0 },
         .{ x, y, 0.0, 1.0 },
     };
+    populateXYArray(&state.grid_pos);
+
     // a vertex buffer
     const opacity = 0.25;
     const v = 1.0;
@@ -97,12 +99,17 @@ export fn init() void {
         .shader = sg.makeShader(shd.quadShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
+            l.buffers[1].step_func = .PER_INSTANCE;
             l.attrs[shd.ATTR_quad_position].format = .FLOAT3;
             l.attrs[shd.ATTR_quad_color0].format = .FLOAT4;
             l.attrs[shd.ATTR_quad_instance_position].format = .FLOAT3;
             break :init l;
         },
         .index_type = .UINT16,
+        .depth = .{
+            .compare = .LESS_EQUAL,
+            .write_enabled = true,
+        },
     });
 
     // clear to black
@@ -114,6 +121,8 @@ export fn init() void {
 
 export fn frame() void {
     const vs_params = computeVSParams();
+    populateXYArray(&state.grid_pos);
+
     sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
 
     sg.beginPass(.{ .action = state.pass_action, .swapchain = sglue.swapchain() });
@@ -134,8 +143,8 @@ pub fn main() void {
         .init_cb = init,
         .frame_cb = frame,
         .cleanup_cb = cleanup,
-        .width = WIDTH_START,
-        .height = HEIGHT_START,
+        .width = 2 * WIDTH_START,
+        .height = 2 * HEIGHT_START,
         .icon = .{ .sokol_default = true },
         .window_title = "quad.zig",
         .logger = .{ .func = slog.func },
