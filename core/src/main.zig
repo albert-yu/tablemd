@@ -119,6 +119,7 @@ export fn init() void {
 
     populateXYArray(&state.grid_pos);
     sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
+    updateWindowData(sapp.widthf(), sapp.heightf());
 }
 
 export fn frame() void {
