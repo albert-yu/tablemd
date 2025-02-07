@@ -204,7 +204,7 @@ export fn input(ev: ?*const sapp.Event) void {
                 const curr_k = state.getZoom().k;
                 const new_k = clamp(
                     curr_k * std.math.pow(f32, 2, zoom_speed),
-                    1.0,
+                    0.25,
                     100.0,
                 );
 
