@@ -200,9 +200,13 @@ export fn input(ev: ?*const sapp.Event) void {
             const scroll_x = event.scroll_x;
             const scroll_y = event.scroll_y;
             if ((event.modifiers & sapp.modifier_ctrl) != 0) {
-                const zoom_speed = 0.01;
+                const zoom_speed = scroll_y * zoomWheelDelta(event);
                 const curr_k = state.getZoom().k;
-                const new_k = curr_k * (1.0 + scroll_y * zoom_speed);
+                const new_k = clamp(
+                    curr_k * std.math.pow(f32, 2, zoom_speed),
+                    1.0,
+                    100.0,
+                );
 
                 const newMouse = Vec2.new(event.mouse_x, event.mouse_y);
                 if (!pointsAreEqual(newMouse, state.mouse[0])) {
@@ -322,4 +326,16 @@ fn window_transform(scales: Scales, width: f32, height: f32) struct { Mat4, Mat4
     };
 
     return .{ m1, m2 };
+}
+
+fn zoomWheelDelta(event: *const sapp.Event) f32 {
+    if ((event.modifiers & sapp.modifier_ctrl) != 0) {
+        return 0.2;
+    } else {
+        return 0.05;
+    }
+}
+
+fn clamp(x: f32, low: f32, high: f32) f32 {
+    return @min(@max(x, low), high);
 }
