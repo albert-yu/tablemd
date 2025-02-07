@@ -58,6 +58,8 @@ const state = struct {
     var window_scale: Mat4 = Mat4.identity();
     var untransform: Mat4 = Mat4.identity();
 
+    var mouse: [2]Vec2 = .{ Vec2.zero(), Vec2.zero() };
+
     // dot grid positions
     var grid_pos: [GRID_N * GRID_N]Vec2 = undefined;
 
@@ -197,15 +199,25 @@ export fn input(ev: ?*const sapp.Event) void {
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
             const scroll_y = event.scroll_y;
-            if (event.modifiers & sapp.modifier_ctrl != 0) {
+            if ((event.modifiers & sapp.modifier_ctrl) != 0) {
                 const zoom_speed = 0.01;
                 const curr_k = state.getZoom().k;
                 const new_k = curr_k * (1.0 + scroll_y * zoom_speed);
 
+                const newMouse = Vec2.new(event.mouse_x, event.mouse_y);
+                if (!pointsAreEqual(newMouse, state.mouse[0])) {
+                    state.mouse[0] = newMouse;
+                    state.mouse[1] = invert(newMouse);
+                } else if (vec2IsZero(state.mouse[0]) and vec2IsZero(state.mouse[1])) {
+                    state.mouse[0] = newMouse;
+                    state.mouse[1] = invert(newMouse);
+                }
+                const translated = translate(new_k, state.mouse[0], state.mouse[1]);
+
                 // update zoom
-                state.updateZoom(new_k, state.getZoom().x, state.getZoom().y);
+                state.updateZoom(new_k, translated.x, translated.y);
             } else {
-                const pan_speed = 10.0;
+                const pan_speed = 20.0;
                 const curr_x = state.getZoom().x;
                 const curr_y = state.getZoom().y;
                 const new_x = curr_x + scroll_x * pan_speed;
@@ -217,6 +229,27 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         else => {},
     }
+}
+
+fn invert(p: Vec2) Vec2 {
+    const zoom = state.getZoom();
+    const x = (p.x - zoom.x) / zoom.k;
+    const y = (p.y - zoom.y) / zoom.k;
+    return Vec2.new(x, y);
+}
+
+fn translate(k: f32, p0: Vec2, p1: Vec2) Vec2 {
+    const x = p0.x - p1.x * k;
+    const y = p0.y - p1.y * k;
+    return Vec2.new(x, y);
+}
+
+fn vec2IsZero(v: Vec2) bool {
+    return v.x == 0 and v.y == 0;
+}
+
+fn pointsAreEqual(p0: Vec2, p1: Vec2) bool {
+    return p0.x == p1.x and p0.y == p1.y;
 }
 
 fn updateWindowData(w: f32, h: f32) void {
