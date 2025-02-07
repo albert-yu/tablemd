@@ -18,9 +18,9 @@ const Color = sg.Color;
 
 const print = std.debug.print;
 
-const GRID_N = 100;
+const GRID_N = 1000;
 const POINTS_N = GRID_N * GRID_N;
-const GRID_DENSITY: comptime_float = 1.0 / 8.0;
+const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
 const BG_COLOR: Color = .{ .r = 37 / 256, .g = 38 / 256, .b = 56 / 256, .a = 1 };
 
