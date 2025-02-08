@@ -261,7 +261,7 @@ fn vec2IsZero(v: Vec2) bool {
 
 fn floatEqual(a: f32, b: f32) bool {
     const tol = 0.0001;
-    return std.math.abs(a - b) < tol;
+    return @abs(a - b) < tol;
 }
 
 fn pointsAreEqual(p0: Vec2, p1: Vec2) bool {
