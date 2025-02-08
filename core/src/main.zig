@@ -259,8 +259,13 @@ fn vec2IsZero(v: Vec2) bool {
     return v.x == 0 and v.y == 0;
 }
 
+fn floatEqual(a: f32, b: f32) bool {
+    const tol = 0.0001;
+    return std.math.abs(a - b) < tol;
+}
+
 fn pointsAreEqual(p0: Vec2, p1: Vec2) bool {
-    return p0.x == p1.x and p0.y == p1.y;
+    return floatEqual(p0.x, p1.x) and floatEqual(p0.y, p1.y);
 }
 
 fn updateWindowData(w: f32, h: f32) void {
