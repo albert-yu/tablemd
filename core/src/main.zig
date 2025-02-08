@@ -199,9 +199,7 @@ export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
     switch (event.type) {
         .RESIZED => {
-            const w = @as(f32, @floatFromInt(event.window_width));
-            const h = @as(f32, @floatFromInt(event.window_height));
-            updateWindowData(w, h);
+            updateWindowData(sapp.widthf(), sapp.heightf());
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
