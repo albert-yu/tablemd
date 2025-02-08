@@ -117,7 +117,7 @@ export fn init() void {
     });
 
     // a shader and pipeline state object
-    state.pip = sg.makePipeline(.{
+    var pipeline: sg.PipelineDesc = .{
         .shader = sg.makeShader(shd.quadShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -132,7 +132,15 @@ export fn init() void {
             .compare = .LESS_EQUAL,
             .write_enabled = true,
         },
-    });
+    };
+    pipeline.colors[0].blend = .{
+        .enabled = true,
+        .src_factor_alpha = .SRC_ALPHA,
+        .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
+        .src_factor_rgb = .SRC_ALPHA,
+        .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
+    };
+    state.pip = sg.makePipeline(pipeline);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
