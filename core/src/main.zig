@@ -136,7 +136,6 @@ export fn init() void {
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
-        .store_action = .STORE,
         .clear_value = BG_COLOR,
     };
 
