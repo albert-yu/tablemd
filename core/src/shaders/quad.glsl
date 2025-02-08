@@ -9,9 +9,9 @@ layout(binding=0) uniform vs_params {
     mat4 untransform;
 };
 
-in vec3 position;
+in vec2 position;
 in vec4 color0;
-in vec3 instance_position;
+in vec2 instance_position;
 out vec2 uv;
 out vec4 color;
 

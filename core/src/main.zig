@@ -97,11 +97,11 @@ export fn init() void {
     const v = 1.0;
     state.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&[_]f32{
-            // positions     colors
-            -v, v,  v, 1.0, 1.0, 1.0, opacity,
-            v,  v,  v, 1.0, 1.0, 1.0, opacity,
-            v,  -v, v, 1.0, 1.0, 1.0, opacity,
-            -v, -v, v, 1.0, 1.0, 1.0, opacity,
+            // pos  colors
+            -v, v,  1.0, 1.0, 1.0, opacity,
+            v,  v,  1.0, 1.0, 1.0, opacity,
+            v,  -v, 1.0, 1.0, 1.0, opacity,
+            -v, -v, 1.0, 1.0, 1.0, opacity,
         }),
     });
 
@@ -122,9 +122,9 @@ export fn init() void {
         .layout = init: {
             var l = sg.VertexLayoutState{};
             l.buffers[1].step_func = .PER_INSTANCE;
-            l.attrs[shd.ATTR_quad_position] = .{ .format = .FLOAT3, .buffer_index = 0 };
+            l.attrs[shd.ATTR_quad_position] = .{ .format = .FLOAT2, .buffer_index = 0 };
             l.attrs[shd.ATTR_quad_color0] = .{ .format = .FLOAT4, .buffer_index = 0 };
-            l.attrs[shd.ATTR_quad_instance_position] = .{ .format = .FLOAT3, .buffer_index = 1 };
+            l.attrs[shd.ATTR_quad_instance_position] = .{ .format = .FLOAT2, .buffer_index = 1 };
             break :init l;
         },
         .index_type = .UINT16,
