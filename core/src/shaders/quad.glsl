@@ -23,7 +23,7 @@ void main() {
     float size = exp(log(k) * 0.01) / 300.0;
 
     // vertex position
-    vec2 qp = vec2(position.x, position.y) - 0.5;
+    vec2 qp = vec2(position.x, position.y);
     vec4 xy = vec4(instance_position.x, instance_position.y, 1.0, 1.0) + vec4(qp * size, 0.0, 0.0);
 
     // return values
