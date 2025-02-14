@@ -11,7 +11,6 @@ fn addUnitTest(b: *std.Build, options: std.Build.TestOptions) *std.Build.Step.Ru
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
-    const opt_use_wgpu = b.option(bool, "wgpu", "Force WebGPU (default: false, web only)") orelse false;
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -29,7 +28,7 @@ pub fn build(b: *std.Build) void {
     });
     // special case handling for native vs web build
     if (target.result.isWasm()) {
-        try buildWeb(b, target, optimize, dep_sokol, opt_use_wgpu);
+        try buildWeb(b, target, optimize, dep_sokol);
     } else {
         try buildNative(b, target, optimize, dep_sokol);
     }
@@ -83,7 +82,7 @@ fn buildNative(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
 }
 
 // for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
-fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, dep_sokol: *std.Build.Dependency, use_wgpu: bool) !void {
+fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, dep_sokol: *std.Build.Dependency) !void {
     const lib = b.addStaticLibrary(.{
         .name = "app",
         .target = target,
@@ -99,8 +98,7 @@ fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.built
         .target = target,
         .optimize = optimize,
         .emsdk = emsdk,
-        .use_webgl2 = !use_wgpu,
-        .use_webgpu = use_wgpu,
+        .use_webgl2 = true,
         .use_emmalloc = true,
         .use_filesystem = false,
         .shell_file_path = dep_sokol.path("src/sokol/web/shell.html"),
