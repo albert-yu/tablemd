@@ -278,7 +278,7 @@ fn updateWindowData(w: f32, h: f32) void {
             .range = .{ .low = 0, .high = range },
         },
     };
-    const matrices = window_transform(scales, w, h);
+    const matrices = windowTransform(scales, w, h);
     state.window_scale = matrices[0];
     state.untransform = matrices[1];
 }
@@ -303,7 +303,7 @@ fn gap(interval: Interval) f32 {
     return interval.high - interval.low;
 }
 
-fn window_transform(scales: Scales, width: f32, height: f32) struct { Mat4, Mat4 } {
+fn windowTransform(scales: Scales, width: f32, height: f32) struct { Mat4, Mat4 } {
     const x_domain = scales.x.domain;
     const y_domain = scales.y.domain;
     const x_range = scales.x.range;
