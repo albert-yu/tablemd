@@ -3,6 +3,7 @@ const parser = @import("parser.zig");
 const engine = @import("engine.zig");
 const sokol = @import("sokol");
 const shd_quad = @import("shaders/quad.glsl.zig");
+const shd_rect = @import("shaders/rect.glsl.zig");
 
 const io = std.io;
 const fmt = std.fmt;
@@ -48,10 +49,22 @@ const Zoom = struct {
     y: f32,
 };
 
+const Gfx = struct {
+    bind: sg.Bindings,
+    pip: sg.Pipeline,
+    pass_action: sg.PassAction,
+
+    pub fn new() Gfx {
+        return .{
+            .bind = .{},
+            .pip = .{},
+            .pass_action = .{},
+        };
+    }
+};
+
 const state = struct {
-    var bind: sg.Bindings = .{};
-    var pip: sg.Pipeline = .{};
-    var pass_action: sg.PassAction = .{};
+    var quad = Gfx.new();
 
     // add matrices for transformation
     var zoom: Mat4 = Mat4.identity();
@@ -99,7 +112,8 @@ export fn init() void {
     // a vertex buffer
     const opacity = 0.25;
     const v = 1.0;
-    state.bind.vertex_buffers[0] = sg.makeBuffer(.{
+    var quad = &state.quad;
+    quad.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&[_]f32{
             // pos  colors
             -v, v,  1.0, 1.0, 1.0, opacity,
@@ -110,12 +124,12 @@ export fn init() void {
     });
 
     // an index buffer
-    state.bind.index_buffer = sg.makeBuffer(.{
+    quad.bind.index_buffer = sg.makeBuffer(.{
         .type = .INDEXBUFFER,
         .data = sg.asRange(&[_]u16{ 0, 1, 2, 0, 2, 3 }),
     });
     // an empty dynamic vertex buffer for the instancing data, goes in vertex buffer slot 1
-    state.bind.vertex_buffers[1] = sg.makeBuffer(.{
+    quad.bind.vertex_buffers[1] = sg.makeBuffer(.{
         .usage = .STREAM,
         .size = POINTS_N * @sizeOf(Vec3),
     });
@@ -144,15 +158,15 @@ export fn init() void {
         .src_factor_rgb = .SRC_ALPHA,
         .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
     };
-    state.pip = sg.makePipeline(pipeline);
+    quad.pip = sg.makePipeline(pipeline);
 
-    state.pass_action.colors[0] = .{
+    quad.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
     };
 
     populateXYArray(&state.grid_pos);
-    sg.updateBuffer(state.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
+    sg.updateBuffer(quad.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
     updateWindowData(sapp.widthf(), sapp.heightf());
 }
 
@@ -160,11 +174,11 @@ export fn frame() void {
     const vs_params = computeVSParams();
 
     sg.beginPass(.{
-        .action = state.pass_action,
+        .action = state.quad.pass_action,
         .swapchain = sglue.swapchain(),
     });
-    sg.applyPipeline(state.pip);
-    sg.applyBindings(state.bind);
+    sg.applyPipeline(state.quad.pip);
+    sg.applyBindings(state.quad.bind);
     sg.applyUniforms(shd_quad.UB_vs_params, sg.asRange(&vs_params));
     sg.draw(0, 6, POINTS_N);
     sg.endPass();
