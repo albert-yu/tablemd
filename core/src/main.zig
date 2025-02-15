@@ -178,16 +178,20 @@ export fn init() void {
     var rect = &state.rect;
     rect.bind.vertex_buffers[0] = sg.makeBuffer(.{
         .data = sg.asRange(&[_]f32{
-            -1.0, 1.0,
-            1.0,  1.0,
-            -1.0, -1.0,
-            1.0,  -1.0,
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 0,
+            0, 1,
+            1, 1,
         }),
-        // .size = 2 * 2 * 3 * @sizeOf(f32),
     });
     rect.bind.index_buffer = sg.makeBuffer(.{
         .type = .INDEXBUFFER,
-        .data = sg.asRange(&[_]u16{ 0, 1, 2, 0, 2, 3 }),
+        .data = sg.asRange(&[_]u16{
+            0, 1, 2,
+            3, 4, 5,
+        }),
     });
     rect.bind.vertex_buffers[1] = sg.makeBuffer(.{
         .size = RECT_N * @sizeOf(RectElement),
