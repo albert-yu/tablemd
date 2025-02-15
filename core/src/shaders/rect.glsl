@@ -11,9 +11,9 @@ layout(binding=0) uniform vs_params {
 in vec2 position;
 in vec4 color;
 in vec2 rect_position;
-in float sigma;
-in vec4 corners;
 in vec2 size;
+in vec4 corners;
+in float sigma;
 
 out vec2 vertex;
 out vec4 v_color;

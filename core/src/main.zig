@@ -25,8 +25,18 @@ const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
 
+const RECT_N = 1000;
+
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
+
+const RectElement = struct {
+    color: [4]f32,
+    position: [2]f32,
+    size: [2]f32,
+    corners: [4]f32,
+    sigma: f32,
+};
 
 const Interval = struct {
     low: f32,
@@ -63,6 +73,7 @@ const Gfx = struct {
 
 const state = struct {
     var quad = Gfx.new();
+    var rect = Gfx.new();
     var pass_action: sg.PassAction = .{};
 
     // add matrices for transformation
@@ -75,7 +86,10 @@ const state = struct {
     // dot grid positions
     var grid_pos: [GRID_N * GRID_N]Vec2 = undefined;
 
-    fn updateZoom(k: f32, x: f32, y: f32) void {
+    var rects: [RECT_N]RectElement = undefined;
+    var rect_count: u32 = 0;
+
+    pub fn updateZoom(k: f32, x: f32, y: f32) void {
         // state.zoom.m = [4][4]f32{
         //     .{ k, 0.0, 0.0, 0.0 },
         //     .{ 0.0, k, 0.0, 0.0 },
@@ -88,12 +102,20 @@ const state = struct {
         state.zoom.m[3][1] = y;
     }
 
-    fn getZoom() Zoom {
+    pub fn getZoom() Zoom {
         return .{
             .k = state.zoom.m[0][0],
             .x = state.zoom.m[3][0],
             .y = state.zoom.m[3][1],
         };
+    }
+
+    pub fn addRect(element: RectElement) void {
+        if (rect_count >= RECT_N) {
+            return;
+        }
+        rects[rect_count] = element;
+        rect_count += 1;
     }
 };
 
@@ -108,6 +130,7 @@ export fn init() void {
     const y = 0.0;
     state.updateZoom(k, x, y);
 
+    // quad (dot grid binding and pipeline)
     // a vertex buffer
     var quad = &state.quad;
     quad.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -151,6 +174,60 @@ export fn init() void {
     };
     quad.pip = sg.makePipeline(pipeline);
 
+    // rectangle binding and pipeline
+    var rect = &state.rect;
+    rect.bind.vertex_buffers[0] = sg.makeBuffer(.{
+        .data = sg.asRange(&[_]f32{
+            -1.0, 1.0,
+            1.0,  1.0,
+            -1.0, -1.0,
+            1.0,  -1.0,
+        }),
+        // .size = 2 * 2 * 3 * @sizeOf(f32),
+    });
+    rect.bind.index_buffer = sg.makeBuffer(.{
+        .type = .INDEXBUFFER,
+        .data = sg.asRange(&[_]u16{ 0, 1, 2, 0, 2, 3 }),
+    });
+    rect.bind.vertex_buffers[1] = sg.makeBuffer(.{
+        .size = RECT_N * @sizeOf(RectElement),
+        .usage = .STREAM,
+    });
+    rect.pip = sg.makePipeline(.{
+        .shader = sg.makeShader(shd_rect.rectangleShaderDesc(sg.queryBackend())),
+        .layout = init: {
+            var l = sg.VertexLayoutState{};
+            l.buffers[1].step_func = .PER_INSTANCE;
+            l.attrs[shd_rect.ATTR_rectangle_position] = .{ .format = .FLOAT2, .buffer_index = 0 };
+            l.attrs[shd_rect.ATTR_rectangle_color] = .{
+                .format = .FLOAT4,
+                .buffer_index = 1,
+            };
+            l.attrs[shd_rect.ATTR_rectangle_rect_position] = .{
+                .format = .FLOAT2,
+                .buffer_index = 1,
+            };
+            l.attrs[shd_rect.ATTR_rectangle_size] = .{
+                .format = .FLOAT2,
+                .buffer_index = 1,
+            };
+            l.attrs[shd_rect.ATTR_rectangle_corners] = .{
+                .format = .FLOAT4,
+                .buffer_index = 1,
+            };
+            l.attrs[shd_rect.ATTR_rectangle_sigma] = .{
+                .format = .FLOAT2,
+                .buffer_index = 1,
+            };
+            break :init l;
+        },
+        .index_type = .UINT16,
+        .depth = .{
+            .compare = .LESS_EQUAL,
+            .write_enabled = true,
+        },
+    });
+
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
@@ -158,6 +235,17 @@ export fn init() void {
 
     populateXYArray(&state.grid_pos);
     sg.updateBuffer(quad.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
+    const rect_w = state.grid_pos[1].x - state.grid_pos[0].x;
+    const rect_h = rect_w;
+
+    state.addRect(.{
+        .color = .{ 1.0, 0.0, 0.0, 1.0 },
+        .position = .{ 0.0, 0.0 },
+        .size = .{ rect_w, rect_h },
+        .corners = .{ 0.0, 0.0, 0.0, 0.0 },
+        .sigma = 1e-6,
+    });
+    sg.updateBuffer(rect.bind.vertex_buffers[1], sg.asRange(state.rects[0..state.rect_count]));
     updateWindowData(sapp.widthf(), sapp.heightf());
 }
 
@@ -172,6 +260,11 @@ export fn frame() void {
     sg.applyBindings(state.quad.bind);
     sg.applyUniforms(shd_quad.UB_vs_params, sg.asRange(&vs_params));
     sg.draw(0, 6, POINTS_N);
+    sg.applyPipeline(state.rect.pip);
+    sg.applyBindings(state.rect.bind);
+    sg.applyUniforms(shd_rect.UB_vs_params, sg.asRange(&vs_params));
+    sg.draw(0, 6, state.rect_count);
+
     sg.endPass();
     sg.commit();
 }
