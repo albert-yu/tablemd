@@ -109,17 +109,9 @@ export fn init() void {
     state.updateZoom(k, x, y);
 
     // a vertex buffer
-    const opacity = 0.25;
-    const v = 1.0;
     var quad = &state.quad;
     quad.bind.vertex_buffers[0] = sg.makeBuffer(.{
-        .data = sg.asRange(&[_]f32{
-            // pos  colors
-            -v, v,  1.0, 1.0, 1.0, opacity,
-            v,  v,  1.0, 1.0, 1.0, opacity,
-            v,  -v, 1.0, 1.0, 1.0, opacity,
-            -v, -v, 1.0, 1.0, 1.0, opacity,
-        }),
+        .data = sg.asRange(&makeQuadVertexBuffer(.{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 0.25 })),
     });
 
     // an index buffer
@@ -365,4 +357,15 @@ fn zoomWheelDelta(event: *const sapp.Event) f32 {
 
 fn clamp(x: f32, low: f32, high: f32) f32 {
     return @min(@max(x, low), high);
+}
+
+fn makeQuadVertexBuffer(color: Color) [24]f32 {
+    const v = 1.0;
+    return [_]f32{
+        // pos  colors
+        -v, v,  color.r, color.g, color.b, color.a,
+        v,  v,  color.r, color.g, color.b, color.a,
+        v,  -v, color.r, color.g, color.b, color.a,
+        -v, -v, color.r, color.g, color.b, color.a,
+    };
 }
