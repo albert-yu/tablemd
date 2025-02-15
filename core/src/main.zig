@@ -2,7 +2,7 @@ const std = @import("std");
 const parser = @import("parser.zig");
 const engine = @import("engine.zig");
 const sokol = @import("sokol");
-const shd = @import("shaders/quad.glsl.zig");
+const shd_quad = @import("shaders/quad.glsl.zig");
 
 const io = std.io;
 const fmt = std.fmt;
@@ -122,13 +122,13 @@ export fn init() void {
 
     // a shader and pipeline state object
     var pipeline: sg.PipelineDesc = .{
-        .shader = sg.makeShader(shd.quadShaderDesc(sg.queryBackend())),
+        .shader = sg.makeShader(shd_quad.quadShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
             l.buffers[1].step_func = .PER_INSTANCE;
-            l.attrs[shd.ATTR_quad_position] = .{ .format = .FLOAT2, .buffer_index = 0 };
-            l.attrs[shd.ATTR_quad_color0] = .{ .format = .FLOAT4, .buffer_index = 0 };
-            l.attrs[shd.ATTR_quad_instance_position] = .{ .format = .FLOAT2, .buffer_index = 1 };
+            l.attrs[shd_quad.ATTR_quad_position] = .{ .format = .FLOAT2, .buffer_index = 0 };
+            l.attrs[shd_quad.ATTR_quad_color0] = .{ .format = .FLOAT4, .buffer_index = 0 };
+            l.attrs[shd_quad.ATTR_quad_instance_position] = .{ .format = .FLOAT2, .buffer_index = 1 };
             break :init l;
         },
         .index_type = .UINT16,
@@ -165,7 +165,7 @@ export fn frame() void {
     });
     sg.applyPipeline(state.pip);
     sg.applyBindings(state.bind);
-    sg.applyUniforms(shd.UB_vs_params, sg.asRange(&vs_params));
+    sg.applyUniforms(shd_quad.UB_vs_params, sg.asRange(&vs_params));
     sg.draw(0, 6, POINTS_N);
     sg.endPass();
     sg.commit();
@@ -191,7 +191,7 @@ pub fn main() void {
     });
 }
 
-fn computeVSParams() shd.VsParams {
+fn computeVSParams() shd_quad.VsParams {
     return .{
         .zoom = state.zoom,
         .window_scale = state.window_scale,
