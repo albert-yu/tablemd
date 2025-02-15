@@ -181,8 +181,6 @@ export fn init() void {
             0, 0,
             1, 0,
             0, 1,
-            1, 0,
-            0, 1,
             1, 1,
         }),
     });
@@ -190,7 +188,7 @@ export fn init() void {
         .type = .INDEXBUFFER,
         .data = sg.asRange(&[_]u16{
             0, 1, 2,
-            3, 4, 5,
+            1, 2, 3,
         }),
     });
     rect.bind.vertex_buffers[1] = sg.makeBuffer(.{
