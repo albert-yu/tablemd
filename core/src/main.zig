@@ -52,19 +52,18 @@ const Zoom = struct {
 const Gfx = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
-    pass_action: sg.PassAction,
 
     pub fn new() Gfx {
         return .{
             .bind = .{},
             .pip = .{},
-            .pass_action = .{},
         };
     }
 };
 
 const state = struct {
     var quad = Gfx.new();
+    var pass_action: sg.PassAction = .{};
 
     // add matrices for transformation
     var zoom: Mat4 = Mat4.identity();
@@ -160,7 +159,7 @@ export fn init() void {
     };
     quad.pip = sg.makePipeline(pipeline);
 
-    quad.pass_action.colors[0] = .{
+    state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
     };
@@ -174,7 +173,7 @@ export fn frame() void {
     const vs_params = computeVSParams();
 
     sg.beginPass(.{
-        .action = state.quad.pass_action,
+        .action = state.pass_action,
         .swapchain = sglue.swapchain(),
     });
     sg.applyPipeline(state.quad.pip);
