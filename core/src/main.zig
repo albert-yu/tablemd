@@ -44,10 +44,7 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    const k = 1.0;
-    const x = 0.0;
-    const y = 0.0;
-    state.t.updateZoom(.{ .k = k, .x = x, .y = y });
+    state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
     // quad (dot grid binding and pipeline)
     const rect_dims = state.dot_grid_renderer.setup();
