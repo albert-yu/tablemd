@@ -240,7 +240,7 @@ export fn init() void {
 }
 
 export fn frame() void {
-    const vs_params = computeVSParams();
+    const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
 
     sg.beginPass(.{
@@ -278,14 +278,6 @@ pub fn main() void {
         // .sample_count = 4,
         .high_dpi = true,
     });
-}
-
-fn computeVSParams() shd_quad.VsParams {
-    return .{
-        .zoom = state.t.zoom,
-        .window_scale = state.t.window_scale,
-        .untransform = state.t.untransform,
-    };
 }
 
 export fn input(ev: ?*const sapp.Event) void {

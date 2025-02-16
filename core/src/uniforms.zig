@@ -1,3 +1,4 @@
+const shd_quad = @import("shaders/quad.glsl.zig");
 const math = @import("math.zig");
 const Mat4 = math.Mat4;
 
@@ -71,6 +72,14 @@ pub const Transform = struct {
         const matrices = windowTransform(scales, w, h);
         self.window_scale = matrices[0];
         self.untransform = matrices[1];
+    }
+
+    pub fn computeVSParams(self: Transform) shd_quad.VsParams {
+        return .{
+            .zoom = self.zoom,
+            .window_scale = self.window_scale,
+            .untransform = self.untransform,
+        };
     }
 };
 
