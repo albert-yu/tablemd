@@ -1,4 +1,8 @@
 const std = @import("std");
+const sokol = @import("sokol");
+const shd_rect = @import("../shaders/rect.glsl.zig");
+
+const sg = sokol.gfx;
 
 const RectElement = struct {
     color: [4]f32,
@@ -11,50 +15,107 @@ const RectElement = struct {
 };
 
 const DEFAULT_SIGMA = 1e-6;
+const RECT_N = 1024;
 
 pub const Renderer = struct {
-    hover_rect: RectElement,
-    /// Currently not used
-    rect_data: []f32,
+    bind: sg.Bindings,
+    pip: sg.Pipeline,
+    count: u32,
+    rects: [RECT_N]RectElement,
 
-    pub fn init(allocator: std.mem.Allocator) !Renderer {
-        const data = try allocator.alloc(f32, 1000 * @sizeOf(RectElement));
-        return Renderer{
-            .hover_rect = RectElement{
-                .x = 0,
-                .y = 0,
-                .width = 0,
-                .height = 0,
-                .color = [4]f32{ 0, 0, 0, 0.25 },
-                .corners = [4]f32{ 0, 0, 0, 0 },
-                .sigma = DEFAULT_SIGMA,
-            },
-            .rect_data = data,
+    pub fn new() Renderer {
+        return .{
+            .bind = .{},
+            .pip = .{},
+            .count = 0,
+            .rects = undefined,
         };
     }
 
-    pub fn deinit(self: Renderer, allocator: std.mem.Allocator) void {
-        allocator.free(self.rect_data);
+    pub fn setup(self: *Renderer) void {
+        self.bind.vertex_buffers[0] = sg.makeBuffer(.{
+            .data = sg.asRange(&[_]f32{
+                0, 0,
+                1, 0,
+                0, 1,
+                1, 1,
+            }),
+        });
+        self.bind.index_buffer = sg.makeBuffer(.{
+            .type = .INDEXBUFFER,
+            .data = sg.asRange(&[_]u16{
+                0, 1, 2,
+                1, 2, 3,
+            }),
+        });
+        self.bind.vertex_buffers[1] = sg.makeBuffer(.{
+            .size = RECT_N * @sizeOf(RectElement),
+            .usage = .STREAM,
+        });
+        var rect_pip: sg.PipelineDesc = .{
+            .shader = sg.makeShader(shd_rect.rectangleShaderDesc(sg.queryBackend())),
+            .layout = init: {
+                var l = sg.VertexLayoutState{};
+                l.buffers[1].step_func = .PER_INSTANCE;
+                l.attrs[shd_rect.ATTR_rectangle_position] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 0,
+                };
+                l.attrs[shd_rect.ATTR_rectangle_color] = .{
+                    .format = .FLOAT4,
+                    .buffer_index = 1,
+                };
+                l.attrs[shd_rect.ATTR_rectangle_rect_position] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                };
+                l.attrs[shd_rect.ATTR_rectangle_size] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                };
+                l.attrs[shd_rect.ATTR_rectangle_corners] = .{
+                    .format = .FLOAT4,
+                    .buffer_index = 1,
+                };
+                l.attrs[shd_rect.ATTR_rectangle_sigma] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                };
+                break :init l;
+            },
+            .index_type = .UINT16,
+            .depth = .{
+                .compare = .LESS_EQUAL,
+                .write_enabled = true,
+            },
+        };
+        rect_pip.colors[0].blend = .{
+            .enabled = true,
+            .src_factor_alpha = .SRC_ALPHA,
+            .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
+            .src_factor_rgb = .SRC_ALPHA,
+            .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
+        };
+        self.pip = sg.makePipeline(rect_pip);
     }
 
-    fn writeRect(self: *Renderer, offset: usize, rect: RectElement) void {
-        const UNUSED = 0.0;
-        const float_array = self.rect_data;
-        float_array[offset] = rect.color[0];
-        float_array[offset + 1] = rect.color[1];
-        float_array[offset + 2] = rect.color[2];
-        float_array[offset + 3] = rect.color[3];
-        float_array[offset + 4] = rect.x;
-        float_array[offset + 5] = rect.y;
-        float_array[offset + 6] = UNUSED;
-        float_array[offset + 7] = rect.sigma;
-        float_array[offset + 8] = rect.corners[0];
-        float_array[offset + 9] = rect.corners[1];
-        float_array[offset + 10] = rect.corners[2];
-        float_array[offset + 11] = rect.corners[3];
-        float_array[offset + 12] = rect.width;
-        float_array[offset + 13] = rect.height;
-        float_array[offset + 14] = UNUSED;
-        float_array[offset + 15] = UNUSED;
+    pub fn add(self: *Renderer, rect: RectElement) void {
+        if (self.count == RECT_N) {
+            return;
+        }
+        self.rects[self.count] = rect;
+        self.count += 1;
+    }
+
+    /// Updates the instance buffer with the current rectangles
+    pub fn updateBuffer(self: Renderer) void {
+        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.rects[0..self.count]));
+    }
+
+    pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+        sg.applyPipeline(self.pip);
+        sg.applyBindings(self.bind);
+        sg.applyUniforms(shd_rect.UB_vs_params, vs_range);
+        sg.draw(0, 6, self.count);
     }
 };
