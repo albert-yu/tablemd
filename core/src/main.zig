@@ -248,11 +248,12 @@ export fn init() void {
     const rect_w = state.grid_pos[1].x - state.grid_pos[0].x;
     const rect_h = rect_w;
 
+    const corner = 1.0 / 512.0;
     state.addRect(.{
         .color = .{ 1.0, 0.0, 0.0, 0.25 },
         .position = .{ 0.0, 0.0 },
         .size = .{ rect_w, rect_h },
-        .corners = .{ 0.0, 0.0, 0.0, 0.0 },
+        .corners = .{ corner, corner, corner, corner },
         .sigma = 1e-6,
     });
     sg.updateBuffer(rect.bind.vertex_buffers[1], sg.asRange(state.rects[0..state.rect_count]));
