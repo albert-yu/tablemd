@@ -2,11 +2,10 @@ const std = @import("std");
 const parser = @import("parser.zig");
 const engine = @import("engine.zig");
 const sokol = @import("sokol");
-const shd_quad = @import("shaders/quad.glsl.zig");
 const shd_rect = @import("shaders/rect.glsl.zig");
 
 const dot_grid = @import("render/dot_grid.zig");
-const DotGrid = dot_grid.Renderer;
+const DotGridRenderer = dot_grid.Renderer;
 
 const uniforms = @import("uniforms.zig");
 const Transform = uniforms.Transform;
@@ -24,10 +23,6 @@ const Vec3 = @import("math.zig").Vec3;
 const Color = sg.Color;
 
 const print = std.debug.print;
-
-const GRID_N = 1000;
-const POINTS_N = GRID_N * GRID_N;
-const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
 
@@ -58,7 +53,7 @@ const Gfx = struct {
 
 const state = struct {
     // var quad = Gfx.new();
-    var dot_grid_renderer = DotGrid.new();
+    var dot_grid_renderer = DotGridRenderer.new();
     var rect = Gfx.new();
     var pass_action: sg.PassAction = .{};
 
@@ -285,18 +280,6 @@ fn pointsAreEqual(p0: Vec2, p1: Vec2) bool {
     return floatEqual(p0.x, p1.x) and floatEqual(p0.y, p1.y);
 }
 
-fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
-    var i: usize = 0;
-    while (i < GRID_N * GRID_N) : (i += 1) {
-        const numerX = @as(f32, @floatFromInt(i % GRID_N));
-        const numerY = @as(f32, @floatFromInt(i / GRID_N));
-        const denom = GRID_N * GRID_DENSITY;
-        const x = numerX / denom;
-        const y = numerY / denom;
-        arr[i] = Vec2.new(x, y);
-    }
-}
-
 fn zoomWheelDelta(event: *const sapp.Event) f32 {
     if ((event.modifiers & sapp.modifier_ctrl) != 0) {
         return 0.2;
@@ -307,15 +290,4 @@ fn zoomWheelDelta(event: *const sapp.Event) f32 {
 
 fn clamp(x: f32, low: f32, high: f32) f32 {
     return @min(@max(x, low), high);
-}
-
-fn makeQuadVertexBuffer(color: Color) [24]f32 {
-    const v = 1.0;
-    return [_]f32{
-        // pos  colors
-        -v, v,  color.r, color.g, color.b, color.a,
-        v,  v,  color.r, color.g, color.b, color.a,
-        v,  -v, color.r, color.g, color.b, color.a,
-        -v, -v, color.r, color.g, color.b, color.a,
-    };
 }
