@@ -41,27 +41,6 @@ const RectElement = struct {
     sigma: f32,
 };
 
-const Interval = struct {
-    low: f32,
-    high: f32,
-};
-
-const ScaleDomainAndRange = struct {
-    domain: Interval,
-    range: Interval,
-};
-
-const Scales = struct {
-    x: ScaleDomainAndRange,
-    y: ScaleDomainAndRange,
-};
-
-const Zoom = struct {
-    k: f32,
-    x: f32,
-    y: f32,
-};
-
 const Gfx = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
