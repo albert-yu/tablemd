@@ -4,9 +4,8 @@ const engine = @import("engine.zig");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
 const DotGridRenderer = @import("render/dot_grid.zig").Renderer;
-
-const uniforms = @import("uniforms.zig");
-const Transform = uniforms.Transform;
+const Transform = @import("uniforms.zig").Transform;
+const Vec2 = @import("math.zig").Vec2;
 
 const io = std.io;
 const fmt = std.fmt;
@@ -14,15 +13,11 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
-
-const Vec2 = @import("math.zig").Vec2;
 const Color = sg.Color;
 
 const print = std.debug.print;
 
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
-
-const RECT_N = 1000;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
