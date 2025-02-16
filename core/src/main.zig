@@ -262,6 +262,7 @@ export fn init() void {
 
 export fn frame() void {
     const vs_params = computeVSParams();
+    const vs_range = sg.asRange(&vs_params);
 
     sg.beginPass(.{
         .action = state.pass_action,
@@ -269,11 +270,11 @@ export fn frame() void {
     });
     sg.applyPipeline(state.quad.pip);
     sg.applyBindings(state.quad.bind);
-    sg.applyUniforms(shd_quad.UB_vs_params, sg.asRange(&vs_params));
+    sg.applyUniforms(shd_quad.UB_vs_params, vs_range);
     sg.draw(0, 6, POINTS_N);
     sg.applyPipeline(state.rect.pip);
     sg.applyBindings(state.rect.bind);
-    sg.applyUniforms(shd_rect.UB_vs_params, sg.asRange(&vs_params));
+    sg.applyUniforms(shd_rect.UB_vs_params, vs_range);
     sg.draw(0, 6, state.rect_count);
 
     sg.endPass();
