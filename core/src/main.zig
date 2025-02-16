@@ -15,9 +15,7 @@ const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
 
-const Mat4 = @import("math.zig").Mat4;
 const Vec2 = @import("math.zig").Vec2;
-const Vec3 = @import("math.zig").Vec3;
 const Color = sg.Color;
 
 const print = std.debug.print;
