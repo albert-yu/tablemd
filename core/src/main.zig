@@ -5,6 +5,9 @@ const sokol = @import("sokol");
 const shd_quad = @import("shaders/quad.glsl.zig");
 const shd_rect = @import("shaders/rect.glsl.zig");
 
+const uniforms = @import("uniforms.zig");
+const Transform = uniforms.Transform;
+
 const io = std.io;
 const fmt = std.fmt;
 const sapp = sokol.app;
@@ -76,10 +79,7 @@ const state = struct {
     var rect = Gfx.new();
     var pass_action: sg.PassAction = .{};
 
-    // add matrices for transformation
-    var zoom: Mat4 = Mat4.identity();
-    var window_scale: Mat4 = Mat4.identity();
-    var untransform: Mat4 = Mat4.identity();
+    var t = Transform.new();
 
     var mouse: [2]Vec2 = .{ Vec2.zero(), Vec2.zero() };
 
@@ -88,27 +88,6 @@ const state = struct {
 
     var rects: [RECT_N]RectElement = undefined;
     var rect_count: u32 = 0;
-
-    pub fn updateZoom(k: f32, x: f32, y: f32) void {
-        // state.zoom.m = [4][4]f32{
-        //     .{ k, 0.0, 0.0, 0.0 },
-        //     .{ 0.0, k, 0.0, 0.0 },
-        //     .{ 0.0, 0.0, 1.0, 0.0 },
-        //     .{ x, y, 0.0, 1.0 },
-        // };
-        state.zoom.m[0][0] = k;
-        state.zoom.m[1][1] = k;
-        state.zoom.m[3][0] = x;
-        state.zoom.m[3][1] = y;
-    }
-
-    pub fn getZoom() Zoom {
-        return .{
-            .k = state.zoom.m[0][0],
-            .x = state.zoom.m[3][0],
-            .y = state.zoom.m[3][1],
-        };
-    }
 
     pub fn addRect(element: RectElement) void {
         if (rect_count >= RECT_N) {
@@ -128,7 +107,7 @@ export fn init() void {
     const k = 1.0;
     const x = 0.0;
     const y = 0.0;
-    state.updateZoom(k, x, y);
+    state.t.updateZoom(.{ .k = k, .x = x, .y = y });
 
     // quad (dot grid binding and pipeline)
     // a vertex buffer
@@ -257,7 +236,7 @@ export fn init() void {
         .sigma = 1e-6,
     });
     sg.updateBuffer(rect.bind.vertex_buffers[1], sg.asRange(state.rects[0..state.rect_count]));
-    updateWindowData(sapp.widthf(), sapp.heightf());
+    state.t.updateWindowData(sapp.widthf(), sapp.heightf());
 }
 
 export fn frame() void {
@@ -303,9 +282,9 @@ pub fn main() void {
 
 fn computeVSParams() shd_quad.VsParams {
     return .{
-        .zoom = state.zoom,
-        .window_scale = state.window_scale,
-        .untransform = state.untransform,
+        .zoom = state.t.zoom,
+        .window_scale = state.t.window_scale,
+        .untransform = state.t.untransform,
     };
 }
 
@@ -313,14 +292,14 @@ export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
     switch (event.type) {
         .RESIZED => {
-            updateWindowData(sapp.widthf(), sapp.heightf());
+            state.t.updateWindowData(sapp.widthf(), sapp.heightf());
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
             const scroll_y = event.scroll_y;
             if ((event.modifiers & sapp.modifier_ctrl) != 0) {
                 const zoom_speed = scroll_y * zoomWheelDelta(event);
-                const curr_k = state.getZoom().k;
+                const curr_k = state.t.getZoom().k;
                 const new_k = clamp(
                     curr_k * std.math.pow(f32, 2, zoom_speed),
                     0.25,
@@ -338,16 +317,16 @@ export fn input(ev: ?*const sapp.Event) void {
                 const translated = translate(new_k, state.mouse[0], state.mouse[1]);
 
                 // update zoom
-                state.updateZoom(new_k, translated.x, translated.y);
+                state.t.updateZoom(.{ .k = new_k, .x = translated.x, .y = translated.y });
             } else {
                 const pan_speed = 20.0;
-                const curr_x = state.getZoom().x;
-                const curr_y = state.getZoom().y;
+                const curr_x = state.t.getZoom().x;
+                const curr_y = state.t.getZoom().y;
                 const new_x = curr_x + scroll_x * pan_speed;
                 const new_y = curr_y + scroll_y * pan_speed;
 
                 // update zoom
-                state.updateZoom(state.getZoom().k, new_x, new_y);
+                state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = new_x, .y = new_y });
             }
         },
         else => {},
@@ -355,7 +334,7 @@ export fn input(ev: ?*const sapp.Event) void {
 }
 
 fn invert(p: Vec2) Vec2 {
-    const zoom = state.getZoom();
+    const zoom = state.t.getZoom();
     const x = (p.x - zoom.x) / zoom.k;
     const y = (p.y - zoom.y) / zoom.k;
     return Vec2.new(x, y);
@@ -380,23 +359,6 @@ fn pointsAreEqual(p0: Vec2, p1: Vec2) bool {
     return floatEqual(p0.x, p1.x) and floatEqual(p0.y, p1.y);
 }
 
-fn updateWindowData(w: f32, h: f32) void {
-    const range = if (w < h) w else h;
-    const scales: Scales = .{
-        .x = .{
-            .domain = .{ .low = 0, .high = 1 },
-            .range = .{ .low = 0, .high = range },
-        },
-        .y = .{
-            .domain = .{ .low = 0, .high = 1 },
-            .range = .{ .low = 0, .high = range },
-        },
-    };
-    const matrices = windowTransform(scales, w, h);
-    state.window_scale = matrices[0];
-    state.untransform = matrices[1];
-}
-
 fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
     var i: usize = 0;
     while (i < GRID_N * GRID_N) : (i += 1) {
@@ -407,49 +369,6 @@ fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
         const y = numerY / denom;
         arr[i] = Vec2.new(x, y);
     }
-}
-
-fn mean(interval: Interval) f32 {
-    return (interval.high - interval.low) / 2.0;
-}
-
-fn gap(interval: Interval) f32 {
-    return interval.high - interval.low;
-}
-
-fn windowTransform(scales: Scales, width: f32, height: f32) struct { Mat4, Mat4 } {
-    const x_domain = scales.x.domain;
-    const y_domain = scales.y.domain;
-    const x_range = scales.x.range;
-    const y_range = scales.y.range;
-
-    const x_domain_mid = mean(x_domain);
-    const y_domain_mid = mean(y_domain);
-    const x_range_mid = mean(x_range);
-    const y_range_mid = mean(y_range);
-
-    const xmulti = gap(x_range) / gap(x_domain);
-    const ymulti = gap(y_range) / gap(y_domain);
-
-    // translates from data space to scaled space
-    var m1 = Mat4.zero();
-    m1.m = [4][4]f32{
-        .{ xmulti, 0.0, 0.0, 0.0 },
-        .{ 0.0, ymulti, 0.0, 0.0 },
-        .{ 0.0, 0.0, 1.0, 0.0 },
-        .{ -xmulti * x_domain_mid + x_range_mid, -ymulti * y_domain_mid + y_range_mid, 0.0, 1.0 },
-    };
-
-    // translate from scaled space to webgl space
-    var m2 = Mat4.zero();
-    m2.m = [4][4]f32{
-        .{ 2.0 / width, 0.0, 0.0, 0.0 },
-        .{ 0.0, -2.0 / height, 0.0, 0.0 },
-        .{ 0.0, 0.0, 1.0, 0.0 },
-        .{ -1.0, 1.0, 0.0, 1.0 },
-    };
-
-    return .{ m1, m2 };
 }
 
 fn zoomWheelDelta(event: *const sapp.Event) f32 {
