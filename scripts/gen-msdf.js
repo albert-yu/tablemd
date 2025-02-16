@@ -5,6 +5,9 @@ const indent = "    ";
 const getIndent = (depth) => indent.repeat(depth);
 
 const stringifyChar = (char) => {
+  if (char === '"') {
+    return `'"'`;
+  }
   const withDoubleQuotes = JSON.stringify(char);
   const inner = withDoubleQuotes.slice(1, withDoubleQuotes.length - 1);
   if (inner === "'") {
