@@ -1,37 +1,17 @@
 import msdfJSON from "../web/src/client/fonts/space-mono-regular-msdf/space-mono-regular-msdf.json";
 import fs from "fs";
 
-// function toZigLiteral(value) {
-//   if (value === null) return "null";
-//   if (value === undefined) return "undefined";
-
-//   if (Array.isArray(value)) {
-//     if (value.length === 0) return "&[_]void{}";
-//     const items = value.map((item) => toZigLiteral(item)).join(", ");
-//     return `&[_]${typeof value[0] === "string" ? "[]const u8" : "void"}{${items}}`;
-//   }
-
-//   if (typeof value === "string") {
-//     return `"${value}"`;
-//   }
-
-//   if (typeof value === "number") {
-//     if (value < 0) return value.toString();
-//     return value.toString();
-//   }
-
-//   if (typeof value === "object") {
-//     const entries = Object.entries(value)
-//       .map(([key, val]) => `.${getKey(key)} = ${toZigLiteral(val)}`)
-//       .join(",\n    ");
-//     return `{\n    ${entries}\n}`;
-//   }
-
-//   return value.toString();
-// }
-//
 const indent = "    ";
 const getIndent = (depth) => indent.repeat(depth);
+
+const stringifyChar = (char) => {
+  const withDoubleQuotes = JSON.stringify(char);
+  const inner = withDoubleQuotes.slice(1, withDoubleQuotes.length - 1);
+  if (inner === "'") {
+    return `'\\''`;
+  }
+  return `'${inner}'`;
+};
 
 function generateZigStruct(json) {
   // First generate the type definitions
@@ -48,7 +28,7 @@ const Font = struct {
 const Char = struct {
     id: u32,
     index: u32,
-    char: []const u8,
+    char: u8,
     width: u32,
     height: u32,
     xoffset: i32,
@@ -65,7 +45,7 @@ const Info = struct {
     size: u32,
     bold: u32,
     italic: u32,
-    charset: []const []const u8,
+    charset: []const u8,
     unicode: u32,
     stretch_h: u32,
     smooth: u32,
@@ -107,7 +87,7 @@ const DistanceField = struct {
     output += getIndent(2) + ".{\n";
     output += getIndent(3) + `.id = ${char.id},\n`;
     output += getIndent(3) + `.index = ${char.index},\n`;
-    output += getIndent(3) + `.char = .{${JSON.stringify(char.char)}},\n`;
+    output += getIndent(3) + `.char = ${stringifyChar(char.char)},\n`;
     output += getIndent(3) + `.width = ${char.width},\n`;
     output += getIndent(3) + `.height = ${char.height},\n`;
     output += getIndent(3) + `.xoffset = ${char.xoffset},\n`;
@@ -127,7 +107,7 @@ const DistanceField = struct {
   output += getIndent(2) + `.italic = ${msdfJSON.info.italic},\n`;
   output +=
     getIndent(2) +
-    `.charset = .{ ${msdfJSON.info.charset.map((ch) => JSON.stringify(ch)).join(", ")} },\n`;
+    `.charset = .{ ${msdfJSON.info.charset.map(stringifyChar).join(", ")} },\n`;
   output += getIndent(2) + `.unicode = ${msdfJSON.info.unicode},\n`;
   output += getIndent(2) + `.stretch_h = ${msdfJSON.info.stretchH},\n`;
   output += getIndent(2) + `.smooth = ${msdfJSON.info.smooth},\n`;
