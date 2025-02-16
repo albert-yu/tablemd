@@ -149,7 +149,7 @@ export fn init() void {
     });
 
     // a shader and pipeline state object
-    var pipeline: sg.PipelineDesc = .{
+    var quad_pip: sg.PipelineDesc = .{
         .shader = sg.makeShader(shd_quad.quadShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -165,14 +165,14 @@ export fn init() void {
             .write_enabled = true,
         },
     };
-    pipeline.colors[0].blend = .{
+    quad_pip.colors[0].blend = .{
         .enabled = true,
         .src_factor_alpha = .SRC_ALPHA,
         .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
         .src_factor_rgb = .SRC_ALPHA,
         .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
     };
-    quad.pip = sg.makePipeline(pipeline);
+    quad.pip = sg.makePipeline(quad_pip);
 
     // rectangle binding and pipeline
     var rect = &state.rect;
@@ -195,7 +195,7 @@ export fn init() void {
         .size = RECT_N * @sizeOf(RectElement),
         .usage = .STREAM,
     });
-    rect.pip = sg.makePipeline(.{
+    var rect_pip: sg.PipelineDesc = .{
         .shader = sg.makeShader(shd_rect.rectangleShaderDesc(sg.queryBackend())),
         .layout = init: {
             var l = sg.VertexLayoutState{};
@@ -228,7 +228,15 @@ export fn init() void {
             .compare = .LESS_EQUAL,
             .write_enabled = true,
         },
-    });
+    };
+    rect_pip.colors[0].blend = .{
+        .enabled = true,
+        .src_factor_alpha = .SRC_ALPHA,
+        .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
+        .src_factor_rgb = .SRC_ALPHA,
+        .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
+    };
+    rect.pip = sg.makePipeline(rect_pip);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -241,7 +249,7 @@ export fn init() void {
     const rect_h = rect_w;
 
     state.addRect(.{
-        .color = .{ 1.0, 0.0, 0.0, 1.0 },
+        .color = .{ 1.0, 0.0, 0.0, 0.25 },
         .position = .{ 0.0, 0.0 },
         .size = .{ rect_w, rect_h },
         .corners = .{ 0.0, 0.0, 0.0, 0.0 },
