@@ -119,7 +119,10 @@ export fn init() void {
     // an index buffer
     quad.bind.index_buffer = sg.makeBuffer(.{
         .type = .INDEXBUFFER,
-        .data = sg.asRange(&[_]u16{ 0, 1, 2, 0, 2, 3 }),
+        .data = sg.asRange(&[_]u16{
+            0, 1, 2,
+            0, 2, 3,
+        }),
     });
     // an empty dynamic vertex buffer for the instancing data, goes in vertex buffer slot 1
     quad.bind.vertex_buffers[1] = sg.makeBuffer(.{
