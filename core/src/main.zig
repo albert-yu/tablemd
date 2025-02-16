@@ -5,6 +5,9 @@ const sokol = @import("sokol");
 const shd_quad = @import("shaders/quad.glsl.zig");
 const shd_rect = @import("shaders/rect.glsl.zig");
 
+const dot_grid = @import("render/dot_grid.zig");
+const DotGrid = dot_grid.Renderer;
+
 const uniforms = @import("uniforms.zig");
 const Transform = uniforms.Transform;
 
@@ -54,16 +57,14 @@ const Gfx = struct {
 };
 
 const state = struct {
-    var quad = Gfx.new();
+    // var quad = Gfx.new();
+    var dot_grid_renderer = DotGrid.new();
     var rect = Gfx.new();
     var pass_action: sg.PassAction = .{};
 
     var t = Transform.new();
 
     var mouse: [2]Vec2 = .{ Vec2.zero(), Vec2.zero() };
-
-    // dot grid positions
-    var grid_pos: [GRID_N * GRID_N]Vec2 = undefined;
 
     var rects: [RECT_N]RectElement = undefined;
     var rect_count: u32 = 0;
@@ -89,51 +90,7 @@ export fn init() void {
     state.t.updateZoom(.{ .k = k, .x = x, .y = y });
 
     // quad (dot grid binding and pipeline)
-    // a vertex buffer
-    var quad = &state.quad;
-    quad.bind.vertex_buffers[0] = sg.makeBuffer(.{
-        .data = sg.asRange(&makeQuadVertexBuffer(.{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 0.25 })),
-    });
-
-    // an index buffer
-    quad.bind.index_buffer = sg.makeBuffer(.{
-        .type = .INDEXBUFFER,
-        .data = sg.asRange(&[_]u16{
-            0, 1, 2,
-            0, 2, 3,
-        }),
-    });
-    // an empty dynamic vertex buffer for the instancing data, goes in vertex buffer slot 1
-    quad.bind.vertex_buffers[1] = sg.makeBuffer(.{
-        .usage = .STREAM,
-        .size = POINTS_N * @sizeOf(Vec3),
-    });
-
-    // a shader and pipeline state object
-    var quad_pip: sg.PipelineDesc = .{
-        .shader = sg.makeShader(shd_quad.quadShaderDesc(sg.queryBackend())),
-        .layout = init: {
-            var l = sg.VertexLayoutState{};
-            l.buffers[1].step_func = .PER_INSTANCE;
-            l.attrs[shd_quad.ATTR_quad_position] = .{ .format = .FLOAT2, .buffer_index = 0 };
-            l.attrs[shd_quad.ATTR_quad_color0] = .{ .format = .FLOAT4, .buffer_index = 0 };
-            l.attrs[shd_quad.ATTR_quad_instance_position] = .{ .format = .FLOAT2, .buffer_index = 1 };
-            break :init l;
-        },
-        .index_type = .UINT16,
-        .depth = .{
-            .compare = .LESS_EQUAL,
-            .write_enabled = true,
-        },
-    };
-    quad_pip.colors[0].blend = .{
-        .enabled = true,
-        .src_factor_alpha = .SRC_ALPHA,
-        .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
-        .src_factor_rgb = .SRC_ALPHA,
-        .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
-    };
-    quad.pip = sg.makePipeline(quad_pip);
+    const rect_dims = state.dot_grid_renderer.setup();
 
     // rectangle binding and pipeline
     var rect = &state.rect;
@@ -204,10 +161,8 @@ export fn init() void {
         .clear_value = BG_COLOR,
     };
 
-    populateXYArray(&state.grid_pos);
-    sg.updateBuffer(quad.bind.vertex_buffers[1], sg.asRange(state.grid_pos[0..POINTS_N]));
-    const rect_w = state.grid_pos[1].x - state.grid_pos[0].x;
-    const rect_h = rect_w;
+    const rect_w = rect_dims.width;
+    const rect_h = rect_dims.height;
 
     const corner = 1.0 / 512.0;
     state.addRect(.{
@@ -229,10 +184,7 @@ export fn frame() void {
         .action = state.pass_action,
         .swapchain = sglue.swapchain(),
     });
-    sg.applyPipeline(state.quad.pip);
-    sg.applyBindings(state.quad.bind);
-    sg.applyUniforms(shd_quad.UB_vs_params, vs_range);
-    sg.draw(0, 6, POINTS_N);
+    state.dot_grid_renderer.renderInPass(vs_range);
     sg.applyPipeline(state.rect.pip);
     sg.applyBindings(state.rect.bind);
     sg.applyUniforms(shd_rect.UB_vs_params, vs_range);
