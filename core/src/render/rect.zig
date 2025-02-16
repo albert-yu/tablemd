@@ -107,6 +107,10 @@ pub const Renderer = struct {
         self.count += 1;
     }
 
+    pub fn clear(self: *Renderer) void {
+        self.count = 0;
+    }
+
     /// Updates the instance buffer with the current rectangles
     pub fn updateBuffer(self: Renderer) void {
         sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.rects[0..self.count]));
