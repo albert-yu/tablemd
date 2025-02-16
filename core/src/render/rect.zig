@@ -53,31 +53,31 @@ pub const Renderer = struct {
             .usage = .STREAM,
         });
         var rect_pip: sg.PipelineDesc = .{
-            .shader = sg.makeShader(shd_rect.rectangleShaderDesc(sg.queryBackend())),
+            .shader = sg.makeShader(shd_rect.rectShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
                 l.buffers[1].step_func = .PER_INSTANCE;
-                l.attrs[shd_rect.ATTR_rectangle_position] = .{
+                l.attrs[shd_rect.ATTR_rect_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
                 };
-                l.attrs[shd_rect.ATTR_rectangle_color] = .{
+                l.attrs[shd_rect.ATTR_rect_color] = .{
                     .format = .FLOAT4,
                     .buffer_index = 1,
                 };
-                l.attrs[shd_rect.ATTR_rectangle_rect_position] = .{
+                l.attrs[shd_rect.ATTR_rect_instance_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                 };
-                l.attrs[shd_rect.ATTR_rectangle_size] = .{
+                l.attrs[shd_rect.ATTR_rect_size] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                 };
-                l.attrs[shd_rect.ATTR_rectangle_corners] = .{
+                l.attrs[shd_rect.ATTR_rect_corners] = .{
                     .format = .FLOAT4,
                     .buffer_index = 1,
                 };
-                l.attrs[shd_rect.ATTR_rectangle_sigma] = .{
+                l.attrs[shd_rect.ATTR_rect_sigma] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                 };

@@ -10,14 +10,14 @@ layout(binding=0) uniform vs_params {
 
 in vec2 position;
 in vec4 color;
-in vec2 rect_position;
+in vec2 instance_position;
 in vec2 size;
 in vec4 corners;
 in float sigma;
 
 out vec2 vertex;
 out vec4 v_color;
-out vec2 v_rect_position;
+out vec2 v_instance_position;
 out float v_sigma;
 out vec4 v_corners;
 out vec2 v_size;
@@ -25,8 +25,8 @@ out vec2 v_size;
 void main() {
     float padding = 3.0 * sigma;
     vec2 vertex_pos = mix(
-        rect_position.xy - padding,
-        rect_position.xy + size + padding,
+        instance_position.xy - padding,
+        instance_position.xy + size + padding,
         position
     );
     mat4 t = untransform * zoom * window_scale;
@@ -35,7 +35,7 @@ void main() {
     // Pass through values to fragment shader
     vertex = vertex_pos;
     v_color = color;
-    v_rect_position = rect_position;
+    v_instance_position = instance_position;
     v_sigma = sigma;
     v_corners = corners;
     v_size = size;
@@ -47,7 +47,7 @@ const float PI = 3.141592653589793;
 
 in vec2 vertex;
 in vec4 v_color;
-in vec2 v_rect_position;
+in vec2 v_instance_position;
 in float v_sigma;
 in vec4 v_corners;
 in vec2 v_size;
@@ -106,8 +106,8 @@ float roundedBoxShadow(vec2 lower, vec2 upper, vec2 point, float sigma, vec4 cor
 
 void main() {
     float alpha = v_color.a * roundedBoxShadow(
-        v_rect_position.xy,
-        v_rect_position.xy + v_size,
+        v_instance_position.xy,
+        v_instance_position.xy + v_size,
         vertex,
         v_sigma,
         v_corners
@@ -116,4 +116,4 @@ void main() {
 }
 @end
 
-@program rectangle vs fs
+@program rect vs fs
