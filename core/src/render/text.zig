@@ -1,8 +1,10 @@
 const sokol = @import("sokol");
 const shd = @import("../shaders/text.glsl.zig");
+const math = @import("../math.zig");
 const font = @import("../render/fonts/space-mono-regular/msdf.zig").font;
 
-const Mat4 = @import("../math.zig").Mat4;
+const Mat4 = math.Mat4;
+const Vec2 = math.Vec2;
 
 const font_atlas = @embedFile("../render/fonts/space-mono-regular/atlas.png");
 const atlas_w = 512;
@@ -18,6 +20,13 @@ const TextElement = struct {
     color: [4]f32,
     pixel_scale: f32,
     char: [3]f32,
+};
+
+const CharElement = struct {
+    tex_offset: Vec2,
+    tex_extent: Vec2,
+    size: Vec2,
+    offset: Vec2,
 };
 
 pub const Renderer = struct {
