@@ -2,6 +2,8 @@ const sokol = @import("sokol");
 const shd = @import("../shaders/text.glsl.zig");
 const font = @import("../render/fonts/space-mono-regular/msdf.zig").font;
 
+const Mat4 = @import("../math.zig").Mat4;
+
 const font_atlas = @embedFile("../render/fonts/space-mono-regular/atlas.png");
 const atlas_w = 512;
 const atlas_h = 512;
@@ -12,12 +14,10 @@ const sg = sokol.gfx;
 const sgl = sokol.gl;
 
 const TextElement = struct {
-    // TODO: what is the purpose of the leading 64 bytes?
-    leading: [16]f32,
+    transform: Mat4,
     color: [4]f32,
     pixel_scale: f32,
-
-    // padding of 3
+    char: [3]f32,
 };
 
 pub const Renderer = struct {
