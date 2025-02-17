@@ -10,19 +10,34 @@ layout(binding=0) uniform vs_params {
 };
 
 in vec4 position;
-in vec2 texcoord0;
+// in vec2 texcoord0;
+// in float psize;
+in vec2 tex_offset;
+in vec2 tex_extent;
+in vec2 size;
+in vec2 offset;
+
+in mat4 transform;
 in vec4 color0;
-in float psize;
-out vec4 uv;
+in float scale;
+in vec3 char;
+
+out vec2 texcoord;
 out vec4 color;
 
 void main() {
+    vec3 text_el = char;
+    vec2 char_pos = (position.xy * size + text_el.xy + offset) * scale;
+    vec4 char_pos4 = vec4(char_pos, 0.0, 1.0);
     mat4 t = untransform * window_scale * zoom;
-    gl_Position = position;
-    #ifndef SOKOL_WGSL
-    gl_PointSize = psize;
-    #endif
-    uv = t * vec4(texcoord0, 0.0, 1.0);
+    gl_Position = t * transform * position;
+    // #ifndef SOKOL_WGSL
+    // gl_PointSize = psize;
+    // #endif
+    vec2 texcoord0 = position.xy * vec2(1, -1);
+    texcoord0 *= tex_extent;
+    texcoord0 += tex_offset;
+    texcoord = texcoord0;
     color = color0;
 }
 @end
@@ -30,11 +45,41 @@ void main() {
 @fs fs
 layout(binding=0) uniform texture2D tex;
 layout(binding=0) uniform sampler smp;
-in vec4 uv;
+layout (binding=1) uniform fs_params {
+    vec2 texture_size;
+};
+
+in vec2 texcoord;
 in vec4 color;
+
 out vec4 frag_color;
+
+float sampleMsdf(vec2 texcoord) {
+    vec3 c = texture(sampler2D(tex, smp), texcoord).rgb;
+    return max(min(c.r, c.g), min(max(c.r, c.g), c.b));
+}
+
+// Antialiasing technique from Paul Houx
+// https://github.com/Chlumsky/msdfgen/issues/22#issuecomment-234958005
 void main() {
-    frag_color = vec4(1.0, 1.0, 1.0, texture(sampler2D(tex, smp), uv.xy).r) * color;
+    // pxRange (AKA distanceRange) comes from the msdfgen tool. Don McCurdy's tool
+    // uses the default which is 4.
+    float pxRange = 4.0;
+    vec2 sz = texture_size;
+    float dx = sz.x * length(vec2(dFdx(texcoord.x), dFdy(texcoord.x)));
+    float dy = sz.y * length(vec2(dFdx(texcoord.y), dFdy(texcoord.y)));
+    float toPixels = pxRange * inversesqrt(dx * dx + dy * dy);
+    float sigDist = sampleMsdf(texcoord) - 0.5;
+    float pxDist = sigDist * toPixels;
+
+    float edgeWidth = 0.5;
+    float alpha = smoothstep(-edgeWidth, edgeWidth, pxDist);
+
+    if (alpha < 0.001) {
+        discard;
+    }
+
+    frag_color = vec4(color.rgb, color.a * alpha);
 }
 @end
 
