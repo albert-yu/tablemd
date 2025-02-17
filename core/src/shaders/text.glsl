@@ -9,18 +9,24 @@ layout(binding=0) uniform vs_params {
     mat4 untransform;
 };
 
+// vertex position
 in vec4 position;
 // in vec2 texcoord0;
 // in float psize;
+
+// struct Char
 in vec2 tex_offset;
 in vec2 tex_extent;
 in vec2 size;
 in vec2 offset;
+// end
 
+// struct FormattedText
 in mat4 transform;
 in vec4 color0;
 in float scale;
 in vec3 char;
+// end
 
 out vec2 texcoord;
 out vec4 color;
