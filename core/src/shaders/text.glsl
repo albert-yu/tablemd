@@ -14,14 +14,14 @@ in vec4 position;
 // in vec2 texcoord0;
 // in float psize;
 
-// struct Char
+// struct CharElement
 in vec2 tex_offset;
 in vec2 tex_extent;
 in vec2 size;
 in vec2 offset;
 // end
 
-// struct FormattedText
+// struct TextElement
 // TODO: some way to input the whole matrix at once?
 in vec4 transform0;
 in vec4 transform1;
