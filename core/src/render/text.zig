@@ -38,11 +38,15 @@ pub const Renderer = struct {
 
     char_elements: [CHAR_N]CharElement,
     text_elements: [TEXT_N]TextElement,
+    count: u32,
 
     pub fn new() Renderer {
         return .{
+            .count = 0,
             .bind = .{},
             .pip = .{},
+            .char_elements = undefined,
+            .text_elements = undefined,
         };
     }
 
@@ -78,7 +82,7 @@ pub const Renderer = struct {
             .size = char_count * @sizeOf(CharElement),
         });
 
-        var pip: sg.PipelineDesc = .{
+        var pipDesc: sg.PipelineDesc = .{
             .shader = sg.makeShader(shd.textShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
@@ -125,7 +129,7 @@ pub const Renderer = struct {
                     .buffer_index = BUF_text,
                 };
                 l.attrs[shd.ATTR_text_scale] = .{
-                    .format = .FLOAT1,
+                    .format = .FLOAT,
                     .buffer_index = BUF_text,
                 };
                 l.attrs[shd.ATTR_text_char] = .{
@@ -140,7 +144,7 @@ pub const Renderer = struct {
                 .write_enabled = true,
             },
         };
-        pip.colors[0].blend = .{
+        pipDesc.colors[0].blend = .{
             .enabled = true,
             .src_factor_alpha = .SRC_ALPHA,
             .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
@@ -148,7 +152,7 @@ pub const Renderer = struct {
             .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
         };
 
-        self.pip = pip;
+        self.pip = sg.makePipeline(pipDesc);
 
         // populate char elements
         const u = 1.0 / font.common.scale_w;
@@ -182,7 +186,14 @@ pub const Renderer = struct {
         });
     }
 
+    pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+        sg.applyPipeline(self.pip);
+        sg.applyBindings(self.bind);
+        sg.applyUniforms(shd.UB_vs_params, vs_range);
+        sg.draw(0, 6, self.count);
+    }
+
     pub fn cleanup(self: *Renderer) void {
-        sg.deallocImage(self.bind.images[shd.IMG_text]);
+        sg.deallocImage(self.bind.images[shd.IMG_tex]);
     }
 };

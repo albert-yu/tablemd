@@ -4,6 +4,7 @@ const engine = @import("engine.zig");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
 const DotGridRenderer = @import("render/dot_grid.zig").Renderer;
+const TextRenderer = @import("render/text.zig").Renderer;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("math.zig").Vec2;
 
@@ -25,6 +26,7 @@ const HEIGHT_START = 600;
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
+    var text_renderer = TextRenderer.new();
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
 
@@ -42,6 +44,7 @@ export fn init() void {
     // quad (dot grid binding and pipeline)
     const rect_dims = state.dot_grid_renderer.setup();
     state.rect_renderer.setup();
+    state.text_renderer.setup();
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -75,12 +78,15 @@ export fn frame() void {
     });
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
+    state.text_renderer.renderInPass(vs_range);
 
     sg.endPass();
     sg.commit();
 }
 
 export fn cleanup() void {
+    // TODO: needed?
+    state.text_renderer.cleanup();
     sg.shutdown();
 }
 

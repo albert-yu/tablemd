@@ -5,27 +5,26 @@ const Font = struct {
     info: Info,
     common: Common,
     distance_field: DistanceField,
-    kernings: []const void,
 };
 
 const Char = struct {
     id: u32,
     index: u32,
     char: u8,
-    width: u32,
-    height: u32,
-    xoffset: i32,
-    yoffset: u32,
-    xadvance: u32,
+    width: f32,
+    height: f32,
+    xoffset: f32,
+    yoffset: f32,
+    xadvance: f32,
     chnl: u32,
-    x: u32,
-    y: u32,
+    x: f32,
+    y: f32,
     page: u32,
 };
 
 const Info = struct {
     face: []const u8,
-    size: u32,
+    size: f32,
     bold: u32,
     italic: u32,
     charset: []const u8,
@@ -40,14 +39,14 @@ const Info = struct {
 const Common = struct {
     line_height: u32,
     base: u32,
-    scale_w: u32,
-    scale_h: u32,
+    scale_w: f32,
+    scale_h: f32,
     pages: u32,
     packed_: u32,
-    alpha_chnl: u32,
-    red_chnl: u32,
-    green_chnl: u32,
-    blue_chnl: u32,
+    alpha_chnl: f32,
+    red_chnl: f32,
+    green_chnl: f32,
+    blue_chnl: f32,
 };
 
 const DistanceField = struct {
@@ -56,10 +55,10 @@ const DistanceField = struct {
 };
 
 pub const font = Font {
-    .pages = .{
+    .pages = &[_][]const u8{
         "space-mono-regular.png",
     },
-    .chars = .{
+    .chars = &[_]Char{
         .{
             .id = 40,
             .index = 70,
@@ -1396,7 +1395,7 @@ pub const font = Font {
         .size = 42,
         .bold = 0,
         .italic = 0,
-        .charset = .{ ' ', '!', '"', '#', '$', '%', '&', '\\', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', ']', '^', '_', '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~' },
+        .charset = &[_]u8{ ' ', '!', '"', '#', '$', '%', '&', '\\', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', ']', '^', '_', '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~' },
         .unicode = 1,
         .stretch_h = 100,
         .smooth = 1,
@@ -1411,10 +1410,10 @@ pub const font = Font {
         .scale_h = 512,
         .pages = 1,
         .packed_ = 0,
-        .alpha_ch = 0,
-        .red_ch = 0,
-        .green_ch = 0,
-        .blue_ch = 0,
+        .alpha_chnl = 0,
+        .red_chnl = 0,
+        .green_chnl = 0,
+        .blue_chnl = 0,
     },
     .distance_field = .{
         .field_type = "msdf",
