@@ -65,6 +65,7 @@ pub const Renderer = struct {
             }),
         });
         self.bind.index_buffer = sg.makeBuffer(.{
+            .type = .INDEXBUFFER,
             .data = sg.asRange(&[_]u16{
                 0, 1, 2,
                 1, 2, 3,
