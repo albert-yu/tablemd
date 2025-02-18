@@ -191,6 +191,7 @@ pub const Renderer = struct {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd.UB_vs_params, vs_range);
+        sg.applyUniforms(shd.UB_fs_params, sg.asRange(&computeFsParams()));
         sg.draw(0, 6, self.count);
     }
 
@@ -198,3 +199,9 @@ pub const Renderer = struct {
         sg.deallocImage(self.bind.images[shd.IMG_tex]);
     }
 };
+
+fn computeFsParams() shd.FsParams {
+    return .{
+        .texture_size = [_]f32{ atlas_w, atlas_h },
+    };
+}
