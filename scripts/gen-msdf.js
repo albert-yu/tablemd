@@ -27,7 +27,7 @@ const Font = struct {
     distance_field: DistanceField,
 };
 
-pub const Char = struct {
+const Char = struct {
     id: u32,
     index: u32,
     char: u8,
@@ -85,11 +85,10 @@ const DistanceField = struct {
   output += `    },\n`;
 
   output += getIndent(1) + ".chars = &[_]Char{\n";
-  for (const [i, char] of msdfJSON.chars.entries()) {
+  for (const char of msdfJSON.chars) {
     output += getIndent(2) + ".{\n";
     output += getIndent(3) + `.id = ${char.id},\n`;
-    // IMPORTANT: we are replacing the original index with the current index
-    output += getIndent(3) + `.index = ${i},\n`;
+    output += getIndent(3) + `.index = ${char.index},\n`;
     output += getIndent(3) + `.char = ${stringifyChar(char.char)},\n`;
     output += getIndent(3) + `.width = ${char.width},\n`;
     output += getIndent(3) + `.height = ${char.height},\n`;
