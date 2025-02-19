@@ -52,10 +52,10 @@ pub const Renderer = struct {
 
     pub fn new() Renderer {
         return .{
-            .count = 0,
+            .char_count = 0,
             .bind = .{},
             .pip = .{},
-            .char_elements = undefined,
+            .charset = undefined,
             .text_elements = undefined,
         };
     }
