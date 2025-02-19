@@ -7,7 +7,7 @@ const Font = struct {
     distance_field: DistanceField,
 };
 
-const Char = struct {
+pub const Char = struct {
     id: u32,
     index: u32,
     char: u8,
@@ -61,7 +61,7 @@ pub const font = Font {
     .chars = &[_]Char{
         .{
             .id = 40,
-            .index = 70,
+            .index = 0,
             .char = '(',
             .width = 20,
             .height = 47,
@@ -75,7 +75,7 @@ pub const font = Font {
         },
         .{
             .id = 41,
-            .index = 71,
+            .index = 1,
             .char = ')',
             .width = 20,
             .height = 47,
@@ -89,7 +89,7 @@ pub const font = Font {
         },
         .{
             .id = 91,
-            .index = 66,
+            .index = 2,
             .char = '[',
             .width = 11,
             .height = 47,
@@ -103,7 +103,7 @@ pub const font = Font {
         },
         .{
             .id = 93,
-            .index = 67,
+            .index = 3,
             .char = ']',
             .width = 11,
             .height = 47,
@@ -117,7 +117,7 @@ pub const font = Font {
         },
         .{
             .id = 123,
-            .index = 68,
+            .index = 4,
             .char = '{',
             .width = 15,
             .height = 47,
@@ -131,7 +131,7 @@ pub const font = Font {
         },
         .{
             .id = 124,
-            .index = 73,
+            .index = 5,
             .char = '|',
             .width = 7,
             .height = 47,
@@ -145,7 +145,7 @@ pub const font = Font {
         },
         .{
             .id = 125,
-            .index = 69,
+            .index = 6,
             .char = '}',
             .width = 15,
             .height = 47,
@@ -159,7 +159,7 @@ pub const font = Font {
         },
         .{
             .id = 92,
-            .index = 75,
+            .index = 7,
             .char = '\\',
             .width = 19,
             .height = 42,
@@ -173,7 +173,7 @@ pub const font = Font {
         },
         .{
             .id = 47,
-            .index = 72,
+            .index = 8,
             .char = '/',
             .width = 19,
             .height = 42,
@@ -187,7 +187,7 @@ pub const font = Font {
         },
         .{
             .id = 106,
-            .index = 39,
+            .index = 9,
             .char = 'j',
             .width = 18,
             .height = 42,
@@ -201,7 +201,7 @@ pub const font = Font {
         },
         .{
             .id = 81,
-            .index = 20,
+            .index = 10,
             .char = 'Q',
             .width = 25,
             .height = 41,
@@ -215,7 +215,7 @@ pub const font = Font {
         },
         .{
             .id = 48,
-            .index = 56,
+            .index = 11,
             .char = '0',
             .width = 25,
             .height = 35,
@@ -229,7 +229,7 @@ pub const font = Font {
         },
         .{
             .id = 54,
-            .index = 62,
+            .index = 12,
             .char = '6',
             .width = 24,
             .height = 35,
@@ -243,7 +243,7 @@ pub const font = Font {
         },
         .{
             .id = 56,
-            .index = 64,
+            .index = 13,
             .char = '8',
             .width = 24,
             .height = 35,
@@ -257,7 +257,7 @@ pub const font = Font {
         },
         .{
             .id = 57,
-            .index = 65,
+            .index = 14,
             .char = '9',
             .width = 24,
             .height = 35,
@@ -271,7 +271,7 @@ pub const font = Font {
         },
         .{
             .id = 63,
-            .index = 91,
+            .index = 15,
             .char = '?',
             .width = 24,
             .height = 35,
@@ -285,7 +285,7 @@ pub const font = Font {
         },
         .{
             .id = 67,
-            .index = 6,
+            .index = 16,
             .char = 'C',
             .width = 25,
             .height = 35,
@@ -299,7 +299,7 @@ pub const font = Font {
         },
         .{
             .id = 71,
-            .index = 10,
+            .index = 17,
             .char = 'G',
             .width = 25,
             .height = 35,
@@ -327,7 +327,7 @@ pub const font = Font {
         },
         .{
             .id = 83,
-            .index = 22,
+            .index = 19,
             .char = 'S',
             .width = 26,
             .height = 35,
@@ -341,7 +341,7 @@ pub const font = Font {
         },
         .{
             .id = 33,
-            .index = 89,
+            .index = 20,
             .char = '!',
             .width = 10,
             .height = 34,
@@ -355,7 +355,7 @@ pub const font = Font {
         },
         .{
             .id = 37,
-            .index = 511,
+            .index = 21,
             .char = '%',
             .width = 25,
             .height = 34,
@@ -369,7 +369,7 @@ pub const font = Font {
         },
         .{
             .id = 50,
-            .index = 58,
+            .index = 22,
             .char = '2',
             .width = 24,
             .height = 34,
@@ -383,7 +383,7 @@ pub const font = Font {
         },
         .{
             .id = 51,
-            .index = 59,
+            .index = 23,
             .char = '3',
             .width = 25,
             .height = 34,
@@ -397,7 +397,7 @@ pub const font = Font {
         },
         .{
             .id = 53,
-            .index = 61,
+            .index = 24,
             .char = '5',
             .width = 25,
             .height = 34,
@@ -411,7 +411,7 @@ pub const font = Font {
         },
         .{
             .id = 74,
-            .index = 13,
+            .index = 25,
             .char = 'J',
             .width = 25,
             .height = 34,
@@ -425,7 +425,7 @@ pub const font = Font {
         },
         .{
             .id = 85,
-            .index = 24,
+            .index = 26,
             .char = 'U',
             .width = 24,
             .height = 34,
@@ -439,7 +439,7 @@ pub const font = Font {
         },
         .{
             .id = 98,
-            .index = 31,
+            .index = 27,
             .char = 'b',
             .width = 25,
             .height = 34,
@@ -453,7 +453,7 @@ pub const font = Font {
         },
         .{
             .id = 100,
-            .index = 33,
+            .index = 28,
             .char = 'd',
             .width = 25,
             .height = 34,
@@ -467,7 +467,7 @@ pub const font = Font {
         },
         .{
             .id = 103,
-            .index = 36,
+            .index = 29,
             .char = 'g',
             .width = 25,
             .height = 34,
@@ -481,7 +481,7 @@ pub const font = Font {
         },
         .{
             .id = 105,
-            .index = 38,
+            .index = 30,
             .char = 'i',
             .width = 21,
             .height = 34,
@@ -495,7 +495,7 @@ pub const font = Font {
         },
         .{
             .id = 112,
-            .index = 45,
+            .index = 31,
             .char = 'p',
             .width = 25,
             .height = 34,
@@ -509,7 +509,7 @@ pub const font = Font {
         },
         .{
             .id = 113,
-            .index = 46,
+            .index = 32,
             .char = 'q',
             .width = 25,
             .height = 34,
@@ -523,7 +523,7 @@ pub const font = Font {
         },
         .{
             .id = 38,
-            .index = 104,
+            .index = 33,
             .char = '&',
             .width = 26,
             .height = 33,
@@ -537,7 +537,7 @@ pub const font = Font {
         },
         .{
             .id = 49,
-            .index = 57,
+            .index = 34,
             .char = '1',
             .width = 25,
             .height = 33,
@@ -551,7 +551,7 @@ pub const font = Font {
         },
         .{
             .id = 52,
-            .index = 60,
+            .index = 35,
             .char = '4',
             .width = 26,
             .height = 33,
@@ -565,7 +565,7 @@ pub const font = Font {
         },
         .{
             .id = 55,
-            .index = 63,
+            .index = 36,
             .char = '7',
             .width = 24,
             .height = 33,
@@ -579,7 +579,7 @@ pub const font = Font {
         },
         .{
             .id = 65,
-            .index = 4,
+            .index = 37,
             .char = 'A',
             .width = 28,
             .height = 33,
@@ -593,7 +593,7 @@ pub const font = Font {
         },
         .{
             .id = 66,
-            .index = 5,
+            .index = 38,
             .char = 'B',
             .width = 25,
             .height = 33,
@@ -607,7 +607,7 @@ pub const font = Font {
         },
         .{
             .id = 68,
-            .index = 7,
+            .index = 39,
             .char = 'D',
             .width = 24,
             .height = 33,
@@ -621,7 +621,7 @@ pub const font = Font {
         },
         .{
             .id = 69,
-            .index = 8,
+            .index = 40,
             .char = 'E',
             .width = 22,
             .height = 33,
@@ -635,7 +635,7 @@ pub const font = Font {
         },
         .{
             .id = 70,
-            .index = 9,
+            .index = 41,
             .char = 'F',
             .width = 22,
             .height = 33,
@@ -649,7 +649,7 @@ pub const font = Font {
         },
         .{
             .id = 72,
-            .index = 11,
+            .index = 42,
             .char = 'H',
             .width = 24,
             .height = 33,
@@ -663,7 +663,7 @@ pub const font = Font {
         },
         .{
             .id = 73,
-            .index = 12,
+            .index = 43,
             .char = 'I',
             .width = 23,
             .height = 33,
@@ -677,7 +677,7 @@ pub const font = Font {
         },
         .{
             .id = 75,
-            .index = 14,
+            .index = 44,
             .char = 'K',
             .width = 25,
             .height = 33,
@@ -691,7 +691,7 @@ pub const font = Font {
         },
         .{
             .id = 76,
-            .index = 15,
+            .index = 45,
             .char = 'L',
             .width = 23,
             .height = 33,
@@ -705,7 +705,7 @@ pub const font = Font {
         },
         .{
             .id = 77,
-            .index = 16,
+            .index = 46,
             .char = 'M',
             .width = 26,
             .height = 33,
@@ -719,7 +719,7 @@ pub const font = Font {
         },
         .{
             .id = 78,
-            .index = 17,
+            .index = 47,
             .char = 'N',
             .width = 24,
             .height = 33,
@@ -733,7 +733,7 @@ pub const font = Font {
         },
         .{
             .id = 80,
-            .index = 19,
+            .index = 48,
             .char = 'P',
             .width = 23,
             .height = 33,
@@ -747,7 +747,7 @@ pub const font = Font {
         },
         .{
             .id = 82,
-            .index = 21,
+            .index = 49,
             .char = 'R',
             .width = 23,
             .height = 33,
@@ -761,7 +761,7 @@ pub const font = Font {
         },
         .{
             .id = 84,
-            .index = 23,
+            .index = 50,
             .char = 'T',
             .width = 25,
             .height = 33,
@@ -775,7 +775,7 @@ pub const font = Font {
         },
         .{
             .id = 86,
-            .index = 25,
+            .index = 51,
             .char = 'V',
             .width = 27,
             .height = 33,
@@ -789,7 +789,7 @@ pub const font = Font {
         },
         .{
             .id = 87,
-            .index = 26,
+            .index = 52,
             .char = 'W',
             .width = 29,
             .height = 33,
@@ -803,7 +803,7 @@ pub const font = Font {
         },
         .{
             .id = 88,
-            .index = 27,
+            .index = 53,
             .char = 'X',
             .width = 26,
             .height = 33,
@@ -817,7 +817,7 @@ pub const font = Font {
         },
         .{
             .id = 89,
-            .index = 28,
+            .index = 54,
             .char = 'Y',
             .width = 27,
             .height = 33,
@@ -831,7 +831,7 @@ pub const font = Font {
         },
         .{
             .id = 90,
-            .index = 29,
+            .index = 55,
             .char = 'Z',
             .width = 25,
             .height = 33,
@@ -845,7 +845,7 @@ pub const font = Font {
         },
         .{
             .id = 102,
-            .index = 35,
+            .index = 56,
             .char = 'f',
             .width = 22,
             .height = 33,
@@ -859,7 +859,7 @@ pub const font = Font {
         },
         .{
             .id = 104,
-            .index = 37,
+            .index = 57,
             .char = 'h',
             .width = 22,
             .height = 33,
@@ -873,7 +873,7 @@ pub const font = Font {
         },
         .{
             .id = 107,
-            .index = 40,
+            .index = 58,
             .char = 'k',
             .width = 21,
             .height = 33,
@@ -887,7 +887,7 @@ pub const font = Font {
         },
         .{
             .id = 108,
-            .index = 41,
+            .index = 59,
             .char = 'l',
             .width = 22,
             .height = 33,
@@ -901,7 +901,7 @@ pub const font = Font {
         },
         .{
             .id = 116,
-            .index = 49,
+            .index = 60,
             .char = 't',
             .width = 22,
             .height = 33,
@@ -915,7 +915,7 @@ pub const font = Font {
         },
         .{
             .id = 121,
-            .index = 54,
+            .index = 61,
             .char = 'y',
             .width = 22,
             .height = 33,
@@ -929,7 +929,7 @@ pub const font = Font {
         },
         .{
             .id = 36,
-            .index = 499,
+            .index = 62,
             .char = '$',
             .width = 21,
             .height = 31,
@@ -943,7 +943,7 @@ pub const font = Font {
         },
         .{
             .id = 59,
-            .index = 87,
+            .index = 63,
             .char = ';',
             .width = 10,
             .height = 30,
@@ -957,7 +957,7 @@ pub const font = Font {
         },
         .{
             .id = 64,
-            .index = 103,
+            .index = 64,
             .char = '@',
             .width = 26,
             .height = 29,
@@ -971,7 +971,7 @@ pub const font = Font {
         },
         .{
             .id = 119,
-            .index = 52,
+            .index = 65,
             .char = 'w',
             .width = 28,
             .height = 25,
@@ -985,7 +985,7 @@ pub const font = Font {
         },
         .{
             .id = 58,
-            .index = 86,
+            .index = 66,
             .char = ':',
             .width = 10,
             .height = 26,
@@ -999,7 +999,7 @@ pub const font = Font {
         },
         .{
             .id = 97,
-            .index = 30,
+            .index = 67,
             .char = 'a',
             .width = 26,
             .height = 26,
@@ -1013,7 +1013,7 @@ pub const font = Font {
         },
         .{
             .id = 99,
-            .index = 32,
+            .index = 68,
             .char = 'c',
             .width = 25,
             .height = 26,
@@ -1027,7 +1027,7 @@ pub const font = Font {
         },
         .{
             .id = 101,
-            .index = 34,
+            .index = 69,
             .char = 'e',
             .width = 24,
             .height = 26,
@@ -1041,7 +1041,7 @@ pub const font = Font {
         },
         .{
             .id = 109,
-            .index = 42,
+            .index = 70,
             .char = 'm',
             .width = 26,
             .height = 25,
@@ -1055,7 +1055,7 @@ pub const font = Font {
         },
         .{
             .id = 111,
-            .index = 44,
+            .index = 71,
             .char = 'o',
             .width = 25,
             .height = 26,
@@ -1069,7 +1069,7 @@ pub const font = Font {
         },
         .{
             .id = 115,
-            .index = 48,
+            .index = 72,
             .char = 's',
             .width = 22,
             .height = 26,
@@ -1083,7 +1083,7 @@ pub const font = Font {
         },
         .{
             .id = 35,
-            .index = 497,
+            .index = 73,
             .char = '#',
             .width = 24,
             .height = 25,
@@ -1097,7 +1097,7 @@ pub const font = Font {
         },
         .{
             .id = 42,
-            .index = 105,
+            .index = 74,
             .char = '*',
             .width = 25,
             .height = 25,
@@ -1111,7 +1111,7 @@ pub const font = Font {
         },
         .{
             .id = 110,
-            .index = 43,
+            .index = 75,
             .char = 'n',
             .width = 22,
             .height = 25,
@@ -1125,7 +1125,7 @@ pub const font = Font {
         },
         .{
             .id = 114,
-            .index = 47,
+            .index = 76,
             .char = 'r',
             .width = 25,
             .height = 25,
@@ -1139,7 +1139,7 @@ pub const font = Font {
         },
         .{
             .id = 117,
-            .index = 50,
+            .index = 77,
             .char = 'u',
             .width = 22,
             .height = 25,
@@ -1153,7 +1153,7 @@ pub const font = Font {
         },
         .{
             .id = 118,
-            .index = 51,
+            .index = 78,
             .char = 'v',
             .width = 25,
             .height = 25,
@@ -1167,7 +1167,7 @@ pub const font = Font {
         },
         .{
             .id = 120,
-            .index = 53,
+            .index = 79,
             .char = 'x',
             .width = 24,
             .height = 25,
@@ -1181,7 +1181,7 @@ pub const font = Font {
         },
         .{
             .id = 122,
-            .index = 55,
+            .index = 80,
             .char = 'z',
             .width = 22,
             .height = 25,
@@ -1195,7 +1195,7 @@ pub const font = Font {
         },
         .{
             .id = 94,
-            .index = 533,
+            .index = 81,
             .char = '^',
             .width = 24,
             .height = 16,
@@ -1209,7 +1209,7 @@ pub const font = Font {
         },
         .{
             .id = 95,
-            .index = 102,
+            .index = 82,
             .char = '_',
             .width = 24,
             .height = 7,
@@ -1223,7 +1223,7 @@ pub const font = Font {
         },
         .{
             .id = 126,
-            .index = 535,
+            .index = 83,
             .char = '~',
             .width = 24,
             .height = 11,
@@ -1237,7 +1237,7 @@ pub const font = Font {
         },
         .{
             .id = 43,
-            .index = 522,
+            .index = 84,
             .char = '+',
             .width = 22,
             .height = 22,
@@ -1251,7 +1251,7 @@ pub const font = Font {
         },
         .{
             .id = 60,
-            .index = 528,
+            .index = 85,
             .char = '<',
             .width = 22,
             .height = 22,
@@ -1265,7 +1265,7 @@ pub const font = Font {
         },
         .{
             .id = 61,
-            .index = 527,
+            .index = 86,
             .char = '=',
             .width = 22,
             .height = 13,
@@ -1279,7 +1279,7 @@ pub const font = Font {
         },
         .{
             .id = 62,
-            .index = 529,
+            .index = 87,
             .char = '>',
             .width = 22,
             .height = 22,
@@ -1293,7 +1293,7 @@ pub const font = Font {
         },
         .{
             .id = 34,
-            .index = 77,
+            .index = 88,
             .char = '"',
             .width = 18,
             .height = 14,
@@ -1307,7 +1307,7 @@ pub const font = Font {
         },
         .{
             .id = 45,
-            .index = 97,
+            .index = 89,
             .char = '-',
             .width = 17,
             .height = 7,
@@ -1321,7 +1321,7 @@ pub const font = Font {
         },
         .{
             .id = 39,
-            .index = 76,
+            .index = 90,
             .char = '\'',
             .width = 10,
             .height = 14,
@@ -1335,7 +1335,7 @@ pub const font = Font {
         },
         .{
             .id = 44,
-            .index = 85,
+            .index = 91,
             .char = ',',
             .width = 10,
             .height = 14,
@@ -1349,7 +1349,7 @@ pub const font = Font {
         },
         .{
             .id = 96,
-            .index = 562,
+            .index = 92,
             .char = '`',
             .width = 11,
             .height = 9,
@@ -1363,7 +1363,7 @@ pub const font = Font {
         },
         .{
             .id = 46,
-            .index = 84,
+            .index = 93,
             .char = '.',
             .width = 10,
             .height = 10,
@@ -1377,7 +1377,7 @@ pub const font = Font {
         },
         .{
             .id = 32,
-            .index = 3,
+            .index = 94,
             .char = ' ',
             .width = 0,
             .height = 0,
