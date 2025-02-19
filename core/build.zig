@@ -76,6 +76,7 @@ fn buildNative(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
         .root_source_file = b.path("src/main.zig"),
     });
     app.root_module.addImport("sokol", dep_sokol.module("sokol"));
+    app.addIncludePath(b.path("vendor"));
     b.installArtifact(app);
     const run = b.addRunArtifact(app);
     b.step("run", "Run app").dependOn(&run.step);
@@ -90,6 +91,7 @@ fn buildWeb(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.built
         .root_source_file = b.path("src/main.zig"),
     });
     lib.root_module.addImport("sokol", dep_sokol.module("sokol"));
+    lib.addIncludePath(b.path("vendor"));
 
     // create a build step which invokes the Emscripten linker
     const emsdk = dep_sokol.builder.dependency("emsdk", .{});
