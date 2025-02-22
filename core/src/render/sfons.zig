@@ -31,6 +31,38 @@ const Sfons = struct {
     img_dirty: bool,
 };
 
+// fons helpers, passed in from fontstash.h
+
+pub fn setSize(ctx: ?*Context, size: f32) void {
+    c.fonsSetSize(ctx, size);
+}
+
+pub fn setColor(ctx: ?*Context, color: u32) void {
+    c.fonsSetColor(ctx, color);
+}
+
+pub fn clearState(ctx: ?*Context) void {
+    c.fonsClearState(ctx);
+}
+
+pub fn setFont(ctx: ?*Context, font: int) void {
+    c.fonsSetFont(ctx, font);
+}
+
+pub fn vertMetrics(ctx: ?*Context, ascender: [*c]f32, descender: [*c]f32, lineh: [*c]f32) void {
+    c.fonsVertMetrics(ctx, ascender, descender, lineh);
+}
+
+pub fn drawText(ctx: ?*Context, x: f32, y: f32, text: [*c]const u8, end: [*c]const u8) void {
+    c.fonsDrawText(ctx, x, y, text, end);
+}
+
+pub fn textBounds(ctx: ?*Context, x: f32, y: f32, text: [*c]const u8, end: [*c]const u8, bounds: [*c]f32) void {
+    c.fonsTextBounds(ctx, x, y, text, end, bounds);
+}
+
+// end fons helpers
+
 pub fn create(allocator: std.mem.Allocator, desc: SfonsDesc) !?*Context {
     var sfons = try allocator.alloc(Sfons, 1);
     var params: c.FONSparams = .{
