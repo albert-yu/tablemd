@@ -5,6 +5,7 @@ const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
 const DotGridRenderer = @import("render/dot_grid.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
+const FontRenderer = @import("render/font.zig").Renderer;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("math.zig").Vec2;
 
@@ -28,7 +29,9 @@ const state = struct {
     var rect_renderer = RectRenderer.new();
     var text_renderer = TextRenderer.new();
     var pass_action: sg.PassAction = .{};
+    var font_renderer: FontRenderer = undefined;
     var t = Transform.new();
+    var allocator: std.mem.Allocator = undefined;
 
     var mouse: [2]Vec2 = .{ Vec2.zero(), Vec2.zero() };
 };
@@ -39,6 +42,10 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    state.allocator = gpa.allocator();
+
+    state.font_renderer = FontRenderer.init(state.allocator, sapp.dpiScale()) catch unreachable;
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
     // quad (dot grid binding and pipeline)
@@ -72,6 +79,8 @@ export fn frame() void {
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
 
+    state.font_renderer.beforeRenderPass();
+
     sg.beginPass(.{
         .action = state.pass_action,
         .swapchain = sglue.swapchain(),
@@ -79,12 +88,14 @@ export fn frame() void {
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
     state.text_renderer.renderInPass(vs_range);
+    state.font_renderer.renderInPass();
 
     sg.endPass();
     sg.commit();
 }
 
 export fn cleanup() void {
+    state.font_renderer.deinit(state.allocator);
     // TODO: needed?
     state.text_renderer.cleanup();
     sg.shutdown();

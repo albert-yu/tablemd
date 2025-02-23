@@ -11,6 +11,8 @@ const shd = @import("../shaders/sfons.glsl.zig");
 
 const int = c_int;
 
+pub const FONS_INVALID = c.FONS_INVALID;
+
 pub const Context = c.FONScontext;
 
 // const backend = sg.queryBackend();
@@ -23,7 +25,7 @@ const SfonsDesc = struct {
 const Sfons = struct {
     desc: SfonsDesc,
     shd: sg.Shader,
-    pip: sg.Pipeline,
+    pip: sgl.Pipeline,
     img: sg.Image,
     smp: sg.Sampler,
     cur_width: int,
@@ -53,18 +55,23 @@ pub fn vertMetrics(ctx: ?*Context, ascender: [*c]f32, descender: [*c]f32, lineh:
     c.fonsVertMetrics(ctx, ascender, descender, lineh);
 }
 
-pub fn drawText(ctx: ?*Context, x: f32, y: f32, text: [*c]const u8, end: [*c]const u8) void {
-    c.fonsDrawText(ctx, x, y, text, end);
+pub fn drawText(ctx: ?*Context, x: f32, y: f32, text: [*c]const u8, end: [*c]const u8) f32 {
+    return c.fonsDrawText(ctx, x, y, text, end);
 }
 
 pub fn textBounds(ctx: ?*Context, x: f32, y: f32, text: [*c]const u8, end: [*c]const u8, bounds: [*c]f32) void {
     c.fonsTextBounds(ctx, x, y, text, end, bounds);
 }
 
+pub fn addFontMem(ctx: ?*Context, name: [*c]const u8, data: [*c]u8, ndata: c_int, free_data: c_int) c_int {
+    return c.fonsAddFontMem(ctx, name, data, ndata, free_data);
+}
+
 // end fons helpers
 
 pub fn create(allocator: std.mem.Allocator, desc: SfonsDesc) !?*Context {
     var sfons = try allocator.alloc(Sfons, 1);
+    const ptr: ?*anyopaque = @ptrCast(&sfons);
     var params: c.FONSparams = .{
         .width = desc.width,
         .height = desc.height,
@@ -74,19 +81,19 @@ pub fn create(allocator: std.mem.Allocator, desc: SfonsDesc) !?*Context {
         .renderUpdate = renderUpdate,
         .renderDraw = renderDraw,
         .renderDelete = renderDelete,
-        .userPtr = &sfons,
+        .userPtr = ptr,
     };
     return c.fonsCreateInternal(&params);
 }
 
-pub fn destroy(allocator: std.mem.Allocator, ctx: *Context) void {
+pub fn destroy(allocator: std.mem.Allocator, ctx: ?*Context) void {
     c.fonsDeleteInternal(ctx);
     const params: c.FONSparams = @ptrCast(ctx.params);
     allocator.destroy(params.userPtr);
 }
 
-pub fn flush(ctx: *Context) void {
-    var sfons: *Sfons = @ptrCast(ctx);
+pub fn flush(ctx: ?*Context) void {
+    var sfons: *Sfons = cast(ctx);
     if (sfons.img_dirty) {
         sfons.img_dirty = false;
         var data: sg.ImageData = .{};
@@ -98,10 +105,14 @@ pub fn flush(ctx: *Context) void {
 }
 
 pub fn rgba(r: u8, g: u8, b: u8, a: u8) u32 {
-    return (a << 24) | (b << 16) | (g << 8) | r;
+    return (@as(u32, a) << 24) |
+        (@as(u32, b) << 16) |
+        (@as(u32, g) << 8) |
+        @as(u32, r);
 }
 
-fn renderCreate(data: *Sfons, width: int, height: int) int {
+fn renderCreate(ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
+    var data: *Sfons = cast(ptr);
     if (data.shd.id == sg.invalid_id) {
         const backend = sg.queryBackend();
         var shd_desc = shd.sfontstashShaderDesc(backend);
@@ -162,7 +173,7 @@ fn renderCreate(data: *Sfons, width: int, height: int) int {
             .min_filter = .LINEAR,
             .mag_filter = .LINEAR,
         };
-        data.smp = sgl.makeSampler(smp_desc);
+        data.smp = sg.makeSampler(smp_desc);
     }
     if (data.img.id != sg.invalid_id) {
         sg.destroyImage(data.img);
@@ -181,15 +192,17 @@ fn renderCreate(data: *Sfons, width: int, height: int) int {
     return 1;
 }
 
-fn renderResize(data: *Sfons, width: int, height: int) int {
-    return renderCreate(data, width, height);
+fn renderResize(ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
+    return renderCreate(ptr, width, height);
 }
 
-fn renderUpdate(data: *Sfons, _: [*]int, _: [*]const u8) void {
+fn renderUpdate(ptr: ?*anyopaque, _: [*c]int, _: [*c]const u8) callconv(.C) void {
+    var data: *Sfons = cast(ptr);
     data.img_dirty = true;
 }
 
-fn renderDraw(data: Sfons, verts: [*]f32, tcoords: [*]f32, colors: [*]c_uint, nverts: int) void {
+fn renderDraw(ptr: ?*anyopaque, verts: [*c]const f32, tcoords: [*c]const f32, colors: [*c]const c_uint, nverts: int) callconv(.C) void {
+    const data: *Sfons = cast(ptr);
     if (nverts == 0) {
         return;
     }
@@ -198,7 +211,7 @@ fn renderDraw(data: Sfons, verts: [*]f32, tcoords: [*]f32, colors: [*]c_uint, nv
     sgl.pushPipeline();
     sgl.loadPipeline(data.pip);
     sgl.beginTriangles();
-    for (0..nverts) |i| {
+    for (0..@intCast(nverts)) |i| {
         sgl.v2fT2fC1i(verts[2 * i + 0], verts[2 * i + 1], tcoords[2 * i + 0], tcoords[2 * i + 1], colors[i]);
     }
     sgl.end();
@@ -206,7 +219,8 @@ fn renderDraw(data: Sfons, verts: [*]f32, tcoords: [*]f32, colors: [*]c_uint, nv
     sgl.disableTexture();
 }
 
-fn renderDelete(data: *Sfons) void {
+fn renderDelete(ptr: ?*anyopaque) callconv(.C) void {
+    const data: *Sfons = cast(ptr);
     if (data.img.id != sg.invalid_id) {
         sg.destroyImage(data.img);
         data.img.id = sg.invalid_id;
@@ -216,11 +230,15 @@ fn renderDelete(data: *Sfons) void {
         data.smp.id = sg.invalid_id;
     }
     if (data.pip.id != sg.invalid_id) {
-        sg.destroyPipeline(data.pip);
+        sgl.destroyPipeline(data.pip);
         data.pip.id = sg.invalid_id;
     }
     if (data.shd.id != sg.invalid_id) {
         sg.destroyShader(data.shd);
         data.shd.id = sg.invalid_id;
     }
+}
+
+fn cast(ptr: ?*anyopaque) *Sfons {
+    return @alignCast(@ptrCast(ptr));
 }
