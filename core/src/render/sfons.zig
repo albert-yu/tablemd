@@ -15,6 +15,79 @@ pub const FONS_INVALID = c.FONS_INVALID;
 
 pub const Context = c.FONScontext;
 
+const FONS_VERTEX_COUNT = 1024;
+const FONS_MAX_STATES = 20;
+
+const FONSatlasNode = extern struct {
+    x: c_short,
+    y: c_short,
+    width: c_short,
+};
+
+const FONSatlas = extern struct {
+    width: c_int,
+    height: c_int,
+    nodes: [*c]FONSatlasNode,
+};
+
+const FONSstate = extern struct {
+    font: c_int,
+    align_: c_int,
+    size: f32,
+    color: c_uint,
+    blur: f32,
+    spacing: f32,
+};
+// const FONSstate = opaque {};
+
+/// Translated from
+/// https://github.com/memononen/fontstash/blob/b5ddc9741061343740d85d636d782ed3e07cf7be/src/fontstash.h#L426
+///
+/// ```c
+/// struct FONScontext
+/// {
+/// 	FONSparams params;
+/// 	float itw,ith;
+/// 	unsigned char* texData;
+/// 	int dirtyRect[4];
+/// 	FONSfont** fonts;
+/// 	FONSatlas* atlas;
+/// 	int cfonts;
+/// 	int nfonts;
+/// 	float verts[FONS_VERTEX_COUNT*2];
+/// 	float tcoords[FONS_VERTEX_COUNT*2];
+/// 	unsigned int colors[FONS_VERTEX_COUNT];
+/// 	int nverts;
+/// 	unsigned char* scratch;
+/// 	int nscratch;
+/// 	FONSstate states[FONS_MAX_STATES];
+/// 	int nstates;
+/// 	void (*handleError)(void* uptr, int error, int val);
+/// 	void* errorUptr;
+/// };
+/// ```
+const FONScontext = extern struct {
+    params: c.FONSparams,
+    itw: f32,
+    ith: f32,
+    texData: [*c]u8,
+    dirtyRect: [4]int,
+    fonts: [*]*c.struct_FONSfont_1,
+    atlas: *FONSatlas,
+    cfonts: int,
+    nfonts: int,
+    verts: [FONS_VERTEX_COUNT * 2]f32,
+    tcoords: [FONS_VERTEX_COUNT * 2]f32,
+    colors: [FONS_VERTEX_COUNT]u32,
+    nverts: int,
+    scratch: [*]u8,
+    nscratch: int,
+    states: [FONS_MAX_STATES]FONSstate,
+    nstates: int,
+    handleError: ?*anyopaque,
+    errorUptr: ?*anyopaque,
+};
+
 // const backend = sg.queryBackend();
 
 const SfonsDesc = struct {
@@ -88,19 +161,21 @@ pub fn create(allocator: std.mem.Allocator, desc: SfonsDesc) !?*Context {
 
 pub fn destroy(allocator: std.mem.Allocator, ctx: ?*Context) void {
     c.fonsDeleteInternal(ctx);
-    const params: c.FONSparams = @ptrCast(ctx.params);
-    allocator.destroy(params.userPtr);
+    const sfons_ctx = castContext(ctx);
+    const sfons = castSfons(sfons_ctx.params.userPtr);
+    allocator.destroy(sfons);
 }
 
 pub fn flush(ctx: ?*Context) void {
-    var sfons: *Sfons = cast(ctx);
+    const fons_ctx: *FONScontext = castContext(ctx);
+    var sfons: *Sfons = castSfons(fons_ctx.params.userPtr);
     if (sfons.img_dirty) {
         sfons.img_dirty = false;
         var data: sg.ImageData = .{};
-        data.subimage[0][0].ptr = ctx.texData;
+        data.subimage[0][0].ptr = fons_ctx.texData;
         const size: usize = @intCast(sfons.cur_width * sfons.cur_height);
         data.subimage[0][0].size = size;
-        sg.updateImage(sfons.img, &data);
+        sg.updateImage(sfons.img, data);
     }
 }
 
@@ -111,8 +186,8 @@ pub fn rgba(r: u8, g: u8, b: u8, a: u8) u32 {
         @as(u32, r);
 }
 
-fn renderCreate(ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
-    var data: *Sfons = cast(ptr);
+fn renderCreate(user_ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
+    var data: *Sfons = castSfons(user_ptr);
     if (data.shd.id == sg.invalid_id) {
         const backend = sg.queryBackend();
         var shd_desc = shd.sfontstashShaderDesc(backend);
@@ -192,17 +267,17 @@ fn renderCreate(ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
     return 1;
 }
 
-fn renderResize(ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
-    return renderCreate(ptr, width, height);
+fn renderResize(user_ptr: ?*anyopaque, width: int, height: int) callconv(.C) int {
+    return renderCreate(user_ptr, width, height);
 }
 
-fn renderUpdate(ptr: ?*anyopaque, _: [*c]int, _: [*c]const u8) callconv(.C) void {
-    var data: *Sfons = cast(ptr);
+fn renderUpdate(user_ptr: ?*anyopaque, _: [*c]int, _: [*c]const u8) callconv(.C) void {
+    var data: *Sfons = castSfons(user_ptr);
     data.img_dirty = true;
 }
 
-fn renderDraw(ptr: ?*anyopaque, verts: [*c]const f32, tcoords: [*c]const f32, colors: [*c]const c_uint, nverts: int) callconv(.C) void {
-    const data: *Sfons = cast(ptr);
+fn renderDraw(user_ptr: ?*anyopaque, verts: [*c]const f32, tcoords: [*c]const f32, colors: [*c]const c_uint, nverts: int) callconv(.C) void {
+    const data: *Sfons = castSfons(user_ptr);
     if (nverts == 0) {
         return;
     }
@@ -219,8 +294,8 @@ fn renderDraw(ptr: ?*anyopaque, verts: [*c]const f32, tcoords: [*c]const f32, co
     sgl.disableTexture();
 }
 
-fn renderDelete(ptr: ?*anyopaque) callconv(.C) void {
-    const data: *Sfons = cast(ptr);
+fn renderDelete(user_ptr: ?*anyopaque) callconv(.C) void {
+    const data: *Sfons = castSfons(user_ptr);
     if (data.img.id != sg.invalid_id) {
         sg.destroyImage(data.img);
         data.img.id = sg.invalid_id;
@@ -239,6 +314,10 @@ fn renderDelete(ptr: ?*anyopaque) callconv(.C) void {
     }
 }
 
-fn cast(ptr: ?*anyopaque) *Sfons {
+fn castSfons(ptr: ?*anyopaque) *Sfons {
+    return @alignCast(@ptrCast(ptr));
+}
+
+fn castContext(ptr: ?*anyopaque) *FONScontext {
     return @alignCast(@ptrCast(ptr));
 }
