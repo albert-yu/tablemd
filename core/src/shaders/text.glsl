@@ -23,10 +23,10 @@ in vec2 offset;
 
 // struct TextElement
 // TODO: some way to input the whole matrix at once?
-in vec4 transform0;
-in vec4 transform1;
-in vec4 transform2;
-in vec4 transform3;
+// in vec4 transform0;
+// in vec4 transform1;
+// in vec4 transform2;
+// in vec4 transform3;
 in vec4 color0;
 in float scale;
 in vec3 char;
@@ -40,11 +40,12 @@ void main() {
     vec2 char_pos = (position.xy * size + text_el.xy + offset) * scale;
     vec4 char_pos4 = vec4(char_pos, 0.0, 1.0);
     mat4 t = untransform * window_scale * zoom;
-    float p0 = dot(transform0, position);
-    float p1 = dot(transform1, position);
-    float p2 = dot(transform2, position);
-    float p3 = dot(transform3, position);
-    gl_Position = t * vec4(p0, p1, p2, p3);
+    // float p0 = dot(transform0, position);
+    // float p1 = dot(transform1, position);
+    // float p2 = dot(transform2, position);
+    // float p3 = dot(transform3, position);
+    // gl_Position = t * vec4(p0, p1, p2, p3);
+    gl_Position = t * position;
     // #ifndef SOKOL_WGSL
     // gl_PointSize = psize;
     // #endif

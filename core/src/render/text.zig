@@ -22,7 +22,7 @@ const sg = sokol.gfx;
 const sgl = sokol.gl;
 
 const TextElement = struct {
-    transform: Mat4,
+    // transform: Mat4,
     color: [4]f32,
     pixel_scale: f32,
     /// x,y = position,
@@ -119,22 +119,22 @@ pub const Renderer = struct {
                     .format = .FLOAT2,
                     .buffer_index = BUF_char,
                 };
-                l.attrs[shd.ATTR_text_transform0] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = BUF_text,
-                };
-                l.attrs[shd.ATTR_text_transform1] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = BUF_text,
-                };
-                l.attrs[shd.ATTR_text_transform2] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = BUF_text,
-                };
-                l.attrs[shd.ATTR_text_transform3] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = BUF_text,
-                };
+                // l.attrs[shd.ATTR_text_transform0] = .{
+                //     .format = .FLOAT4,
+                //     .buffer_index = BUF_text,
+                // };
+                // l.attrs[shd.ATTR_text_transform1] = .{
+                //     .format = .FLOAT4,
+                //     .buffer_index = BUF_text,
+                // };
+                // l.attrs[shd.ATTR_text_transform2] = .{
+                //     .format = .FLOAT4,
+                //     .buffer_index = BUF_text,
+                // };
+                // l.attrs[shd.ATTR_text_transform3] = .{
+                //     .format = .FLOAT4,
+                //     .buffer_index = BUF_text,
+                // };
                 l.attrs[shd.ATTR_text_color0] = .{
                     .format = .FLOAT4,
                     .buffer_index = BUF_text,
