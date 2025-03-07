@@ -1,5 +1,6 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { UI } from "./ui";
+import type { WASMApp, WASMExports } from "./wasm-types";
 
 const cursorStyle = {
   select: "auto",
@@ -7,6 +8,38 @@ const cursorStyle = {
 } as const;
 
 async function main() {
+  // Start the WASM app
+  let memory: WebAssembly.Memory;
+  let app: WASMApp = 0;
+  let exports: WASMExports;
+
+  try {
+    const response = await fetch("core.wasm");
+    const bytes = await response.arrayBuffer();
+    const result = await WebAssembly.instantiate(bytes, {
+      env: {
+        print_u32: (x: number) => {
+          console.log(x);
+        },
+        print_float: (x: number) => {
+          console.log(x);
+        },
+        print: (ptr: number, len: number) => {
+          const bytes = new Uint8Array(memory!.buffer, ptr, len);
+          const str = new TextDecoder("utf-8").decode(bytes);
+          console.log(str);
+        },
+      },
+    });
+    exports = result.instance.exports as WASMExports;
+    memory = exports.memory as WebAssembly.Memory;
+    app = exports.app_init(100, 100, 1);
+  } catch (err) {
+    console.error(err);
+    return;
+  }
+
+  // Set up the GPU
   const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
     const errNode = document.createElement("div");
@@ -36,9 +69,6 @@ async function main() {
     format,
   });
 
-  const w = () => canvas.clientWidth;
-  const h = () => canvas.clientHeight;
-
   let frames = 0;
 
   let time = Date.now();
@@ -46,7 +76,7 @@ async function main() {
   const fpsSpan = document.querySelector("#fps")!;
 
   // UI state
-  const ui = new UI(device, context, format);
+  const ui = new UI(device, context, format, exports, app);
   await ui.init();
 
   function frame() {
@@ -108,69 +138,11 @@ async function main() {
   zoomed({ k: DEFAULT_SCALE, x: 0, y: 0 });
   ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
 
-  window.addEventListener("resize", () => {
+  const resizeObserver = new ResizeObserver(() => {
+    exports.app_set_canvas_size(app, canvas.clientWidth, canvas.clientHeight);
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
   });
-
-  try {
-    let memory: WebAssembly.Memory | undefined = undefined;
-    // const ctx = canvas.getContext("2d")!;
-    // canvas.height = CANVAS_HEIGHT;
-    // canvas.width = CANVAS_WIDTH;
-    const size = w() * h();
-    const _byteSize = size * 4;
-
-    // ctx.imageSmoothingEnabled = false;
-
-    const response = await fetch("core.wasm");
-    const bytes = await response.arrayBuffer();
-    const _result = await WebAssembly.instantiate(bytes, {
-      env: {
-        print_u32: (x: number) => {
-          console.log(x);
-        },
-        print: (ptr: number, len: number) => {
-          const bytes = new Uint8Array(memory!.buffer, ptr, len);
-          const str = new TextDecoder("utf-8").decode(bytes);
-          console.log(str);
-        },
-      },
-    });
-    // const exports = result.instance.exports;
-    // const initApp = exports.app_init as CallableFunction;
-    // const getCanvasBufferPtr = exports.get_canvas_buffer_ptr as CallableFunction;
-    // // const deinitApp = exports.app_deinit;
-    // const app = initApp(CANVAS_WIDTH, CANVAS_HEIGHT, 1);
-    // memory = exports.memory as WebAssembly.Memory;
-
-    // const render = () => {
-    //   const canvasBufferOffset = getCanvasBufferPtr(app);
-    //   const canvasData = new Uint8ClampedArray(
-    //     memory.buffer,
-    //     canvasBufferOffset,
-    //     byteSize,
-    //   );
-    //   const imageData = new ImageData(canvasData, CANVAS_WIDTH);
-    //   ctx.putImageData(imageData, 0, 0);
-    // };
-
-    // const handleClickCell = (e) => {
-    //   const { offsetX, offsetY } = e;
-    //   exports.app_highlight_clicked_cell(app, offsetX, offsetY);
-    //   render();
-    // };
-    // const clearGrid = () => {
-    //   exports.app_clear_grid(app);
-    //   render();
-    // };
-    // canvas.addEventListener("click", handleClickCell);
-    // canvas.addEventListener("blur", clearGrid);
-    // render();
-
-    // deinitApp(app);
-  } catch (err) {
-    console.log(err);
-  }
+  resizeObserver.observe(canvas);
 }
 
 function getCanvasSelectMode() {
