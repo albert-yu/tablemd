@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     // special case handling for native vs web build
-    if (target.result.isWasm()) {
+    if (target.result.isWasiLibC()) {
         try buildWeb(b, target, optimize, dep_sokol);
     } else {
         try buildNative(b, target, optimize, dep_sokol);
