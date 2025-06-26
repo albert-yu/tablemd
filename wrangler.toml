@@ -1,0 +1,7 @@
+# Top-level configuration
+name = "tablemd"
+compatibility_date = "2025-06-25"
+
+[assets]
+directory = "./build/"
+not_found_handling = "single-page-application"
