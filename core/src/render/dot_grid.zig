@@ -36,7 +36,7 @@ pub const Renderer = struct {
 
         // an index buffer
         self.bind.index_buffer = sg.makeBuffer(.{
-            .type = .INDEXBUFFER,
+            .usage = .{ .index_buffer = true },
             .data = sg.asRange(&[_]u16{
                 0, 1, 2,
                 0, 2, 3,
@@ -44,7 +44,7 @@ pub const Renderer = struct {
         });
         // an empty dynamic vertex buffer for the instancing data, goes in vertex buffer slot 1
         self.bind.vertex_buffers[1] = sg.makeBuffer(.{
-            .usage = .STREAM,
+            .usage = .{ .stream_update = true },
             .size = POINTS_N * @sizeOf(Vec3),
         });
 

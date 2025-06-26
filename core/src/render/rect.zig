@@ -42,7 +42,7 @@ pub const Renderer = struct {
             }),
         });
         self.bind.index_buffer = sg.makeBuffer(.{
-            .type = .INDEXBUFFER,
+            .usage = .{ .index_buffer = true },
             .data = sg.asRange(&[_]u16{
                 0, 1, 2,
                 1, 2, 3,
@@ -50,7 +50,7 @@ pub const Renderer = struct {
         });
         self.bind.vertex_buffers[1] = sg.makeBuffer(.{
             .size = RECT_N * @sizeOf(RectElement),
-            .usage = .STREAM,
+            .usage = .{ .stream_update = true },
         });
         var rect_pip: sg.PipelineDesc = .{
             .shader = sg.makeShader(shd_rect.rectShaderDesc(sg.queryBackend())),
