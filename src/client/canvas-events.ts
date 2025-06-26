@@ -128,12 +128,7 @@ export class CanvasEventHandler {
           this.scaleExtent,
         );
         const newMouse = this.getMousePoint(event);
-        if (mouse && !pointsAreEqual(mouse[0], newMouse)) {
-          mouse[0] = newMouse;
-          mouse[1] = this.invert(newMouse);
-        } else if (!mouse) {
-          mouse = [newMouse, this.invert(newMouse)];
-        }
+        mouse = [newMouse, this.invert(newMouse)];
         const translated = translate(k, mouse[0], mouse[1]);
         this.x = translated.x;
         this.y = translated.y;
@@ -241,10 +236,6 @@ function zoomWheelDelta(event: WheelEvent) {
     (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002) *
     (event.ctrlKey ? 10 : 1)
   );
-}
-
-function pointsAreEqual(p0: Point2D, p1: Point2D): boolean {
-  return p0.x === p1.x && p0.y === p1.y;
 }
 
 /**
