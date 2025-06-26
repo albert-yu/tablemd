@@ -1,4 +1,8 @@
-# spreadsheet
+# tablemd
+
+A simple table editor.
+
+## Development
 
 Install [Bun](https://bun.sh), a fast all-in-one JavaScript runtime.
 
