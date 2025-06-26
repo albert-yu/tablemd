@@ -75,7 +75,7 @@ pub const Renderer = struct {
             }),
         });
         self.bind.index_buffer = sg.makeBuffer(.{
-            .type = .INDEXBUFFER,
+            .usage = .{ .index_buffer = true },
             .data = sg.asRange(&[_]u16{
                 0, 1, 2,
                 1, 2, 3,
@@ -85,11 +85,11 @@ pub const Renderer = struct {
         // set up font data
         self.bind.vertex_buffers[BUF_text] = sg.makeBuffer(.{
             .size = TEXT_N * @sizeOf(TextElement),
-            .usage = .STREAM,
+            .usage = .{ .stream_update = true },
         });
 
         self.bind.vertex_buffers[BUF_char] = sg.makeBuffer(.{
-            .usage = .STREAM,
+            .usage = .{ .stream_update = true },
             .size = char_count * @sizeOf(CharElement),
         });
 
