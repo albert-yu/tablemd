@@ -8,7 +8,6 @@ import {
   type CellPosition,
 } from "./ui-renderer";
 import { GRID_N } from "./constants";
-import type { WASMApp, WASMExports } from "./wasm-types";
 
 type Color = [number, number, number, number];
 type Corners = [number, number, number, number];
@@ -79,8 +78,6 @@ export class UI {
     height: GRID_CELL_HEIGHT,
     corners: DEFAULT_CORNERS,
   };
-  private exports: WASMExports;
-  private app: WASMApp;
 
   private cursor: Cursor = {
     status: "inactive",
@@ -91,12 +88,8 @@ export class UI {
     device: GPUDevice,
     context: GPUCanvasContext,
     format: GPUTextureFormat,
-    exports: WASMExports,
-    app: WASMApp,
   ) {
-    this.exports = exports;
     this.renderer = new UIRenderer(device, context, format);
-    this.app = app;
   }
 
   cursorTextWidth(): number {
@@ -154,7 +147,6 @@ export class UI {
   }
 
   handleHover(p: Point2D) {
-    this.exports.app_on_hover(this.app, p.x, p.y);
     const {
       rect: { x, y, width, height },
     } = this.getCursorRect(p);

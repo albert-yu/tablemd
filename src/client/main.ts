@@ -1,6 +1,5 @@
 import { type CanvasMode, CanvasEventHandler } from "./canvas-events";
 import { UI } from "./ui";
-import type { WASMApp, WASMExports } from "./wasm-types";
 
 const cursorStyle = {
   select: "auto",
@@ -8,37 +7,6 @@ const cursorStyle = {
 } as const;
 
 async function main() {
-  // Start the WASM app
-  let memory: WebAssembly.Memory;
-  let app: WASMApp = 0;
-  let exports: WASMExports;
-
-  try {
-    const response = await fetch("core.wasm");
-    const bytes = await response.arrayBuffer();
-    const result = await WebAssembly.instantiate(bytes, {
-      env: {
-        print_u32: (x: number) => {
-          console.log(x);
-        },
-        print_float: (x: number) => {
-          console.log(x);
-        },
-        print: (ptr: number, len: number) => {
-          const bytes = new Uint8Array(memory!.buffer, ptr, len);
-          const str = new TextDecoder("utf-8").decode(bytes);
-          console.log(str);
-        },
-      },
-    });
-    exports = result.instance.exports as WASMExports;
-    memory = exports.memory as WebAssembly.Memory;
-    app = exports.app_init(100, 100, 1);
-  } catch (err) {
-    console.error(err);
-    return;
-  }
-
   // Set up the GPU
   const canvas = document.querySelector("canvas")!;
   if (!navigator.gpu) {
@@ -76,7 +44,7 @@ async function main() {
   const fpsSpan = document.querySelector("#fps")!;
 
   // UI state
-  const ui = new UI(device, context, format, exports, app);
+  const ui = new UI(device, context, format);
   await ui.init();
 
   function frame() {
@@ -139,7 +107,6 @@ async function main() {
   ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
 
   const resizeObserver = new ResizeObserver(() => {
-    exports.app_set_canvas_size(app, canvas.clientWidth, canvas.clientHeight);
     ui.updateCanvasDimensions(canvas.clientWidth, canvas.clientHeight);
   });
   resizeObserver.observe(canvas);
