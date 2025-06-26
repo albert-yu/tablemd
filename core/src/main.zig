@@ -9,14 +9,11 @@ const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("math.zig").Vec2;
 
 const io = std.io;
-const fmt = std.fmt;
 const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
-
-const print = std.debug.print;
 
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
 
