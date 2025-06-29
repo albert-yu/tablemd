@@ -149,7 +149,14 @@ class InfiniteCanvas {
 
     if (e.ctrlKey || e.metaKey) {
       // Zooming with Ctrl+scroll or trackpad pinch
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      // Calculate zoom speed based on delta magnitude
+      const deltaSpeed = Math.abs(e.deltaY);
+      const normalizedSpeed = Math.min(deltaSpeed / 100, 1); // Normalize to 0-1 range
+      const baseZoom = 0.02; // Base zoom amount
+      const maxZoom = 0.15; // Maximum zoom amount
+      const zoomAmount = baseZoom + normalizedSpeed * (maxZoom - baseZoom);
+
+      const zoomFactor = e.deltaY > 0 ? 1 - zoomAmount : 1 + zoomAmount;
       this.zoom(zoomFactor, this.cursorPosition.x, this.cursorPosition.y);
     } else {
       // Panning with regular scroll or trackpad scroll
