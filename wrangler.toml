@@ -3,5 +3,5 @@ name = "tablemd"
 compatibility_date = "2025-06-25"
 
 [assets]
-directory = "./build/"
+directory = "./dist/"
 not_found_handling = "single-page-application"
