@@ -1,6 +1,6 @@
 import path from "path";
 const currentDir = import.meta.dir;
-const BASE_PATH = path.join(currentDir, "./build");
+const BASE_PATH = path.join(currentDir, "./dist");
 
 const PORT = 3000;
 console.log(`Listening on port ${PORT}`);

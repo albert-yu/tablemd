@@ -4,7 +4,7 @@ import path from "path";
 
 const currentDir = import.meta.dir;
 
-const OUT_DIR = path.join(currentDir, "./build");
+const OUT_DIR = path.join(currentDir, "./dist");
 const CLIENT_SRC = path.join(currentDir, "./src/client");
 
 const { values } = parseArgs({
