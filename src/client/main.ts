@@ -22,6 +22,8 @@ class InfiniteCanvas {
   private lastPointerPosition = { x: 0, y: 0 };
   private cursorPosition = { x: 0, y: 0 };
 
+  private animationFrameId: number | null = null;
+
   private readonly DOT_SPACING = 50;
   private readonly DOT_SIZE = 2;
   private readonly DOT_COLOR = 0x888888;
@@ -63,8 +65,8 @@ class InfiniteCanvas {
     // Handle window resize
     window.addEventListener("resize", () => this.handleResize());
 
-    // Apply initial transform
-    this.updateViewport();
+    // Start the render loop
+    this.startRenderLoop();
   }
 
   private setupEventListeners() {
@@ -183,7 +185,6 @@ class InfiniteCanvas {
   private pan(deltaX: number, deltaY: number) {
     this.viewportState.x += deltaX;
     this.viewportState.y += deltaY;
-    this.updateViewport();
   }
 
   private zoom(factor: number, originX: number, originY: number) {
@@ -205,9 +206,15 @@ class InfiniteCanvas {
       // Adjust viewport position to maintain zoom origin
       this.viewportState.x = originX - worldX * this.viewportState.scale;
       this.viewportState.y = originY - worldY * this.viewportState.scale;
-
-      this.updateViewport();
     }
+  }
+
+  private startRenderLoop() {
+    const render = () => {
+      this.updateViewport();
+      this.animationFrameId = requestAnimationFrame(render);
+    };
+    render();
   }
 
   private updateViewport() {
@@ -235,6 +242,9 @@ class InfiniteCanvas {
   }
 
   public destroy() {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
     window.removeEventListener("resize", () => this.handleResize());
     this.app.destroy();
   }
