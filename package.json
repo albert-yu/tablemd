@@ -21,6 +21,7 @@
   },
   "type": "module",
   "dependencies": {
+    "pixi.js": "8.10.2",
     "wgpu-matrix": "3.2.0"
   }
 }
