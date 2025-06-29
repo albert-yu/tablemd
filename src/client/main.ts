@@ -153,7 +153,7 @@ class InfiniteCanvas {
       const deltaSpeed = Math.abs(e.deltaY);
       const normalizedSpeed = Math.min(deltaSpeed / 100, 1); // Normalize to 0-1 range
       const baseZoom = 0.02; // Base zoom amount
-      const maxZoom = 0.15; // Maximum zoom amount
+      const maxZoom = 1; // Maximum zoom amount
       const zoomAmount = baseZoom + normalizedSpeed * (maxZoom - baseZoom);
 
       const zoomFactor = e.deltaY > 0 ? 1 - zoomAmount : 1 + zoomAmount;
