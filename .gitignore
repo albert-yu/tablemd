@@ -180,3 +180,5 @@ build/
 
 # Generated files anywhere
 gen
+
+.zig-cache
