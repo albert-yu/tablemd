@@ -47,7 +47,7 @@ install_zig() {
     echo "📦 Installing Zig..."
 
     PLATFORM=$(detect_platform)
-    ZIG_VERSION="0.11.0"
+    ZIG_VERSION="0.14.1"
 
     case "$PLATFORM" in
         linux-*)
