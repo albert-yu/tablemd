@@ -26,7 +26,9 @@ For the build environment, you'll need two environment variables:
 - `ZIG_PUB_KEY` - the public key for signing Zig binaries,
 found on their [downloads page](https://ziglang.org/download/)
 - `MINISIGN_PUB_KEY` - the public key for verifying the signature of
-the `minisign` exectuable, used for verifyingthe Zig binaries
+the `minisign` exectuable, used for verifyingthe Zig binaries,
+found in the [repo README](https://github.com/jedisct1/minisign?tab=readme-ov-file#verification-of-official-releases)
+
 
 Then, run `bundle.sh`. It'll output the static files to the `dist`
 directory.
