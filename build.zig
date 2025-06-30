@@ -1,116 +1,129 @@
 const std = @import("std");
+const Build = std.Build;
+const sokol = @import("sokol");
 
-// Although this function looks imperative, note that its job is to
-// declaratively construct a build graph that will be executed by an external
-// runner.
-pub fn build(b: *std.Build) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
+const Options = struct {
+    mod: *Build.Module,
+    dep_sokol: *Build.Dependency,
+};
+
+const ShaderModule = struct {
+    module_name: []const u8,
+    input_file: []const u8,
+    output_file: []const u8,
+};
+
+pub fn build(b: *Build) !void {
     const target = b.standardTargetOptions(.{});
-
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
-
-    // This creates a "module", which represents a collection of source files alongside
-    // some compilation options, such as optimization mode and linked system libraries.
-    // Every executable or library we compile will be based on one or more modules.
-    const lib_mod = b.createModule(.{
-        // `root_source_file` is the Zig "entry point" of the module. If a module
-        // only contains e.g. external object files, you can make this `null`.
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
+    const dep_sokol = b.dependency("sokol", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const dep_zm = b.dependency("zm", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    // const math_module = b.addModule("math", .{
+    //     .root_source_file = b.path("src/math.zig"),
+    // });
+    const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{
+                .name = "sokol",
+                .module = dep_sokol.module("sokol"),
+            },
+            .{
+                .name = "zm",
+                .module = dep_zm.module("zm"),
+            },
+            // .{
+            //     .name = "math",
+            //     .module = math_module,
+            // },
+            .{
+                .name = "quad_shader",
+                .module = try createShaderModule(b, dep_sokol, .{
+                    .module_name = "quad_shader",
+                    .input_file = "src/shaders/quad.glsl",
+                    .output_file = "quad_shader.zig",
+                }),
+            },
+            .{
+                .name = "rect_shader",
+                .module = try createShaderModule(b, dep_sokol, .{
+                    .module_name = "rect_shader",
+                    .input_file = "src/shaders/rect.glsl",
+                    .output_file = "rect_shader.zig",
+                }),
+            },
+        },
     });
 
-    // We will also create a module for our other entry point, 'main.zig'.
-    const exe_mod = b.createModule(.{
-        // `root_source_file` is the Zig "entry point" of the module. If a module
-        // only contains e.g. external object files, you can make this `null`.
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // Modules can depend on one another using the `std.Build.Module.addImport` function.
-    // This is what allows Zig source code to use `@import("foo")` where 'foo' is not a
-    // file path. In this case, we set up `exe_mod` to import `lib_mod`.
-    exe_mod.addImport("tablemd_lib", lib_mod);
-
-    // Now, we will create a static library based on the module we created above.
-    // This creates a `std.Build.Step.Compile`, which is the build step responsible
-    // for actually invoking the compiler.
-    const lib = b.addLibrary(.{
-        .linkage = .static,
-        .name = "tablemd",
-        .root_module = lib_mod,
-    });
-
-    // This declares intent for the library to be installed into the standard
-    // location when the user invokes the "install" step (the default step when
-    // running `zig build`).
-    b.installArtifact(lib);
-
-    // This creates another `std.Build.Step.Compile`, but this one builds an executable
-    // rather than a static library.
-    const exe = b.addExecutable(.{
-        .name = "tablemd",
-        .root_module = exe_mod,
-    });
-
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
-    b.installArtifact(exe);
-
-    // This *creates* a Run step in the build graph, to be executed when another
-    // step is evaluated that depends on it. The next line below will establish
-    // such a dependency.
-    const run_cmd = b.addRunArtifact(exe);
-
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
+    // special case handling for native vs web build
+    const opts = Options{ .mod = mod_root, .dep_sokol = dep_sokol };
+    if (target.result.cpu.arch.isWasm()) {
+        try buildWeb(b, opts);
+    } else {
+        try buildNative(b, opts);
     }
+}
 
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+// this is the regular build for all native platforms, nothing surprising here
+fn buildNative(b: *Build, opts: Options) !void {
+    const exe = b.addExecutable(.{
+        .name = "root",
+        .root_module = opts.mod,
+    });
+    b.installArtifact(exe);
+    const run = b.addRunArtifact(exe);
+    b.step("run", "Run root").dependOn(&run.step);
+}
 
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
-    const lib_unit_tests = b.addTest(.{
-        .root_module = lib_mod,
+// for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
+fn buildWeb(b: *Build, opts: Options) !void {
+    const lib = b.addStaticLibrary(.{
+        .name = "root",
+        .root_module = opts.mod,
     });
 
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
-
-    const exe_unit_tests = b.addTest(.{
-        .root_module = exe_mod,
+    // create a build step which invokes the Emscripten linker
+    const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
+    const link_step = try sokol.emLinkStep(b, .{
+        .lib_main = lib,
+        .target = opts.mod.resolved_target.?,
+        .optimize = opts.mod.optimize.?,
+        .emsdk = emsdk,
+        .use_webgl2 = true,
+        .use_emmalloc = true,
+        .use_filesystem = false,
+        .shell_file_path = b.path("src/web/shell.html"),
     });
+    // attach Emscripten linker output to default install step
+    b.getInstallStep().dependOn(&link_step.step);
+    // ...and a special run step to start the web build output via 'emrun'
+    const run = sokol.emRunStep(b, .{ .name = "root", .emsdk = emsdk });
+    run.step.dependOn(&link_step.step);
+    b.step("run", "Run root").dependOn(&run.step);
+}
 
-    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
-    test_step.dependOn(&run_exe_unit_tests.step);
+// compile shader via sokol-shdc
+fn createShaderModule(b: *Build, dep_sokol: *Build.Dependency, mod: ShaderModule) !*Build.Module {
+    const mod_sokol = dep_sokol.module("sokol");
+    const dep_shdc = dep_sokol.builder.dependency("shdc", .{});
+    return sokol.shdc.createModule(b, mod.module_name, mod_sokol, .{
+        .shdc_dep = dep_shdc,
+        .input = mod.input_file,
+        .output = mod.output_file,
+        .slang = .{
+            .glsl410 = true,
+            .glsl300es = true,
+            .hlsl4 = true,
+            .metal_macos = true,
+            .wgsl = true,
+        },
+    });
 }
