@@ -101,10 +101,11 @@ install_minisign() {
 # Function to verify minisign signature
 minisign_verify() {
     local file="$1"
-    local pubkey="$2"
+    local signature="$2"
+    local pubkey="$3"
 
     # Verify signature using public key directly
-    if minisign -Vm "$file" -P "$pubkey"; then
+    if minisign -Vm "$file" -P "$pubkey" -x "$signature"; then
         return 0
     else
         return 1
@@ -162,13 +163,13 @@ install_zig() {
 
                 # Verify signature
                 echo "🔐 Verifying signature..."
-                if minisign_verify "/tmp/$TARBALL_NAME" "$ZIG_PUB_KEY"; then
+                if minisign_verify "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig" "$ZIG_PUB_KEY"; then
                     echo "✅ Signature verification successful!"
                     SUCCESS=true
                     break
                 else
                     echo "❌ Signature verification failed for $mirror_url"
-                    rm -f "/tmp/$TARBALL_NAME"
+                    rm -f "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig"
                 fi
             else
                 echo "❌ Failed to download signature from $mirror_url"
