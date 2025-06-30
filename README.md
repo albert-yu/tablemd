@@ -21,4 +21,12 @@ Will automatically open a browser window with the app running.
 
 ## Deploy
 
-TODO: add build script
+For the build environment, you'll need two environment variables:
+
+- `ZIG_PUB_KEY` - the public key for signing Zig binaries,
+found on their [downloads page](https://ziglang.org/download/)
+- `MINISIGN_PUB_KEY` - the public key for verifying the signature of
+the `minisign` exectuable, used for verifyingthe Zig binaries
+
+Then, run `bundle.sh`. It'll output the static files to the `dist`
+directory.
