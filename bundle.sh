@@ -52,7 +52,7 @@ install_minisign() {
     echo "📦 Installing minisign..."
 
     PLATFORM=$(detect_platform)
-    MINISIGN_VERSION="0.11"
+    MINISIGN_VERSION="0.12"
     MINISIGN_DIR="$HOME/.local/minisign"
 
     mkdir -p "$HOME/.local"
@@ -104,16 +104,10 @@ minisign_verify() {
     local signature="$2"
     local pubkey="$3"
 
-    # Create temporary public key file
-    local pubkey_file=$(mktemp)
-    echo "$pubkey" > "$pubkey_file"
-
-    # Verify signature
-    if minisign -Vm "$file" -p "$pubkey_file" -x "$signature"; then
-        rm "$pubkey_file"
+    # Verify signature using public key directly
+    if minisign -Vm "$file" -P "$pubkey" -x "$signature"; then
         return 0
     else
-        rm "$pubkey_file"
         return 1
     fi
 }
