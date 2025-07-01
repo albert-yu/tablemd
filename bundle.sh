@@ -247,6 +247,9 @@ cp -r zig-out/web/* dist/
 echo "✅ Bundle process completed successfully!"
 echo "📦 Build artifacts copied to dist/"
 
+echo "Renaming dist/root.html to dist/index.html..."
+mv dist/root.html dist/index.html
+
 # List contents of dist for verification
 echo "📋 Contents of dist/:"
 ls -la dist/
