@@ -120,17 +120,19 @@ export fn input(ev: ?*const sapp.Event) void {
                 handleZoom(zoom_speed, state.mouse[0]);
             } else {
                 const pan_speed = 20.0;
-                const curr_x = state.t.getZoom().x;
-                const curr_y = state.t.getZoom().y;
-                const new_x = curr_x + scroll_x * pan_speed;
-                const new_y = curr_y + scroll_y * pan_speed;
-
-                // update zoom
-                state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = new_x, .y = new_y });
+                handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
         },
         else => {},
     }
+}
+
+fn handlePan(delta_x: f32, delta_y: f32) void {
+    const curr_x = state.t.getZoom().x;
+    const curr_y = state.t.getZoom().y;
+    const new_x = curr_x + delta_x;
+    const new_y = curr_y + delta_y;
+    state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = new_x, .y = new_y });
 }
 
 fn handleZoom(delta: f32, p: Vec2) void {
