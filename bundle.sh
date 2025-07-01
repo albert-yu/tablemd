@@ -42,146 +42,103 @@ detect_platform() {
     esac
 }
 
-# Function to shuffle lines in a string
-shuffle_lines() {
-    echo "$1" | shuf
-}
+# Function to verify SHA256 checksum
+verify_sha256() {
+    local file="$1"
+    local expected_sha="$2"
 
-# Function to install minisign
-install_minisign() {
-    echo "📦 Installing minisign..."
-
-    PLATFORM=$(detect_platform)
-    MINISIGN_VERSION="0.12"
-    MINISIGN_DIR="$HOME/.local/minisign"
-
-    mkdir -p "$HOME/.local"
-
-    case "$PLATFORM" in
-        linux-x86_64)
-            MINISIGN_URL="https://github.com/jedisct1/minisign/releases/download/$MINISIGN_VERSION/minisign-$MINISIGN_VERSION-linux.tar.gz"
-            curl -L "$MINISIGN_URL" | tar -xz -C "/tmp/"
-            mkdir -p "$MINISIGN_DIR"
-            mv "/tmp/minisign-linux/x86_64/minisign" "$MINISIGN_DIR/"
-            ;;
-        macos-*)
-            MINISIGN_URL="https://github.com/jedisct1/minisign/releases/download/$MINISIGN_VERSION/minisign-$MINISIGN_VERSION-macos.zip"
-            curl -L "$MINISIGN_URL" -o "/tmp/minisign.zip"
-            unzip "/tmp/minisign.zip" -d "/tmp/"
-            mkdir -p "$MINISIGN_DIR"
-            mv "/tmp/minisign-macos/minisign" "$MINISIGN_DIR/"
-            rm "/tmp/minisign.zip"
-            ;;
-        windows-*)
-            MINISIGN_URL="https://github.com/jedisct1/minisign/releases/download/$MINISIGN_VERSION/minisign-$MINISIGN_VERSION-win64.zip"
-            curl -L "$MINISIGN_URL" -o "/tmp/minisign.zip"
-            unzip "/tmp/minisign.zip" -d "/tmp/"
-            mkdir -p "$MINISIGN_DIR"
-            mv "/tmp/minisign-win64/minisign.exe" "$MINISIGN_DIR/"
-            rm "/tmp/minisign.zip"
-            ;;
-        *)
-            echo "❌ Unsupported platform for minisign: $PLATFORM" >&2
-            exit 1
-            ;;
-    esac
-
-    # Add to PATH for this session
-    export PATH="$MINISIGN_DIR:$PATH"
-
-    # Verify minisign installation
-    if ! command_exists minisign; then
-        echo "❌ Failed to install minisign" >&2
-        exit 1
+    if command_exists sha256sum; then
+        actual_sha=$(sha256sum "$file" | cut -d' ' -f1)
+    elif command_exists shasum; then
+        actual_sha=$(shasum -a 256 "$file" | cut -d' ' -f1)
+    else
+        echo "❌ No SHA256 utility found (sha256sum or shasum)" >&2
+        return 1
     fi
 
-    echo "✅ Minisign installed successfully at $MINISIGN_DIR"
-}
-
-# Function to verify minisign signature
-minisign_verify() {
-    local file="$1"
-    local signature="$2"
-    local pubkey="$3"
-
-    # Verify signature using public key directly
-    if minisign -Vm "$file" -P "$pubkey" -x "$signature"; then
+    if [ "$actual_sha" = "$expected_sha" ]; then
+        echo "✅ SHA256 checksum verified: $expected_sha"
         return 0
     else
+        echo "❌ SHA256 checksum mismatch!"
+        echo "   Expected: $expected_sha"
+        echo "   Actual:   $actual_sha"
         return 1
     fi
 }
 
-# Function to install Zig using community mirrors
+# Function to map platform to Zig platform string
+map_to_zig_platform() {
+    local platform="$1"
+
+    case "$platform" in
+        linux-x86_64) echo "x86_64-linux" ;;
+        linux-aarch64) echo "aarch64-linux" ;;
+        macos-x86_64) echo "x86_64-macos" ;;
+        macos-aarch64) echo "aarch64-macos" ;;
+        windows-x86_64) echo "x86_64-windows" ;;
+        *) echo "$platform" ;;
+    esac
+}
+
+# Function to install Zig using official download index
 install_zig() {
-    echo "📦 Installing Zig with signature verification..."
+    echo "📦 Installing Zig with checksum verification..."
 
     PLATFORM=$(detect_platform)
+    ZIG_PLATFORM=$(map_to_zig_platform "$PLATFORM")
     ZIG_VERSION="0.14.1"
-
-    case "$PLATFORM" in
-        linux-*|macos-*)
-            TARBALL_NAME="zig-$PLATFORM-$ZIG_VERSION.tar.xz"
-            ;;
-        windows-*)
-            TARBALL_NAME="zig-$PLATFORM-$ZIG_VERSION.zip"
-            ;;
-    esac
-
     ZIG_DIR="$HOME/.local/zig"
 
-    # Get community mirrors
-    echo "🌐 Fetching community mirrors..."
-    MIRRORS=$(curl -s "https://ziglang.org/download/community-mirrors.txt")
-    if [ $? -ne 0 ] || [ -z "$MIRRORS" ]; then
-        echo "❌ Failed to fetch community mirrors" >&2
+    # Fetch download index
+    echo "🌐 Fetching Zig download index..."
+    INDEX_JSON=$(curl -s "https://ziglang.org/download/index.json")
+    if [ $? -ne 0 ] || [ -z "$INDEX_JSON" ]; then
+        echo "❌ Failed to fetch Zig download index" >&2
         exit 1
     fi
 
-    # Shuffle mirrors for load balancing
-    SHUFFLED_MIRRORS=$(shuffle_lines "$MIRRORS")
+    # Extract download information using basic JSON parsing
+    # This uses grep and sed to extract the needed values from the JSON
+    VERSION_SECTION=$(echo "$INDEX_JSON" | grep -A 50 "\"$ZIG_VERSION\":")
+    if [ -z "$VERSION_SECTION" ]; then
+        echo "❌ Version $ZIG_VERSION not found in download index" >&2
+        exit 1
+    fi
 
-    # Try each mirror until we get a verified download
-    echo "🔄 Trying mirrors for Zig download..."
-    SUCCESS=false
+    PLATFORM_SECTION=$(echo "$VERSION_SECTION" | grep -A 10 "\"$ZIG_PLATFORM\":")
+    if [ -z "$PLATFORM_SECTION" ]; then
+        echo "❌ Platform $ZIG_PLATFORM not found for version $ZIG_VERSION" >&2
+        exit 1
+    fi
 
-    while IFS= read -r mirror_url; do
-        # Skip empty lines
-        [ -z "$mirror_url" ] && continue
+    # Extract tarball URL and shasum
+    TARBALL_URL=$(echo "$PLATFORM_SECTION" | grep '"tarball":' | sed 's/.*"tarball": *"\([^"]*\)".*/\1/')
+    EXPECTED_SHA=$(echo "$PLATFORM_SECTION" | grep '"shasum":' | sed 's/.*"shasum": *"\([^"]*\)".*/\1/')
 
-        echo "🌐 Trying mirror: $mirror_url"
+    if [ -z "$TARBALL_URL" ] || [ -z "$EXPECTED_SHA" ]; then
+        echo "❌ Failed to extract download URL or checksum from index" >&2
+        exit 1
+    fi
 
-        # Download tarball
-        TARBALL_URL="${mirror_url}/${TARBALL_NAME}?source=tablemd_automation"
-        if curl -L "$TARBALL_URL" -o "/tmp/$TARBALL_NAME" 2>/dev/null; then
-            echo "✅ Downloaded tarball from $mirror_url"
+    echo "📥 Downloading Zig from: $TARBALL_URL"
 
-            # Download signature
-            SIGNATURE_URL="${mirror_url}/${TARBALL_NAME}.minisig?source=tablemd_automation"
-            if curl -L "$SIGNATURE_URL" -o "/tmp/$TARBALL_NAME.minisig" 2>/dev/null; then
-                echo "✅ Downloaded signature from $mirror_url"
+    # Extract filename from URL
+    TARBALL_NAME=$(basename "$TARBALL_URL")
 
-                # Verify signature
-                echo "🔐 Verifying signature..."
-                if minisign_verify "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig" "$ZIG_PUB_KEY"; then
-                    echo "✅ Signature verification successful!"
-                    SUCCESS=true
-                    break
-                else
-                    echo "❌ Signature verification failed for $mirror_url"
-                    rm -f "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig"
-                fi
-            else
-                echo "❌ Failed to download signature from $mirror_url"
-                rm -f "/tmp/$TARBALL_NAME"
-            fi
-        else
-            echo "❌ Failed to download tarball from $mirror_url"
-        fi
-    done <<< "$SHUFFLED_MIRRORS"
+    # Download tarball
+    if ! curl -L "$TARBALL_URL" -o "/tmp/$TARBALL_NAME"; then
+        echo "❌ Failed to download Zig tarball" >&2
+        exit 1
+    fi
 
-    if [ "$SUCCESS" != "true" ]; then
-        echo "❌ Failed to download and verify Zig from any mirror" >&2
+    echo "✅ Downloaded Zig tarball"
+
+    # Verify checksum
+    echo "🔐 Verifying SHA256 checksum..."
+    if ! verify_sha256 "/tmp/$TARBALL_NAME" "$EXPECTED_SHA"; then
+        echo "❌ Checksum verification failed" >&2
+        rm -f "/tmp/$TARBALL_NAME"
         exit 1
     fi
 
@@ -191,20 +148,20 @@ install_zig() {
 
     if [[ "$TARBALL_NAME" == *.zip ]]; then
         unzip "/tmp/$TARBALL_NAME" -d "/tmp/"
-        mv "/tmp/zig-$PLATFORM-$ZIG_VERSION" "$ZIG_DIR"
+        mv "/tmp/zig-$ZIG_PLATFORM-$ZIG_VERSION" "$ZIG_DIR"
     else
         tar -xJ -f "/tmp/$TARBALL_NAME" -C "/tmp/"
-        mv "/tmp/zig-$PLATFORM-$ZIG_VERSION" "$ZIG_DIR"
+        mv "/tmp/zig-$ZIG_PLATFORM-$ZIG_VERSION" "$ZIG_DIR"
     fi
 
     # Clean up
-    rm -f "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig"
+    rm -f "/tmp/$TARBALL_NAME"
 
     # Add to PATH for this session
     export PATH="$ZIG_DIR:$PATH"
 
     echo "✅ Zig installed successfully at $ZIG_DIR"
-    echo "Successfully fetched Zig 0.14.1!"
+    echo "Successfully fetched Zig $ZIG_VERSION!"
 }
 
 # Check if Zig is available first
@@ -213,26 +170,6 @@ if command_exists zig; then
     zig version
 else
     echo "❌ Zig not found, installing..."
-
-    # Check required environment variables
-    if [ -z "$ZIG_PUB_KEY" ]; then
-        echo "❌ Error: ZIG_PUB_KEY environment variable is required" >&2
-        exit 1
-    fi
-
-    if [ -z "$MINISIGN_PUB_KEY" ]; then
-        echo "❌ Error: MINISIGN_PUB_KEY environment variable is required" >&2
-        exit 1
-    fi
-
-    # Install minisign if not available (needed for Zig verification)
-    if command_exists minisign; then
-        echo "✅ Minisign is already available"
-    else
-        echo "❌ Minisign not found, installing..."
-        install_minisign
-    fi
-
     install_zig
 fi
 
