@@ -117,18 +117,7 @@ export fn input(ev: ?*const sapp.Event) void {
             const scroll_y = event.scroll_y;
             if ((event.modifiers & sapp.modifier_ctrl) != 0) {
                 const zoom_speed = scroll_y * zoomWheelDelta(event);
-                const curr_k = state.t.getZoom().k;
-                const new_k = clamp(
-                    curr_k * std.math.pow(f32, 2, zoom_speed),
-                    0.25,
-                    100.0,
-                );
-
-                state.mouse[1] = invert(state.mouse[0]);
-                const translated = translate(new_k, state.mouse[0], state.mouse[1]);
-
-                // update zoom
-                state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
+                handleZoom(zoom_speed, state.mouse[0]);
             } else {
                 const pan_speed = 20.0;
                 const curr_x = state.t.getZoom().x;
@@ -142,6 +131,18 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         else => {},
     }
+}
+
+fn handleZoom(delta: f32, p: Vec2) void {
+    const curr_k = state.t.getZoom().k;
+    const new_k = clamp(
+        curr_k * std.math.pow(f32, 2, delta),
+        0.25,
+        100.0,
+    );
+    const inv_p = invert(p);
+    const translated = translate(new_k, p, inv_p);
+    state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
 }
 
 fn invert(p: Vec2) Vec2 {
