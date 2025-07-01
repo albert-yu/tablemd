@@ -9,6 +9,52 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to install jq if not available
+ensure_jq() {
+    if ! command_exists jq; then
+        echo "📦 Installing jq for JSON parsing..."
+
+        # Detect OS and install jq
+        OS=$(uname -s)
+        case "$OS" in
+            Linux*)
+                if command_exists apt-get; then
+                    sudo apt-get update && sudo apt-get install -y jq
+                elif command_exists yum; then
+                    sudo yum install -y jq
+                elif command_exists pacman; then
+                    sudo pacman -S --noconfirm jq
+                else
+                    echo "❌ Cannot install jq automatically on this Linux distribution" >&2
+                    echo "Please install jq manually and re-run this script" >&2
+                    exit 1
+                fi
+                ;;
+            Darwin*)
+                if command_exists brew; then
+                    brew install jq
+                else
+                    echo "❌ Please install Homebrew or jq manually" >&2
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "❌ Cannot install jq automatically on $OS" >&2
+                echo "Please install jq manually and re-run this script" >&2
+                exit 1
+                ;;
+        esac
+
+        # Verify jq is now available
+        if ! command_exists jq; then
+            echo "❌ Failed to install jq" >&2
+            exit 1
+        fi
+
+        echo "✅ jq installed successfully"
+    fi
+}
+
 # Function to detect OS and architecture
 detect_platform() {
     OS=$(uname -s)
@@ -98,23 +144,24 @@ install_zig() {
         exit 1
     fi
 
-    # Extract download information using basic JSON parsing
-    # This uses grep and sed to extract the needed values from the JSON
-    VERSION_SECTION=$(echo "$INDEX_JSON" | grep -A 50 "\"$ZIG_VERSION\":")
-    if [ -z "$VERSION_SECTION" ]; then
+    # Extract download information using jq
+    echo "🔍 Parsing download information with jq..."
+
+    # Check if version exists
+    if ! echo "$INDEX_JSON" | jq -e ".\"$ZIG_VERSION\"" >/dev/null 2>&1; then
         echo "❌ Version $ZIG_VERSION not found in download index" >&2
         exit 1
     fi
 
-    PLATFORM_SECTION=$(echo "$VERSION_SECTION" | grep -A 10 "\"$ZIG_PLATFORM\":")
-    if [ -z "$PLATFORM_SECTION" ]; then
+    # Check if platform exists for this version
+    if ! echo "$INDEX_JSON" | jq -e ".\"$ZIG_VERSION\".\"$ZIG_PLATFORM\"" >/dev/null 2>&1; then
         echo "❌ Platform $ZIG_PLATFORM not found for version $ZIG_VERSION" >&2
         exit 1
     fi
 
-    # Extract tarball URL and shasum
-    TARBALL_URL=$(echo "$PLATFORM_SECTION" | grep '"tarball":' | sed 's/.*"tarball": *"\([^"]*\)".*/\1/')
-    EXPECTED_SHA=$(echo "$PLATFORM_SECTION" | grep '"shasum":' | sed 's/.*"shasum": *"\([^"]*\)".*/\1/')
+    # Extract tarball URL and shasum using jq
+    TARBALL_URL=$(echo "$INDEX_JSON" | jq -r ".\"$ZIG_VERSION\".\"$ZIG_PLATFORM\".tarball")
+    EXPECTED_SHA=$(echo "$INDEX_JSON" | jq -r ".\"$ZIG_VERSION\".\"$ZIG_PLATFORM\".shasum")
 
     if [ -z "$TARBALL_URL" ] || [ -z "$EXPECTED_SHA" ]; then
         echo "❌ Failed to extract download URL or checksum from index" >&2
@@ -170,6 +217,9 @@ if command_exists zig; then
     zig version
 else
     echo "❌ Zig not found, installing..."
+    # Ensure jq is available for JSON parsing
+    ensure_jq
+
     install_zig
 fi
 
