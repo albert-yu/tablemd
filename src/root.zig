@@ -17,6 +17,17 @@ const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
 
+const TouchState = struct {
+    active: bool = false,
+    num_touches: u32 = 0,
+    touches: [10]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 10,
+    prev_touches: [10]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 10,
+    initial_distance: f32 = 0,
+    prev_distance: f32 = 0,
+    center: Vec2 = Vec2{ 0, 0 },
+    prev_center: Vec2 = Vec2{ 0, 0 },
+};
+
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
@@ -25,6 +36,7 @@ const state = struct {
     var allocator: std.mem.Allocator = undefined;
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
+    var touch_state = TouchState{};
 };
 
 export fn init() void {
@@ -123,6 +135,18 @@ export fn input(ev: ?*const sapp.Event) void {
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
         },
+        .TOUCHES_BEGAN => {
+            handleTouchBegan(event);
+        },
+        .TOUCHES_MOVED => {
+            handleTouchMoved(event);
+        },
+        .TOUCHES_ENDED => {
+            handleTouchEnded(event);
+        },
+        .TOUCHES_CANCELLED => {
+            handleTouchCancelled(event);
+        },
         else => {},
     }
 }
@@ -170,4 +194,100 @@ fn zoomWheelDelta(event: *const sapp.Event) f32 {
 
 fn clamp(x: f32, low: f32, high: f32) f32 {
     return @min(@max(x, low), high);
+}
+
+fn handleTouchBegan(event: *const sapp.Event) void {
+    state.touch_state.active = true;
+    state.touch_state.num_touches = @intCast(event.num_touches);
+
+    var i: u32 = 0;
+    while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
+        state.touch_state.touches[i] = Vec2{ event.touches[i].pos_x, event.touches[i].pos_y };
+        state.touch_state.prev_touches[i] = state.touch_state.touches[i];
+    }
+
+    if (state.touch_state.num_touches >= 2) {
+        // Initialize pinch gesture
+        const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
+        const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
+        state.touch_state.initial_distance = @sqrt(dx * dx + dy * dy);
+        state.touch_state.prev_distance = state.touch_state.initial_distance;
+
+        // Calculate center point
+        state.touch_state.center = Vec2{
+            (state.touch_state.touches[0][0] + state.touch_state.touches[1][0]) * 0.5,
+            (state.touch_state.touches[0][1] + state.touch_state.touches[1][1]) * 0.5,
+        };
+        state.touch_state.prev_center = state.touch_state.center;
+    }
+}
+
+fn handleTouchMoved(event: *const sapp.Event) void {
+    if (!state.touch_state.active) return;
+
+    // Update touch positions
+    var i: u32 = 0;
+    while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
+        state.touch_state.prev_touches[i] = state.touch_state.touches[i];
+        state.touch_state.touches[i] = Vec2{ event.touches[i].pos_x, event.touches[i].pos_y };
+    }
+
+    if (state.touch_state.num_touches == 1) {
+        // Single touch - handle as pan/swipe
+        const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
+        const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
+        handlePan(dx, dy);
+    } else if (state.touch_state.num_touches >= 2) {
+        // Multi-touch - handle as pinch and pan
+        const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
+        const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
+        const current_distance = @sqrt(dx * dx + dy * dy);
+
+        // Calculate new center
+        const current_center = Vec2{
+            (state.touch_state.touches[0][0] + state.touch_state.touches[1][0]) * 0.5,
+            (state.touch_state.touches[0][1] + state.touch_state.touches[1][1]) * 0.5,
+        };
+
+        // Handle pinch zoom
+        if (state.touch_state.prev_distance > 0) {
+            const distance_ratio = current_distance / state.touch_state.prev_distance;
+            if (@abs(distance_ratio - 1.0) > 0.01) { // Threshold to avoid jitter
+                const zoom_delta = std.math.log2(distance_ratio);
+                handleZoom(zoom_delta, current_center);
+            }
+        }
+
+        // Handle pan (center movement)
+        const center_dx = current_center[0] - state.touch_state.prev_center[0];
+        const center_dy = current_center[1] - state.touch_state.prev_center[1];
+        if (@abs(center_dx) > 1.0 or @abs(center_dy) > 1.0) { // Threshold to avoid jitter
+            handlePan(center_dx, center_dy);
+        }
+
+        state.touch_state.prev_distance = current_distance;
+        state.touch_state.prev_center = current_center;
+    }
+}
+
+fn handleTouchEnded(event: *const sapp.Event) void {
+    state.touch_state.num_touches = @intCast(event.num_touches);
+
+    if (state.touch_state.num_touches == 0) {
+        state.touch_state.active = false;
+        state.touch_state.initial_distance = 0;
+        state.touch_state.prev_distance = 0;
+    } else if (state.touch_state.num_touches == 1) {
+        // Reset pinch state when going from multi-touch to single touch
+        state.touch_state.initial_distance = 0;
+        state.touch_state.prev_distance = 0;
+    }
+}
+
+fn handleTouchCancelled(event: *const sapp.Event) void {
+    _ = event;
+    state.touch_state.active = false;
+    state.touch_state.num_touches = 0;
+    state.touch_state.initial_distance = 0;
+    state.touch_state.prev_distance = 0;
 }
