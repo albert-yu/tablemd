@@ -1,22 +1,25 @@
 # tablemd
 
-A simple table editor.
+A simple markdown table editor. Intended to be:
+
+- Easy to use
+- Fast startup time
 
 ## Development
 
-Install [Bun](https://bun.sh), a fast all-in-one JavaScript runtime.
+Install [Zig](https://ziglang.org/download/).
 
 Build and run.
 
 ```sh
-bun install
-bun dev # start the web server and listen for changes
+# there's currently a bug in zig's wasm32-emscripten target
+# where non-release builds complain about a missing base pointer
+zig build -Dtarget=wasm32-emscripten --release=small run
 ```
 
-Open `http://localhost:3000` in your browser.
+Will automatically open a browser window with the app running.
 
 ## Deploy
 
-```sh
-bun build-prod # build the web app in production mode
-```
+Run `./bundle.sh`. It'll output the static files to the `dist`
+directory.
