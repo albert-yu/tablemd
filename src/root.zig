@@ -109,6 +109,9 @@ export fn input(ev: ?*const sapp.Event) void {
         .RESIZED => {
             state.t.updateWindowData(sapp.widthf(), sapp.heightf());
         },
+        .MOUSE_MOVE => {
+            state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
+        },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
             const scroll_y = event.scroll_y;
@@ -121,9 +124,7 @@ export fn input(ev: ?*const sapp.Event) void {
                     100.0,
                 );
 
-                const newMouse = Vec2{ event.mouse_x, event.mouse_y };
-                state.mouse[0] = newMouse;
-                state.mouse[1] = invert(newMouse);
+                state.mouse[1] = invert(state.mouse[0]);
                 const translated = translate(new_k, state.mouse[0], state.mouse[1]);
 
                 // update zoom
