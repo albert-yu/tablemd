@@ -26,13 +26,6 @@ const TouchState = struct {
     prev_distance: f32 = 0,
     center: Vec2 = Vec2{ 0, 0 },
     prev_center: Vec2 = Vec2{ 0, 0 },
-
-    // Momentum tracking
-    velocity: Vec2 = Vec2{ 0, 0 },
-    last_move_time: f64 = 0,
-    momentum_samples: [5]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 5,
-    momentum_times: [5]f64 = [_]f64{0} ** 5,
-    momentum_index: u32 = 0,
 };
 
 const state = struct {
@@ -232,8 +225,6 @@ fn handleTouchBegan(event: *const sapp.Event) void {
 fn handleTouchMoved(event: *const sapp.Event) void {
     if (!state.touch_state.active) return;
 
-    const current_time = @as(f64, @floatFromInt(std.time.milliTimestamp())) / 1000.0;
-
     // Update touch positions
     var i: u32 = 0;
     while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
@@ -245,18 +236,6 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         // Single touch - handle as pan/swipe
         const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
         const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
-
-        // Track momentum for single touch
-        const time_delta = current_time - state.touch_state.last_move_time;
-        if (time_delta > 0.001) { // Avoid division by zero
-            const velocity = Vec2{ dx / @as(f32, @floatCast(time_delta)), dy / @as(f32, @floatCast(time_delta)) };
-
-            // Store velocity sample
-            state.touch_state.momentum_samples[state.touch_state.momentum_index] = velocity;
-            state.touch_state.momentum_times[state.touch_state.momentum_index] = current_time;
-            state.touch_state.momentum_index = (state.touch_state.momentum_index + 1) % 5;
-        }
-
         handlePan(dx, dy);
     } else if (state.touch_state.num_touches >= 2) {
         // Multi-touch - handle as pinch and pan
@@ -289,96 +268,19 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         state.touch_state.prev_distance = current_distance;
         state.touch_state.prev_center = current_center;
     }
-
-    state.touch_state.last_move_time = current_time;
 }
 
 fn handleTouchEnded(event: *const sapp.Event) void {
-    const current_time = @as(f64, @floatFromInt(std.time.milliTimestamp())) / 1000.0;
-
-    // Compute momentum if we had a single touch and are ending all touches
-    if (state.touch_state.num_touches == 1 and event.num_touches == 0) {
-        const momentum = computeMomentum(current_time);
-        if (momentum[0] != 0 or momentum[1] != 0) {
-            applyMomentum(momentum);
-        }
-    }
-
     state.touch_state.num_touches = @intCast(event.num_touches);
 
     if (state.touch_state.num_touches == 0) {
         state.touch_state.active = false;
         state.touch_state.initial_distance = 0;
         state.touch_state.prev_distance = 0;
-        // Reset momentum tracking
-        state.touch_state.velocity = Vec2{ 0, 0 };
-        state.touch_state.momentum_index = 0;
-        var i: u32 = 0;
-        while (i < 5) : (i += 1) {
-            state.touch_state.momentum_samples[i] = Vec2{ 0, 0 };
-            state.touch_state.momentum_times[i] = 0;
-        }
     } else if (state.touch_state.num_touches == 1) {
         // Reset pinch state when going from multi-touch to single touch
         state.touch_state.initial_distance = 0;
         state.touch_state.prev_distance = 0;
-    }
-}
-
-fn computeMomentum(current_time: f64) Vec2 {
-    var total_velocity = Vec2{ 0, 0 };
-    var valid_samples: u32 = 0;
-    const max_age = 0.1; // Only consider samples from last 100ms
-
-    var i: u32 = 0;
-    while (i < 5) : (i += 1) {
-        const age = current_time - state.touch_state.momentum_times[i];
-        if (age > 0 and age < max_age and state.touch_state.momentum_times[i] > 0) {
-            // Weight newer samples more heavily
-            const weight = 1.0 - @as(f32, @floatCast(age / max_age));
-            total_velocity[0] += state.touch_state.momentum_samples[i][0] * weight;
-            total_velocity[1] += state.touch_state.momentum_samples[i][1] * weight;
-            valid_samples += 1;
-        }
-    }
-
-    if (valid_samples > 0) {
-        total_velocity[0] /= @as(f32, @floatFromInt(valid_samples));
-        total_velocity[1] /= @as(f32, @floatFromInt(valid_samples));
-
-        // Apply minimum threshold to avoid tiny movements
-        const magnitude = @sqrt(total_velocity[0] * total_velocity[0] + total_velocity[1] * total_velocity[1]);
-        if (magnitude < 50.0) { // pixels per second
-            return Vec2{ 0, 0 };
-        }
-
-        return total_velocity;
-    }
-
-    return Vec2{ 0, 0 };
-}
-
-fn applyMomentum(initial_velocity: Vec2) void {
-    const decay_rate = 0.95; // Velocity multiplier per frame
-    const min_velocity = 1.0; // Stop when velocity is below this threshold
-    const time_step = 1.0 / 60.0; // Assume 60 FPS
-
-    var velocity = initial_velocity;
-    var steps: u32 = 0;
-    const max_steps = 120; // Maximum 2 seconds of momentum at 60 FPS
-
-    while (steps < max_steps) : (steps += 1) {
-        const magnitude = @sqrt(velocity[0] * velocity[0] + velocity[1] * velocity[1]);
-        if (magnitude < min_velocity) break;
-
-        // Apply momentum as pan movement
-        const delta_x = velocity[0] * time_step;
-        const delta_y = velocity[1] * time_step;
-        handlePan(delta_x, delta_y);
-
-        // Decay velocity
-        velocity[0] *= decay_rate;
-        velocity[1] *= decay_rate;
     }
 }
 
@@ -388,12 +290,4 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
     state.touch_state.num_touches = 0;
     state.touch_state.initial_distance = 0;
     state.touch_state.prev_distance = 0;
-    // Reset momentum tracking
-    state.touch_state.velocity = Vec2{ 0, 0 };
-    state.touch_state.momentum_index = 0;
-    var i: u32 = 0;
-    while (i < 5) : (i += 1) {
-        state.touch_state.momentum_samples[i] = Vec2{ 0, 0 };
-        state.touch_state.momentum_times[i] = 0;
-    }
 }
