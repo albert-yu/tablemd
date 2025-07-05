@@ -9,7 +9,7 @@ const GRID_N = 1000;
 const POINTS_N = GRID_N * GRID_N;
 const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
-const RectDims = struct {
+pub const RectDims = struct {
     width: f32,
     height: f32,
 };

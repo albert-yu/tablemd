@@ -1,7 +1,9 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
-const DotGridRenderer = @import("render/dot_grid.zig").Renderer;
+const dot_grid = @import("render/dot_grid.zig");
+const DotGridRenderer = dot_grid.Renderer;
+const RectDims = dot_grid.RectDims;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
 
@@ -37,6 +39,7 @@ const state = struct {
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var touch_state = TouchState{};
+    var rect_dims = RectDims{ .width = 0, .height = 0 };
 };
 
 export fn init() void {
@@ -52,16 +55,21 @@ export fn init() void {
 
     // quad (dot grid binding and pipeline)
     const rect_dims = state.dot_grid_renderer.setup();
+    state.rect_dims = rect_dims;
     state.rect_renderer.setup();
-    // state.text_renderer.setup();
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
     };
 
-    const rect_w = rect_dims.width;
-    const rect_h = rect_dims.height;
+    state.t.updateWindowData(sapp.widthf(), sapp.heightf());
+}
+
+export fn frame() void {
+    clear();
+    const rect_w = state.rect_dims.width;
+    const rect_h = state.rect_dims.height;
 
     const corner = 1.0 / 512.0;
     state.rect_renderer.add(.{
@@ -74,10 +82,6 @@ export fn init() void {
         .sigma = 1e-6,
     });
     state.rect_renderer.updateBuffer();
-    state.t.updateWindowData(sapp.widthf(), sapp.heightf());
-}
-
-export fn frame() void {
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
 
@@ -290,4 +294,8 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
     state.touch_state.num_touches = 0;
     state.touch_state.initial_distance = 0;
     state.touch_state.prev_distance = 0;
+}
+
+fn clear() void {
+    state.rect_renderer.clear();
 }
