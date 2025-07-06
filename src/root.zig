@@ -1,7 +1,9 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
-const DotGridRenderer = @import("render/dot_grid.zig").Renderer;
+const dot_grid = @import("render/dot_grid.zig");
+const DotGridRenderer = dot_grid.Renderer;
+const RectDims = dot_grid.RectDims;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
 
@@ -12,10 +14,26 @@ const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
 
+const CellPosition = struct {
+    row: usize,
+    col: usize,
+};
+
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
+
+const TouchState = struct {
+    active: bool = false,
+    num_touches: u32 = 0,
+    touches: [10]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 10,
+    prev_touches: [10]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 10,
+    initial_distance: f32 = 0,
+    prev_distance: f32 = 0,
+    center: Vec2 = Vec2{ 0, 0 },
+    prev_center: Vec2 = Vec2{ 0, 0 },
+};
 
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
@@ -25,6 +43,8 @@ const state = struct {
     var allocator: std.mem.Allocator = undefined;
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
+    var touch_state = TouchState{};
+    var rect_dims = RectDims{ .width = 0, .height = 0 };
 };
 
 export fn init() void {
@@ -40,32 +60,36 @@ export fn init() void {
 
     // quad (dot grid binding and pipeline)
     const rect_dims = state.dot_grid_renderer.setup();
+    state.rect_dims = rect_dims;
     state.rect_renderer.setup();
-    // state.text_renderer.setup();
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
     };
 
-    const rect_w = rect_dims.width;
-    const rect_h = rect_dims.height;
+    state.t.updateWindowData(sapp.widthf(), sapp.heightf());
+}
 
+export fn frame() void {
+    clear();
+    const rect_w = state.rect_dims.width;
+    const rect_h = state.rect_dims.height;
+    const mouse = state.mouse[0];
+    const real_mouse = invert(mouse);
+    const p = normalizePt(real_mouse);
+    const cell_pos = getCellPosition(p);
     const corner = 1.0 / 512.0;
     state.rect_renderer.add(.{
         .color = .{ 1.0, 0.0, 0.0, 0.25 },
-        .x = 0.0,
-        .y = 0.0,
+        .x = @as(f32, @floatFromInt(cell_pos.col)) * rect_w,
+        .y = @as(f32, @floatFromInt(cell_pos.row)) * rect_h,
         .width = rect_w,
         .height = rect_h,
         .corners = .{ corner, corner, corner, corner },
         .sigma = 1e-6,
     });
     state.rect_renderer.updateBuffer();
-    state.t.updateWindowData(sapp.widthf(), sapp.heightf());
-}
-
-export fn frame() void {
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
 
@@ -109,38 +133,54 @@ export fn input(ev: ?*const sapp.Event) void {
         .RESIZED => {
             state.t.updateWindowData(sapp.widthf(), sapp.heightf());
         },
+        .MOUSE_MOVE => {
+            state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
+        },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
             const scroll_y = event.scroll_y;
             if ((event.modifiers & sapp.modifier_ctrl) != 0) {
                 const zoom_speed = scroll_y * zoomWheelDelta(event);
-                const curr_k = state.t.getZoom().k;
-                const new_k = clamp(
-                    curr_k * std.math.pow(f32, 2, zoom_speed),
-                    0.25,
-                    100.0,
-                );
-
-                const newMouse = Vec2{ event.mouse_x, event.mouse_y };
-                state.mouse[0] = newMouse;
-                state.mouse[1] = invert(newMouse);
-                const translated = translate(new_k, state.mouse[0], state.mouse[1]);
-
-                // update zoom
-                state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
+                handleZoom(zoom_speed, state.mouse[0]);
             } else {
                 const pan_speed = 20.0;
-                const curr_x = state.t.getZoom().x;
-                const curr_y = state.t.getZoom().y;
-                const new_x = curr_x + scroll_x * pan_speed;
-                const new_y = curr_y + scroll_y * pan_speed;
-
-                // update zoom
-                state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = new_x, .y = new_y });
+                handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
+        },
+        .TOUCHES_BEGAN => {
+            handleTouchBegan(event);
+        },
+        .TOUCHES_MOVED => {
+            handleTouchMoved(event);
+        },
+        .TOUCHES_ENDED => {
+            handleTouchEnded(event);
+        },
+        .TOUCHES_CANCELLED => {
+            handleTouchCancelled(event);
         },
         else => {},
     }
+}
+
+fn handlePan(delta_x: f32, delta_y: f32) void {
+    const curr_x = state.t.getZoom().x;
+    const curr_y = state.t.getZoom().y;
+    const new_x = curr_x + delta_x;
+    const new_y = curr_y + delta_y;
+    state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = new_x, .y = new_y });
+}
+
+fn handleZoom(delta: f32, p: Vec2) void {
+    const curr_k = state.t.getZoom().k;
+    const new_k = clamp(
+        curr_k * std.math.pow(f32, 2, delta),
+        0.25,
+        100.0,
+    );
+    const inv_p = invert(p);
+    const translated = translate(new_k, p, inv_p);
+    state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
 }
 
 fn invert(p: Vec2) Vec2 {
@@ -166,4 +206,119 @@ fn zoomWheelDelta(event: *const sapp.Event) f32 {
 
 fn clamp(x: f32, low: f32, high: f32) f32 {
     return @min(@max(x, low), high);
+}
+
+fn handleTouchBegan(event: *const sapp.Event) void {
+    state.touch_state.active = true;
+    state.touch_state.num_touches = @intCast(event.num_touches);
+
+    var i: u32 = 0;
+    while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
+        state.touch_state.touches[i] = Vec2{ event.touches[i].pos_x, event.touches[i].pos_y };
+        state.touch_state.prev_touches[i] = state.touch_state.touches[i];
+    }
+
+    if (state.touch_state.num_touches >= 2) {
+        // Initialize pinch gesture
+        const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
+        const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
+        state.touch_state.initial_distance = @sqrt(dx * dx + dy * dy);
+        state.touch_state.prev_distance = state.touch_state.initial_distance;
+
+        // Calculate center point
+        state.touch_state.center = Vec2{
+            (state.touch_state.touches[0][0] + state.touch_state.touches[1][0]) * 0.5,
+            (state.touch_state.touches[0][1] + state.touch_state.touches[1][1]) * 0.5,
+        };
+        state.touch_state.prev_center = state.touch_state.center;
+    }
+}
+
+fn handleTouchMoved(event: *const sapp.Event) void {
+    if (!state.touch_state.active) return;
+
+    // Update touch positions
+    var i: u32 = 0;
+    while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
+        state.touch_state.prev_touches[i] = state.touch_state.touches[i];
+        state.touch_state.touches[i] = Vec2{ event.touches[i].pos_x, event.touches[i].pos_y };
+    }
+
+    if (state.touch_state.num_touches == 1) {
+        // Single touch - handle as pan/swipe
+        const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
+        const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
+        handlePan(dx, dy);
+    } else if (state.touch_state.num_touches >= 2) {
+        // Multi-touch - handle as pinch and pan
+        const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
+        const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
+        const current_distance = @sqrt(dx * dx + dy * dy);
+
+        // Calculate new center
+        const current_center = Vec2{
+            (state.touch_state.touches[0][0] + state.touch_state.touches[1][0]) * 0.5,
+            (state.touch_state.touches[0][1] + state.touch_state.touches[1][1]) * 0.5,
+        };
+
+        // Handle pinch zoom
+        if (state.touch_state.prev_distance > 0) {
+            const distance_ratio = current_distance / state.touch_state.prev_distance;
+            if (@abs(distance_ratio - 1.0) > 0.01) { // Threshold to avoid jitter
+                const zoom_delta = std.math.log2(distance_ratio);
+                handleZoom(zoom_delta, current_center);
+            }
+        }
+
+        // Handle pan (center movement)
+        const center_dx = current_center[0] - state.touch_state.prev_center[0];
+        const center_dy = current_center[1] - state.touch_state.prev_center[1];
+        if (@abs(center_dx) > 1.0 or @abs(center_dy) > 1.0) { // Threshold to avoid jitter
+            handlePan(center_dx, center_dy);
+        }
+
+        state.touch_state.prev_distance = current_distance;
+        state.touch_state.prev_center = current_center;
+    }
+}
+
+fn handleTouchEnded(event: *const sapp.Event) void {
+    state.touch_state.num_touches = @intCast(event.num_touches);
+
+    if (state.touch_state.num_touches == 0) {
+        state.touch_state.active = false;
+        state.touch_state.initial_distance = 0;
+        state.touch_state.prev_distance = 0;
+    } else if (state.touch_state.num_touches == 1) {
+        // Reset pinch state when going from multi-touch to single touch
+        state.touch_state.initial_distance = 0;
+        state.touch_state.prev_distance = 0;
+    }
+}
+
+fn handleTouchCancelled(event: *const sapp.Event) void {
+    _ = event;
+    state.touch_state.active = false;
+    state.touch_state.num_touches = 0;
+    state.touch_state.initial_distance = 0;
+    state.touch_state.prev_distance = 0;
+}
+
+fn clear() void {
+    state.rect_renderer.clear();
+}
+
+fn normalizePt(p: Vec2) Vec2 {
+    const w = sapp.widthf();
+    const h = sapp.heightf();
+    const min_dim = @min(w, h);
+    const grid_x = p[0] / min_dim;
+    const grid_y = p[1] / min_dim;
+    return Vec2{ grid_x, grid_y };
+}
+
+fn getCellPosition(normalized_p: Vec2) CellPosition {
+    const row = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[1]);
+    const col = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[0]);
+    return .{ .row = row, .col = col };
 }

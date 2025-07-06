@@ -9,7 +9,7 @@ const GRID_N = 1000;
 const POINTS_N = GRID_N * GRID_N;
 const GRID_DENSITY: comptime_float = 1.0 / 32.0;
 
-const RectDims = struct {
+pub const RectDims = struct {
     width: f32,
     height: f32,
 };
@@ -89,6 +89,20 @@ pub const Renderer = struct {
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd.UB_vs_params, vs_range);
         sg.draw(0, 6, POINTS_N);
+    }
+
+    pub fn getIndexOfMaxGridPointBoundedBy(self: Renderer, upper_bound: f32) usize {
+        var max_i: usize = 0;
+        while (max_i < POINTS_N) : (max_i += 1) {
+            const x = self.grid_pos[max_i][0];
+            if (x > upper_bound) {
+                break;
+            }
+        }
+        if (max_i > 0) {
+            max_i -= 1;
+        }
+        return max_i;
     }
 };
 
