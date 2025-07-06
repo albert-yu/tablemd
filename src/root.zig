@@ -14,6 +14,11 @@ const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
 
+const CellPosition = struct {
+    row: usize,
+    col: usize,
+};
+
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
 
 const WIDTH_START = 800;
@@ -70,12 +75,15 @@ export fn frame() void {
     clear();
     const rect_w = state.rect_dims.width;
     const rect_h = state.rect_dims.height;
-
+    const mouse = state.mouse[0];
+    const real_mouse = invert(mouse);
+    const p = normalizePt(real_mouse);
+    const cell_pos = getCellPosition(p);
     const corner = 1.0 / 512.0;
     state.rect_renderer.add(.{
         .color = .{ 1.0, 0.0, 0.0, 0.25 },
-        .x = 0.0,
-        .y = 0.0,
+        .x = @as(f32, @floatFromInt(cell_pos.col)) * rect_w,
+        .y = @as(f32, @floatFromInt(cell_pos.row)) * rect_h,
         .width = rect_w,
         .height = rect_h,
         .corners = .{ corner, corner, corner, corner },
@@ -298,4 +306,19 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 
 fn clear() void {
     state.rect_renderer.clear();
+}
+
+fn normalizePt(p: Vec2) Vec2 {
+    const w = sapp.widthf();
+    const h = sapp.heightf();
+    const min_dim = @min(w, h);
+    const grid_x = p[0] / min_dim;
+    const grid_y = p[1] / min_dim;
+    return Vec2{ grid_x, grid_y };
+}
+
+fn getCellPosition(normalized_p: Vec2) CellPosition {
+    const row = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[1]);
+    const col = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[0]);
+    return .{ .row = row, .col = col };
 }

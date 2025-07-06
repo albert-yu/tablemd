@@ -90,6 +90,20 @@ pub const Renderer = struct {
         sg.applyUniforms(shd.UB_vs_params, vs_range);
         sg.draw(0, 6, POINTS_N);
     }
+
+    pub fn getIndexOfMaxGridPointBoundedBy(self: Renderer, upper_bound: f32) usize {
+        var max_i: usize = 0;
+        while (max_i < POINTS_N) : (max_i += 1) {
+            const x = self.grid_pos[max_i][0];
+            if (x > upper_bound) {
+                break;
+            }
+        }
+        if (max_i > 0) {
+            max_i -= 1;
+        }
+        return max_i;
+    }
 };
 
 fn populateXYArray(arr: *[GRID_N * GRID_N]Vec2) void {
