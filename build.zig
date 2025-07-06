@@ -24,9 +24,6 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    // const math_module = b.addModule("math", .{
-    //     .root_source_file = b.path("src/math.zig"),
-    // });
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -40,10 +37,6 @@ pub fn build(b: *Build) !void {
                 .name = "zm",
                 .module = dep_zm.module("zm"),
             },
-            // .{
-            //     .name = "math",
-            //     .module = math_module,
-            // },
             .{
                 .name = "quad_shader",
                 .module = try createShaderModule(b, dep_sokol, .{
