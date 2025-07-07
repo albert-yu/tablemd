@@ -44,6 +44,10 @@
             .url = "git+https://github.com/griush/zm#27ee118800e6ee0804499d053a54100beb579bf3",
             .hash = "zm-0.3.0-cLX-WY3PAABvjPwxqDx9GZkMixyyrlHueLZTxpGy3kLE",
         },
+        .zig_freetype2 = .{
+            .url = "git+https://github.com/PaNDa2code/zig_freetype2#0fd76b2383bfe08583d43846be18d9fa2e2a5d35",
+            .hash = "zig_freetype2-0.0.0-Yvn9xylrAABFvYfOfu07T_eLlODfXM9YGEBRbB1iK74M",
+        },
     },
     .paths = .{
         "build.zig",

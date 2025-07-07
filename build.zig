@@ -24,6 +24,10 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_freetype = b.dependency("zig_freetype2", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -36,6 +40,10 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "zm",
                 .module = dep_zm.module("zm"),
+            },
+            .{
+                .name = "freetype2",
+                .module = dep_freetype.module("zig_freetype2"),
             },
             .{
                 .name = "quad_shader",
