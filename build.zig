@@ -5,6 +5,7 @@ const sokol = @import("sokol");
 const Options = struct {
     mod: *Build.Module,
     dep_sokol: *Build.Dependency,
+    // dep_freetype: *Build.Dependency,
 };
 
 const ShaderModule = struct {
@@ -24,6 +25,10 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_freetype = b.dependency("freetype", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -36,6 +41,10 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "zm",
                 .module = dep_zm.module("zm"),
+            },
+            .{
+                .name = "freetype",
+                .module = dep_freetype.module("freetype"),
             },
             .{
                 .name = "quad_shader",
@@ -57,7 +66,10 @@ pub fn build(b: *Build) !void {
     });
 
     // special case handling for native vs web build
-    const opts = Options{ .mod = mod_root, .dep_sokol = dep_sokol };
+    const opts = Options{
+        .mod = mod_root,
+        .dep_sokol = dep_sokol,
+    };
     if (target.result.cpu.arch.isWasm()) {
         try buildWeb(b, opts);
     } else {
@@ -82,7 +94,6 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
-
     // create a build step which invokes the Emscripten linker
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
     const link_step = try sokol.emLinkStep(b, .{
@@ -94,6 +105,12 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .use_emmalloc = true,
         .use_filesystem = false,
         .shell_file_path = b.path("src/web/shell.html"),
+        // .extra_args = &.{
+        //     "-I",
+        //     "pkg/freetype/include",
+        //     "-DFT2_BUILD_LIBRARY",
+        //     "-c",
+        // },
     });
     // attach Emscripten linker output to default install step
     b.getInstallStep().dependOn(&link_step.step);

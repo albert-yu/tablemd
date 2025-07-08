@@ -44,11 +44,15 @@
             .url = "git+https://github.com/griush/zm#27ee118800e6ee0804499d053a54100beb579bf3",
             .hash = "zm-0.3.0-cLX-WY3PAABvjPwxqDx9GZkMixyyrlHueLZTxpGy3kLE",
         },
+        .freetype = .{
+            .path = "pkg/freetype-2.13.2",
+        },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
+        "pkg",
         // For example...
         //"LICENSE",
         //"README.md",
