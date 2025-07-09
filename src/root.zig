@@ -1,11 +1,13 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
+const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
 const RectDims = dot_grid.RectDims;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
+const TrueType = @import("TrueType");
 
 const io = std.io;
 const sapp = sokol.app;
@@ -38,6 +40,7 @@ const TouchState = struct {
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
+    var text_renderer: TextRenderer = undefined;
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
     var allocator: std.mem.Allocator = undefined;
@@ -62,6 +65,12 @@ export fn init() void {
     const rect_dims = state.dot_grid_renderer.setup();
     state.rect_dims = rect_dims;
     state.rect_renderer.setup();
+
+    // text renderer
+    state.text_renderer = TextRenderer.new(state.allocator);
+    state.text_renderer.setup() catch |err| {
+        std.log.err("Failed to setup text renderer: {}", .{err});
+    };
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -90,6 +99,10 @@ export fn frame() void {
         .sigma = 1e-6,
     });
     state.rect_renderer.updateBuffer();
+
+    // Add "Hello, world!" text at position (100, 100)
+    state.text_renderer.addText("Hello, world!", 0.0, 0.0, .{ 1.0, 1.0, 1.0, 1.0 });
+    state.text_renderer.updateBuffer();
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
 
@@ -99,15 +112,14 @@ export fn frame() void {
     });
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
-    // state.text_renderer.renderInPass(vs_range);
+    state.text_renderer.renderInPass(vs_range);
 
     sg.endPass();
     sg.commit();
 }
 
 export fn cleanup() void {
-    // TODO: needed?
-    // state.text_renderer.cleanup();
+    state.text_renderer.cleanup();
     sg.shutdown();
 }
 
@@ -306,6 +318,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 
 fn clear() void {
     state.rect_renderer.clear();
+    state.text_renderer.clear();
 }
 
 fn normalizePt(p: Vec2) Vec2 {
