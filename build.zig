@@ -28,6 +28,11 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_zigimg = b.dependency("zigimg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -40,6 +45,10 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "zm",
                 .module = dep_zm.module("zm"),
+            },
+            .{
+                .name = "zigimg",
+                .module = dep_zigimg.module("zigimg"),
             },
             .{
                 .name = "TrueType",

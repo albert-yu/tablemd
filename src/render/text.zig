@@ -2,6 +2,7 @@ const std = @import("std");
 const sokol = @import("sokol");
 const shd_text = @import("text_shader");
 const TrueType = @import("TrueType");
+const zigimg = @import("zigimg");
 
 const sg = sokol.gfx;
 
@@ -253,6 +254,11 @@ pub const Renderer = struct {
         };
         img_desc.data.subimage[0][0] = sg.asRange(atlas_data);
         self.atlas_texture = sg.makeImage(img_desc);
+
+        // // Write atlas to PNG file
+        // self.writeAtlasToPNG(atlas_data) catch |err| {
+        //     std.log.warn("Failed to write atlas to PNG: {}", .{err});
+        // };
     }
 
     pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32, color: [4]f32) void {
@@ -304,6 +310,41 @@ pub const Renderer = struct {
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_text.UB_vs_params, vs_range);
         sg.draw(0, 6, self.count);
+    }
+
+    fn writeAtlasToPNG(self: *Renderer, atlas_data: []const u8) !void {
+        // Convert grayscale data to RGB for PNG
+        var rgb_data = try self.allocator.alloc(u8, ATLAS_SIZE * ATLAS_SIZE * 3);
+        defer self.allocator.free(rgb_data);
+
+        for (atlas_data, 0..) |gray_value, i| {
+            const rgb_index = i * 3;
+            rgb_data[rgb_index] = gray_value; // R
+            rgb_data[rgb_index + 1] = gray_value; // G
+            rgb_data[rgb_index + 2] = gray_value; // B
+        }
+
+        // Create zigimg image
+        var image = try zigimg.Image.create(self.allocator, ATLAS_SIZE, ATLAS_SIZE, .rgb24);
+        defer image.deinit();
+
+        // Copy data to image
+        const pixels = image.pixels.rgb24;
+        for (0..ATLAS_SIZE) |y| {
+            for (0..ATLAS_SIZE) |x| {
+                const src_index = (y * ATLAS_SIZE + x) * 3;
+                const dst_index = y * ATLAS_SIZE + x;
+                pixels[dst_index] = zigimg.color.Rgb24{
+                    .r = rgb_data[src_index],
+                    .g = rgb_data[src_index + 1],
+                    .b = rgb_data[src_index + 2],
+                };
+            }
+        }
+
+        // Write to file
+        try image.writeToFilePath("font_atlas.png", .{ .png = .{} });
+        std.log.info("Font atlas written to font_atlas.png", .{});
     }
 
     pub fn cleanup(self: *Renderer) void {

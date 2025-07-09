@@ -100,7 +100,6 @@ export fn frame() void {
     });
     state.rect_renderer.updateBuffer();
 
-    // Add "Hello, world!" text at position (100, 100)
     state.text_renderer.addText("Hello, world!", 0.0, 0.0, .{ 1.0, 1.0, 1.0, 1.0 });
     state.text_renderer.updateBuffer();
     const vs_params = state.t.computeVSParams();
