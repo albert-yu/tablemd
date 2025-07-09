@@ -24,6 +24,10 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_truetype = b.dependency("TrueType", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -36,6 +40,10 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "zm",
                 .module = dep_zm.module("zm"),
+            },
+            .{
+                .name = "TrueType",
+                .module = dep_truetype.module("TrueType"),
             },
             .{
                 .name = "quad_shader",

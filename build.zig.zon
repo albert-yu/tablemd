@@ -44,6 +44,11 @@
             .url = "git+https://github.com/griush/zm#27ee118800e6ee0804499d053a54100beb579bf3",
             .hash = "zm-0.3.0-cLX-WY3PAABvjPwxqDx9GZkMixyyrlHueLZTxpGy3kLE",
         },
+
+        .TrueType = .{
+            .url = "git+https://codeberg.org/andrewrk/TrueType/#4871d8bc019abaa241bf27a0507a33cb6edbcc6e",
+            .hash = "TrueType-0.0.0-Ne-mWPAFAQDPIZm1LKD1qr3bxcc-TpgB_4aHLAchHFrp",
+        },
     },
     .paths = .{
         "build.zig",
