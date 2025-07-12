@@ -27,7 +27,7 @@ const TextElement = struct {
 };
 
 const ATLAS_SIZE = 512;
-const FONT_SIZE = 48;
+const FONT_SIZE = 8;
 const TEXT_N = 1024;
 
 pub const Renderer = struct {
@@ -284,13 +284,14 @@ pub const Renderer = struct {
             const glyph_x = cursor_x + glyph.bearing_x;
             const glyph_y = cursor_y - baseline_offset; // Use baseline offset
 
-            self.elements[self.count] = TextElement{
+            const text_element = TextElement{
                 .instance_position = .{ glyph_x, glyph_y },
                 .glyph_size = .{ glyph.width, glyph.height },
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
                 .color = color,
             };
+            self.elements[self.count] = text_element;
 
             self.count += 1;
             cursor_x += glyph.advance;
