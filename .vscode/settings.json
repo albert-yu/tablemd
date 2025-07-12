@@ -1,4 +1,4 @@
 {
   "cmake.configureOnOpen": false,
-  "zig.buildFilePath": "${workspaceFolder}/core/build.zig"
+  "zig.buildFilePath": "${workspaceFolder}/build.zig"
 }
