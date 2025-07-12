@@ -29,7 +29,7 @@ const TextElement = struct {
 
 const ATLAS_SIZE = 512;
 const PIXEL_SCALE = 1.0 / 2048.0;
-const FONT_SIZE = 8;
+const FONT_SIZE = 48;
 const TEXT_N = 1024;
 
 pub const Renderer = struct {
