@@ -18,7 +18,7 @@ const GlyphInfo = struct {
     tex_height: f32,
 };
 
-const TextElement = struct {
+const CharElement = struct {
     instance_position: [2]f32,
     glyph_size: [2]f32,
     tex_offset: [2]f32,
@@ -31,13 +31,13 @@ const ATLAS_SIZE = 512;
 const PIXEL_SCALE = 1.0 / 2048.0;
 /// This is the font size when rasterized to the atlas
 const FONT_SIZE = 48;
-const TEXT_N = 1024;
+const CHAR_N = 1024;
 
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
     count: u32,
-    elements: [TEXT_N]TextElement,
+    elements: [CHAR_N]CharElement,
     glyphs: [128]GlyphInfo,
     atlas_texture: sg.Image,
     font: ?TrueType,
@@ -85,7 +85,7 @@ pub const Renderer = struct {
 
         // Setup instance buffer
         self.bind.vertex_buffers[1] = sg.makeBuffer(.{
-            .size = TEXT_N * @sizeOf(TextElement),
+            .size = CHAR_N * @sizeOf(CharElement),
             .usage = .{ .stream_update = true },
         });
 
@@ -277,7 +277,7 @@ pub const Renderer = struct {
 
         for (text) |char| {
             if (char < 32 or char > 127) continue;
-            if (self.count >= TEXT_N) return;
+            if (self.count >= CHAR_N) return;
 
             const glyph = self.glyphs[char];
 
@@ -291,7 +291,7 @@ pub const Renderer = struct {
             const glyph_x = cursor_x + glyph.bearing_x;
             const glyph_y = cursor_y - baseline_offset; // Use baseline offset
 
-            const text_element = TextElement{
+            const text_element = CharElement{
                 .instance_position = .{ glyph_x, glyph_y },
                 .glyph_size = .{ glyph.width, glyph.height },
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
