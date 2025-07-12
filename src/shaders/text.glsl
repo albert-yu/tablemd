@@ -20,7 +20,7 @@ void main() {
     vec2 vertex_pos = instance_position + position * glyph_size;
     mat4 t = untransform * zoom * window_scale;
     gl_Position = t * vec4(vertex_pos, 0.0, 1.0);
-    
+
     // Calculate texture coordinates from atlas offset and size
     v_tex_coords = tex_offset + tex_coords * tex_size;
     v_color = color;
