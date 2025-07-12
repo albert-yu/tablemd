@@ -12,12 +12,13 @@ in vec2 glyph_size;
 in vec2 tex_offset;
 in vec2 tex_size;
 in vec4 color;
+in float pixel_scale;
 
 out vec2 v_tex_coords;
 out vec4 v_color;
 
 void main() {
-    vec2 vertex_pos = instance_position + position * glyph_size;
+    vec2 vertex_pos = (instance_position + position * glyph_size) * pixel_scale;
     mat4 t = untransform * zoom * window_scale;
     gl_Position = t * vec4(vertex_pos, 0.0, 1.0);
 

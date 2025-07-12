@@ -24,9 +24,11 @@ const TextElement = struct {
     tex_offset: [2]f32,
     tex_size: [2]f32,
     color: [4]f32,
+    pixel_scale: f32,
 };
 
 const ATLAS_SIZE = 512;
+const PIXEL_SCALE = 1.0 / 2048.0;
 const FONT_SIZE = 8;
 const TEXT_N = 1024;
 
@@ -129,6 +131,10 @@ pub const Renderer = struct {
                 };
                 l.attrs[shd_text.ATTR_text_color] = .{
                     .format = .FLOAT4,
+                    .buffer_index = 1,
+                };
+                l.attrs[shd_text.ATTR_text_pixel_scale] = .{
+                    .format = .FLOAT,
                     .buffer_index = 1,
                 };
                 break :init l;
@@ -290,6 +296,7 @@ pub const Renderer = struct {
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
                 .color = color,
+                .pixel_scale = PIXEL_SCALE,
             };
             self.elements[self.count] = text_element;
 
