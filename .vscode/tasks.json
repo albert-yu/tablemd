@@ -4,27 +4,7 @@
     {
       "label": "build",
       "command": "zig",
-      "args": ["build", "--build-file", "core/build.zig"],
-      "problemMatcher": ["$zig"]
-    },
-    {
-      "label": "build lexer test",
-      "command": "zig",
-      "args": [
-        "test",
-        "-femit-bin=core/zig-out/bin/lexer-test",
-        "core/src/lexer.zig"
-      ],
-      "problemMatcher": ["$zig"]
-    },
-    {
-      "label": "build parser test",
-      "command": "zig",
-      "args": [
-        "test",
-        "-femit-bin=core/zig-out/bin/parser-test",
-        "core/src/parser.zig"
-      ],
+      "args": ["build", "--build-file", "build.zig"],
       "problemMatcher": ["$zig"]
     }
   ]

@@ -6,7 +6,7 @@
       "request": "launch",
       "name": "Debug exe",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/core/zig-out/bin/tablemd",
+      "program": "${workspaceFolder}/zig-out/bin/root",
       "args": [],
       "cwd": "${workspaceFolder}"
     }
