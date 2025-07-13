@@ -92,6 +92,7 @@ pub const Renderer = struct {
         // Setup texture binding
         self.bind.images[shd_text.IMG_tex] = self.atlas_texture;
         self.bind.samplers[shd_text.SMP_smp] = sg.makeSampler(.{
+            .label = "text sampler",
             .min_filter = .LINEAR,
             .mag_filter = .LINEAR,
             .wrap_u = .CLAMP_TO_EDGE,
