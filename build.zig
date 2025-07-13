@@ -119,7 +119,10 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .use_emmalloc = true,
         .use_filesystem = false,
         .shell_file_path = b.path("src/web/shell.html"),
-        .extra_args = &.{"-sUSE_OFFSET_CONVERTER"},
+        .extra_args = &.{
+            "-sUSE_OFFSET_CONVERTER",
+            "-sALLOW_MEMORY_GROWTH=1",
+        },
     });
     // attach Emscripten linker output to default install step
     b.getInstallStep().dependOn(&link_step.step);
