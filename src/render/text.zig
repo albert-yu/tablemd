@@ -62,7 +62,7 @@ pub const Renderer = struct {
         self.font = try TrueType.load(font_data);
 
         // Create atlas texture
-        try self.createAtlas();
+        self.atlas_texture = try self.createAtlas();
 
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -160,7 +160,7 @@ pub const Renderer = struct {
         self.pip = sg.makePipeline(pip_desc);
     }
 
-    fn createAtlas(self: *Renderer) !void {
+    fn createAtlas(self: *Renderer) !sg.Image {
         var atlas_data = try self.allocator.alloc(u8, ATLAS_SIZE * ATLAS_SIZE);
         defer self.allocator.free(atlas_data);
 
@@ -262,12 +262,11 @@ pub const Renderer = struct {
             .pixel_format = .R8,
         };
         img_desc.data.subimage[0][0] = sg.asRange(atlas_data);
-        self.atlas_texture = sg.makeImage(img_desc);
-
         // // Write atlas to PNG file
         // self.writeAtlasToPNG(atlas_data) catch |err| {
         //     std.log.warn("Failed to write atlas to PNG: {}", .{err});
         // };
+        return sg.makeImage(img_desc);
     }
 
     pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32, color: [4]f32) void {
