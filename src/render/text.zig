@@ -256,6 +256,7 @@ pub const Renderer = struct {
 
         // Create texture
         var img_desc: sg.ImageDesc = .{
+            .label = "text atlas image",
             .width = ATLAS_SIZE,
             .height = ATLAS_SIZE,
             .pixel_format = .R8,
