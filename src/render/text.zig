@@ -170,6 +170,9 @@ pub const Renderer = struct {
         const font = self.font.?;
         const scale = font.scaleForPixelHeight(@as(f32, FONT_SIZE));
 
+        const u: f32 = 1.0 / @as(f32, ATLAS_SIZE);
+        const v: f32 = 1.0 / @as(f32, ATLAS_SIZE);
+
         var x: u32 = 0;
         var y: u32 = 0;
         const max_height: u32 = FONT_SIZE + 8; // padding
@@ -238,17 +241,21 @@ pub const Renderer = struct {
             // Get horizontal metrics
             const hmetrics = font.glyphHMetrics(glyph_index);
 
+            const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
+            const bearing_x = @as(f32, @floatFromInt(hmetrics.left_side_bearing)) * scale;
+            const bearing_y = 0.0; // Will be calculated from font metrics
+
             // Store glyph info
             self.glyphs[i] = GlyphInfo{
-                .advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale,
-                .bearing_x = @as(f32, @floatFromInt(hmetrics.left_side_bearing)) * scale,
-                .bearing_y = 0, // Will be calculated from font metrics
+                .advance = advance,
+                .bearing_x = bearing_x,
+                .bearing_y = bearing_y,
                 .width = @as(f32, @floatFromInt(width)),
                 .height = @as(f32, @floatFromInt(height)),
-                .tex_x = @as(f32, @floatFromInt(x)) / ATLAS_SIZE,
-                .tex_y = @as(f32, @floatFromInt(y)) / ATLAS_SIZE,
-                .tex_width = @as(f32, @floatFromInt(width)) / ATLAS_SIZE,
-                .tex_height = @as(f32, @floatFromInt(height)) / ATLAS_SIZE,
+                .tex_x = @as(f32, @floatFromInt(x)) * u,
+                .tex_y = @as(f32, @floatFromInt(y)) * v,
+                .tex_width = @as(f32, @floatFromInt(width)) * u,
+                .tex_height = @as(f32, @floatFromInt(height)) * v,
             };
 
             x += width + 1; // padding
