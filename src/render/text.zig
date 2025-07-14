@@ -261,19 +261,87 @@ pub const Renderer = struct {
             x += width + 1; // padding
         }
 
-        // Create texture
+        // Convert atlas data to PNG format and then extract raw data
+        const png_rgba_data = try self.convertAtlasToPNGAndExtract(atlas_data);
+        defer self.allocator.free(png_rgba_data);
+
+        // Create texture with PNG-processed RGBA data
         var img_desc: sg.ImageDesc = .{
             .label = "text atlas image",
             .width = ATLAS_SIZE,
             .height = ATLAS_SIZE,
-            .pixel_format = .R8,
+            .pixel_format = .RGBA8,
         };
-        img_desc.data.subimage[0][0] = sg.asRange(atlas_data);
-        // // Write atlas to PNG file
-        // self.writeAtlasToPNG(atlas_data) catch |err| {
-        //     std.log.warn("Failed to write atlas to PNG: {}", .{err});
-        // };
+        img_desc.data.subimage[0][0] = sg.asRange(png_rgba_data);
         return sg.makeImage(img_desc);
+    }
+
+    fn convertAtlasToPNGAndExtract(self: *Renderer, atlas_data: []const u8) ![]u8 {
+        // Convert to PNG format and then extract raw RGBA data
+        const png_data = try self.convertAtlasToPNG(atlas_data);
+        defer self.allocator.free(png_data);
+
+        // Create a temporary file to write PNG data
+        const temp_path = "temp_atlas.png";
+        {
+            var file = try std.fs.cwd().createFile(temp_path, .{});
+            defer file.close();
+            try file.writeAll(png_data);
+        }
+        defer std.fs.cwd().deleteFile(temp_path) catch {};
+
+        // Read back the PNG file as an image
+        var image = try zigimg.Image.fromFilePath(self.allocator, temp_path);
+        defer image.deinit();
+
+        // Extract RGBA data
+        const rgba_data = try self.allocator.alloc(u8, ATLAS_SIZE * ATLAS_SIZE * 4);
+        const pixels = image.pixels.rgba32;
+
+        for (0..ATLAS_SIZE) |y| {
+            for (0..ATLAS_SIZE) |x| {
+                const src_index = y * ATLAS_SIZE + x;
+                const dst_index = (y * ATLAS_SIZE + x) * 4;
+                const pixel = pixels[src_index];
+                rgba_data[dst_index] = pixel.r;
+                rgba_data[dst_index + 1] = pixel.g;
+                rgba_data[dst_index + 2] = pixel.b;
+                rgba_data[dst_index + 3] = pixel.a;
+            }
+        }
+
+        return rgba_data;
+    }
+
+    fn convertAtlasToPNG(self: *Renderer, atlas_data: []const u8) ![]u8 {
+        // Create zigimg image
+        var image = try zigimg.Image.create(self.allocator, ATLAS_SIZE, ATLAS_SIZE, .rgba32);
+        defer image.deinit();
+
+        // Convert grayscale atlas to RGBA
+        const pixels = image.pixels.rgba32;
+        for (0..ATLAS_SIZE) |y| {
+            for (0..ATLAS_SIZE) |x| {
+                const src_index = y * ATLAS_SIZE + x;
+                const dst_index = y * ATLAS_SIZE + x;
+                const gray_value = atlas_data[src_index];
+                pixels[dst_index] = zigimg.color.Rgba32{
+                    .r = gray_value,
+                    .g = gray_value,
+                    .b = gray_value,
+                    .a = gray_value, // Use grayscale value as alpha
+                };
+            }
+        }
+
+        // Allocate buffer for PNG encoding
+        const write_buffer = try self.allocator.alloc(u8, ATLAS_SIZE * ATLAS_SIZE * 4 * 2); // Conservative estimate
+        defer self.allocator.free(write_buffer);
+
+        // Encode to PNG in memory
+        const png_data = try image.writeToMemory(write_buffer, .{ .png = .{} });
+
+        return self.allocator.dupe(u8, png_data);
     }
 
     pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32, color: [4]f32) void {
