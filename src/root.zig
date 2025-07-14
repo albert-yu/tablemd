@@ -59,8 +59,10 @@ export fn init() void {
 
     state.allocator = if (builtin.target.cpu.arch.isWasm())
         std.heap.c_allocator
-    else
-        std.heap.GeneralPurposeAllocator(.{}).allocator();
+    else blk: {
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        break :blk gpa.allocator();
+    };
 
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
