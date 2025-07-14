@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
@@ -56,8 +57,10 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    state.allocator = gpa.allocator();
+    state.allocator = if (builtin.target.cpu.arch.isWasm())
+        std.heap.c_allocator
+    else
+        std.heap.GeneralPurposeAllocator(.{}).allocator();
 
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
