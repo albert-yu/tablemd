@@ -22,7 +22,7 @@ pub const Renderer = struct {
 
     pub fn setup(self: *Renderer) !void {
         // Load PNG image
-        self.texture = try self.loadPNG("src/render/font_atlas.png");
+        self.texture = try self.loadPNG();
 
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -89,9 +89,10 @@ pub const Renderer = struct {
         self.pip = sg.makePipeline(pip_desc);
     }
 
-    fn loadPNG(self: *Renderer, path: []const u8) !sg.Image {
+    fn loadPNG(self: *Renderer) !sg.Image {
         // Load PNG file
-        var image = try zigimg.Image.fromFilePath(self.allocator, path);
+        const img_bytes = @embedFile("font_atlas.png");
+        var image = try zigimg.Image.fromMemory(self.allocator, img_bytes);
         defer image.deinit();
 
         // Convert to RGBA8 format
