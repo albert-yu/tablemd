@@ -37,6 +37,7 @@ pub const Renderer = struct {
     pip: sg.Pipeline,
     texture: sg.Image,
     elements: [CHAR_N]CharElement,
+    count: usize,
     glyphs: [128]GlyphInfo,
     font: ?TrueType,
     allocator: std.mem.Allocator,
@@ -46,10 +47,11 @@ pub const Renderer = struct {
             .bind = .{},
             .pip = .{},
             .texture = .{},
-            .allocator = allocator,
             .elements = undefined,
+            .count = 0,
             .glyphs = undefined,
             .font = null,
+            .allocator = allocator,
         };
     }
 
