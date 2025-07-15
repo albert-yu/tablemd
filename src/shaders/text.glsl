@@ -7,13 +7,20 @@ layout(binding=0) uniform vs_params {
 
 in vec2 position;
 in vec2 tex_coords;
+in vec2 instance_position;
+in vec2 glyph_size;
+in vec2 tex_offset;
+in vec2 tex_size;
+in vec4 color;
+in float pixel_scale;
 
 out vec2 v_tex_coords;
 
 void main() {
+    vec2 scaled_pos = position * glyph_size + instance_position;
     mat4 t = untransform * zoom * window_scale;
-    gl_Position = t * vec4(position, 0.0, 1.0);
-    v_tex_coords = tex_coords;
+    gl_Position = t * vec4(scaled_pos, 0.0, 1.0);
+    v_tex_coords = tex_offset + tex_coords * tex_size;
 }
 @end
 

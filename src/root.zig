@@ -105,6 +105,10 @@ export fn frame() void {
     });
     state.rect_renderer.updateBuffer();
 
+    // Render "hello, world!" at position (0, 0)
+    state.text_renderer.renderText("hello, world!", 0.0, 0.0);
+    state.text_renderer.updateBuffer();
+
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
 
@@ -320,6 +324,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 
 fn clear() void {
     state.rect_renderer.clear();
+    state.text_renderer.clear();
 }
 
 fn normalizePt(p: Vec2) Vec2 {
