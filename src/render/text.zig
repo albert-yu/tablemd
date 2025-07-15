@@ -1,6 +1,6 @@
 const std = @import("std");
 const sokol = @import("sokol");
-const shd_png = @import("png_shader");
+const shd_text = @import("text_shader");
 const zigimg = @import("zigimg");
 const TrueType = @import("TrueType");
 
@@ -79,9 +79,9 @@ pub const Renderer = struct {
         });
 
         // Setup texture binding
-        self.bind.images[shd_png.IMG_tex] = self.texture;
-        self.bind.samplers[shd_png.SMP_smp] = sg.makeSampler(.{
-            .label = "png sampler",
+        self.bind.images[shd_text.IMG_tex] = self.texture;
+        self.bind.samplers[shd_text.SMP_smp] = sg.makeSampler(.{
+            .label = "text sampler",
             .min_filter = .LINEAR,
             .mag_filter = .LINEAR,
             .wrap_u = .CLAMP_TO_EDGE,
@@ -90,15 +90,15 @@ pub const Renderer = struct {
 
         // Create pipeline
         var pip_desc: sg.PipelineDesc = .{
-            .shader = sg.makeShader(shd_png.pngShaderDesc(sg.queryBackend())),
+            .shader = sg.makeShader(shd_text.textShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
-                l.attrs[shd_png.ATTR_png_position] = .{
+                l.attrs[shd_text.ATTR_text_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
                     .offset = 0,
                 };
-                l.attrs[shd_png.ATTR_png_tex_coords] = .{
+                l.attrs[shd_text.ATTR_text_tex_coords] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
                     .offset = 8,
@@ -288,7 +288,7 @@ pub const Renderer = struct {
 
         // Create texture
         var img_desc: sg.ImageDesc = .{
-            .label = "png image",
+            .label = "text image",
             .width = @intCast(image.width),
             .height = @intCast(image.height),
             .pixel_format = .RGBA8,
@@ -303,7 +303,7 @@ pub const Renderer = struct {
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
-        sg.applyUniforms(shd_png.UB_vs_params, vs_range);
+        sg.applyUniforms(shd_text.UB_vs_params, vs_range);
         sg.draw(0, 6, 1);
     }
 

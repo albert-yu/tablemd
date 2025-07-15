@@ -29,4 +29,4 @@ void main() {
 }
 @end
 
-@program png vs fs
+@program text vs fs

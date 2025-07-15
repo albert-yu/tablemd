@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
 const RectRenderer = @import("render/rect.zig").Renderer;
-const PngRenderer = @import("render/png.zig").Renderer;
+const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
 const RectDims = dot_grid.RectDims;
@@ -41,7 +41,7 @@ const TouchState = struct {
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
-    var png_renderer: PngRenderer = undefined;
+    var text_renderer: TextRenderer = undefined;
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
     var allocator: std.mem.Allocator = undefined;
@@ -71,10 +71,10 @@ export fn init() void {
     state.rect_dims = rect_dims;
     state.rect_renderer.setup();
 
-    // png renderer
-    state.png_renderer = PngRenderer.new(state.allocator);
-    state.png_renderer.setup() catch |err| {
-        std.log.err("Failed to setup png renderer: {}", .{err});
+    // text renderer
+    state.text_renderer = TextRenderer.new(state.allocator);
+    state.text_renderer.setup() catch |err| {
+        std.log.err("Failed to setup text renderer: {}", .{err});
     };
 
     state.pass_action.colors[0] = .{
@@ -114,14 +114,14 @@ export fn frame() void {
     });
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
-    state.png_renderer.renderInPass(vs_range);
+    state.text_renderer.renderInPass(vs_range);
 
     sg.endPass();
     sg.commit();
 }
 
 export fn cleanup() void {
-    state.png_renderer.cleanup();
+    state.text_renderer.cleanup();
     sg.shutdown();
 }
 

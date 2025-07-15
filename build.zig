@@ -71,11 +71,11 @@ pub fn build(b: *Build) !void {
                 }),
             },
             .{
-                .name = "png_shader",
+                .name = "text_shader",
                 .module = try createShaderModule(b, dep_sokol, .{
-                    .module_name = "png_shader",
-                    .input_file = "src/shaders/png.glsl",
-                    .output_file = "png_shader.zig",
+                    .module_name = "text_shader",
+                    .input_file = "src/shaders/text.glsl",
+                    .output_file = "text_shader.zig",
                 }),
             },
         },
