@@ -27,10 +27,10 @@ pub const Renderer = struct {
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
             .data = sg.asRange(&[_]f32{
-                -1, -1, 0, 0, // bottom-left: position(-256,-256), tex_coords(0,0)
-                1, -1, 1, 0, // bottom-right: position(256,-256), tex_coords(1,0)
-                -1, 1, 0, 1, // top-left: position(-256,256), tex_coords(0,1)
-                1, 1, 1, 1, // top-right: position(256,256), tex_coords(1,1)
+                -1, -1, 0, 0, // bottom-left, tex_coords(0,0)
+                1, -1, 1, 0, // bottom-right, tex_coords(1,0)
+                -1, 1, 0, 1, // top-left, tex_coords(0,1)
+                1, 1, 1, 1, // top-right, tex_coords(1,1)
             }),
         });
 
