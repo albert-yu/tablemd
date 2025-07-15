@@ -25,7 +25,8 @@ in vec2 v_tex_coords;
 out vec4 frag_color;
 
 void main() {
-    frag_color = texture(sampler2D(tex, smp), v_tex_coords);
+    vec4 sampled = texture(sampler2D(tex, smp), v_tex_coords);
+    frag_color = vec4(1.0, 1.0, 1.0, sampled.r);
 }
 @end
 
