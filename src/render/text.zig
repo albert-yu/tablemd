@@ -267,6 +267,8 @@ pub const Renderer = struct {
             .width = ATLAS_SIZE,
             .height = ATLAS_SIZE,
             .pixel_format = .R8,
+            .sample_count = 1,
+            .num_mipmaps = 1,
         };
         img_desc.data.subimage[0][0] = sg.asRange(atlas_data);
         // // Write atlas to PNG file
