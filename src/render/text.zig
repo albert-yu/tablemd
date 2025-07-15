@@ -235,10 +235,6 @@ pub const Renderer = struct {
             .num_mipmaps = 1,
         };
         img_desc.data.subimage[0][0] = sg.asRange(atlas_data);
-        // // Write atlas to PNG file
-        // self.writeAtlasToPNG(atlas_data) catch |err| {
-        //     std.log.warn("Failed to write atlas to PNG: {}", .{err});
-        // };
         return sg.makeImage(img_desc);
     }
 
