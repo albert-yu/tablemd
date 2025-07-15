@@ -242,64 +242,6 @@ pub const Renderer = struct {
         return sg.makeImage(img_desc);
     }
 
-    fn loadPNG(self: *Renderer) !sg.Image {
-        // Load PNG file
-        const img_bytes = @embedFile("font_atlas.png");
-        var image = try zigimg.Image.fromMemory(self.allocator, img_bytes);
-        defer image.deinit();
-
-        // Convert to RGBA8 format
-        const rgba_data = try self.allocator.alloc(u8, image.width * image.height * 4);
-        defer self.allocator.free(rgba_data);
-
-        // Convert image data to RGBA8
-        switch (image.pixels) {
-            .rgba32 => |pixels| {
-                for (pixels, 0..) |pixel, i| {
-                    const base_idx = i * 4;
-                    rgba_data[base_idx] = pixel.r;
-                    rgba_data[base_idx + 1] = pixel.g;
-                    rgba_data[base_idx + 2] = pixel.b;
-                    rgba_data[base_idx + 3] = pixel.a;
-                }
-            },
-            .rgb24 => |pixels| {
-                for (pixels, 0..) |pixel, i| {
-                    const base_idx = i * 4;
-                    rgba_data[base_idx] = pixel.r;
-                    rgba_data[base_idx + 1] = pixel.g;
-                    rgba_data[base_idx + 2] = pixel.b;
-                    rgba_data[base_idx + 3] = 255; // full alpha
-                }
-            },
-            .grayscale8 => |pixels| {
-                for (pixels, 0..) |pixel, i| {
-                    const base_idx = i * 4;
-                    rgba_data[base_idx] = pixel.value;
-                    rgba_data[base_idx + 1] = pixel.value;
-                    rgba_data[base_idx + 2] = pixel.value;
-                    rgba_data[base_idx + 3] = 255; // full alpha
-                }
-            },
-            else => {
-                return error.UnsupportedPixelFormat;
-            },
-        }
-
-        // Create texture
-        var img_desc: sg.ImageDesc = .{
-            .label = "text image",
-            .width = @intCast(image.width),
-            .height = @intCast(image.height),
-            .pixel_format = .RGBA8,
-            .sample_count = 1,
-            .num_mipmaps = 1,
-        };
-        img_desc.data.subimage[0][0] = sg.asRange(rgba_data);
-
-        return sg.makeImage(img_desc);
-    }
-
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
