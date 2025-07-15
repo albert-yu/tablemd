@@ -18,9 +18,9 @@ out vec2 v_tex_coords;
 out vec4 v_color;
 
 void main() {
-    // vec2 vertex_pos = (instance_position + position * glyph_size) * pixel_scale;
+    vec2 vertex_pos = (instance_position + position * glyph_size) * pixel_scale;
     mat4 t = untransform * zoom * window_scale;
-    gl_Position = t * vec4(position, 0.0, 1.0);
+    gl_Position = t * vec4(vertex_pos, 0.0, 1.0);
 
     // Calculate texture coordinates from atlas offset and size
     v_tex_coords = tex_offset + tex_coords * tex_size;
@@ -37,10 +37,8 @@ in vec4 v_color;
 out vec4 frag_color;
 
 void main() {
-    // float alpha = texture(sampler2D(tex, smp), v_tex_coords).r;
-    // float alpha = 1.0;
-    // frag_color = vec4(v_color.rgb, v_color.a * alpha);
-    frag_color = texture(sampler2D(tex, smp), v_tex_coords);
+    float alpha = texture(sampler2D(tex, smp), v_tex_coords).r;
+    frag_color = vec4(v_color.rgb, v_color.a * alpha);
 }
 @end
 

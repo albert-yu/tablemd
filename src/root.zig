@@ -105,7 +105,7 @@ export fn frame() void {
     });
     state.rect_renderer.updateBuffer();
 
-    state.text_renderer.addText("Hello, world!", 0.2, 0.2, .{ 1.0, 1.0, 1.0, 1.0 });
+    state.text_renderer.addText("Hello, world!", 0.0, 0.0, .{ 1.0, 1.0, 1.0, 1.0 });
     state.text_renderer.updateBuffer();
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
