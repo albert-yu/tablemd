@@ -40,7 +40,6 @@ pub const Renderer = struct {
     glyphs: [128]GlyphInfo,
     font: ?TrueType,
     allocator: std.mem.Allocator,
-    num_elements: usize,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
@@ -51,7 +50,6 @@ pub const Renderer = struct {
             .elements = undefined,
             .glyphs = undefined,
             .font = null,
-            .num_elements = 0,
         };
     }
 
@@ -69,12 +67,6 @@ pub const Renderer = struct {
                 0, 1, 0, 1, // top-left, tex_coords(0,1)
                 1, 1, 1, 1, // top-right, tex_coords(1,1)
             }),
-        });
-
-        // Setup instance buffer for character data
-        self.bind.vertex_buffers[1] = sg.makeBuffer(.{
-            .usage = .{ .stream_update = true },
-            .size = @sizeOf(CharElement) * CHAR_N,
         });
 
         // Setup index buffer
@@ -101,7 +93,6 @@ pub const Renderer = struct {
             .shader = sg.makeShader(shd_text.textShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
-                // Vertex attributes (per-vertex)
                 l.attrs[shd_text.ATTR_text_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
@@ -111,37 +102,6 @@ pub const Renderer = struct {
                     .format = .FLOAT2,
                     .buffer_index = 0,
                     .offset = 8,
-                };
-                // Instance attributes (per-instance)
-                l.attrs[shd_text.ATTR_text_instance_position] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "instance_position"),
-                };
-                l.attrs[shd_text.ATTR_text_glyph_size] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "glyph_size"),
-                };
-                l.attrs[shd_text.ATTR_text_tex_offset] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "tex_offset"),
-                };
-                l.attrs[shd_text.ATTR_text_tex_size] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "tex_size"),
-                };
-                l.attrs[shd_text.ATTR_text_color] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "color"),
-                };
-                l.attrs[shd_text.ATTR_text_pixel_scale] = .{
-                    .format = .FLOAT,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "pixel_scale"),
                 };
                 break :init l;
             },
@@ -282,50 +242,11 @@ pub const Renderer = struct {
         return sg.makeImage(img_desc);
     }
 
-    pub fn clear(self: *Renderer) void {
-        self.num_elements = 0;
-    }
-
-    pub fn renderText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
-        const scale = 1.0 / @as(f32, FONT_SIZE); // Convert from font size to normalized scale
-        var cursor_x = x;
-
-        for (text) |char| {
-            if (char >= 32 and char < 128) {
-                const glyph = self.glyphs[char];
-
-                if (glyph.width > 0 and glyph.height > 0) {
-                    if (self.num_elements >= CHAR_N) break;
-
-                    self.elements[self.num_elements] = CharElement{
-                        .instance_position = .{ cursor_x + glyph.bearing_x * scale, y - glyph.bearing_y * scale },
-                        .glyph_size = .{ glyph.width * scale, glyph.height * scale },
-                        .tex_offset = .{ glyph.tex_x, glyph.tex_y },
-                        .tex_size = .{ glyph.tex_width, glyph.tex_height },
-                        .color = .{ 1.0, 1.0, 1.0, 1.0 },
-                        .pixel_scale = scale,
-                    };
-                    self.num_elements += 1;
-                }
-
-                cursor_x += glyph.advance * scale;
-            }
-        }
-    }
-
-    pub fn updateBuffer(self: *Renderer) void {
-        if (self.num_elements > 0) {
-            sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.num_elements]));
-        }
-    }
-
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
-        if (self.num_elements == 0) return;
-
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_text.UB_vs_params, vs_range);
-        sg.draw(0, 6, @intCast(self.num_elements));
+        sg.draw(0, 6, 1);
     }
 
     pub fn cleanup(self: *Renderer) void {
