@@ -160,7 +160,8 @@ pub const Renderer = struct {
         if (char < 32 or char > 127) {
             return;
         }
-        const pixel_scale = 0.5;
+        // Might be able to be derived from the GRID_N and GRID_DENSITY
+        const pixel_scale = 1.0 / 24.0;
         const scale = 1.0 / @as(f32, FONT_SIZE);
         const glyph = self.glyphs[char];
         if (glyph.width > 0 and glyph.height > 0) {
