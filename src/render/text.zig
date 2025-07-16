@@ -111,32 +111,26 @@ pub const Renderer = struct {
                 l.attrs[shd_text.ATTR_text_instance_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "instance_position"),
                 };
                 l.attrs[shd_text.ATTR_text_glyph_size] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "glyph_size"),
                 };
                 l.attrs[shd_text.ATTR_text_tex_offset] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "tex_offset"),
                 };
                 l.attrs[shd_text.ATTR_text_tex_size] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "tex_size"),
                 };
                 l.attrs[shd_text.ATTR_text_color] = .{
                     .format = .FLOAT4,
                     .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "color"),
                 };
                 l.attrs[shd_text.ATTR_text_pixel_scale] = .{
                     .format = .FLOAT,
                     .buffer_index = 1,
-                    .offset = @offsetOf(CharElement, "pixel_scale"),
                 };
                 break :init l;
             },
