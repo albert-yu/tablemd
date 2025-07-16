@@ -238,7 +238,9 @@ pub const Renderer = struct {
             var buffer = std.ArrayListUnmanaged(u8){};
             defer buffer.deinit(self.allocator);
 
-            const dims = font.glyphBitmap(self.allocator, &buffer, glyph_index, scale, scale) catch {
+            const dims = font.glyphBitmap(self.allocator, &buffer, glyph_index, scale, scale) catch |err| {
+                const as_char = @as(u8, @intCast(char));
+                std.log.err("Failed to rasterize glyph \"{c}\": {}", .{ as_char, err });
                 // Set empty glyph info for failed glyphs
                 self.glyphs[i] = GlyphInfo{
                     .advance = 0,
