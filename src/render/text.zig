@@ -181,18 +181,17 @@ pub const Renderer = struct {
         if (char < 32 or char > 127) {
             return;
         }
-        const pixel_scale = 1.0 / 24.0;
         const scale = 1.0 / @as(f32, FONT_SIZE);
         const glyph = self.glyphs[char];
         if (glyph.width > 0 and glyph.height > 0) {
             self.elements[self.count] = CharElement{
-                .instance_position = .{ x + glyph.bearing_x * scale, y - glyph.bearing_y * scale },
+                .instance_position = .{ x + glyph.bearing_x * scale, y + glyph.bearing_y * scale },
                 .glyph_size = .{ glyph.width * scale, glyph.height * scale },
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
                 .color = .{ 1.0, 1.0, 1.0, 1.0 },
-                .pixel_scale = pixel_scale,
+                .pixel_scale = PIXEL_SCALE,
             };
             self.count += 1;
         }
@@ -213,7 +212,8 @@ pub const Renderer = struct {
 
         var x: u32 = 0;
         var y: u32 = 0;
-        const max_height: u32 = FONT_SIZE + 8; // padding
+        const row_height: u32 = FONT_SIZE + 8; // padding
+        var max_height: u32 = 0;
 
         // Generate glyphs for ASCII characters 32-127
         for (32..128) |i| {
@@ -260,7 +260,7 @@ pub const Renderer = struct {
             // Check if we need to move to next row
             if (x + width > ATLAS_SIZE) {
                 x = 0;
-                y += max_height;
+                y += row_height;
                 if (y + height > ATLAS_SIZE) {
                     return error.AtlasFull;
                 }
@@ -281,7 +281,8 @@ pub const Renderer = struct {
 
             const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
             const bearing_x = @as(f32, @floatFromInt(hmetrics.left_side_bearing)) * scale;
-            const bearing_y = 0.0; // Will be calculated from font metrics
+            const bearing_y = 0.0; // will be calculated once max_height is known
+            max_height = @max(max_height, height);
 
             // Store glyph info
             self.glyphs[i] = GlyphInfo{
@@ -297,6 +298,10 @@ pub const Renderer = struct {
             };
 
             x += width + 1; // padding
+        }
+
+        for (&self.glyphs) |*glyph| {
+            glyph.bearing_y = @as(f32, @floatFromInt(max_height)) - glyph.height;
         }
 
         // Create texture
