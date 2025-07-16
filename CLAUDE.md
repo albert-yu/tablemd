@@ -16,10 +16,10 @@ web (WebAssembly) platforms.
 
 - **Development build (native)**: `zig build run`
 - **Web build (development)**:
-`zig build -Dtarget=wasm32-emscripten --release=small run`
+`zig build -Dtarget=wasm32-emscripten --release=safe run`
   - Note: There's currently a bug in Zig's wasm32-emscripten
   target where non-release builds complain about a missing base pointer,
-  so `--release=small` is required
+  so `--release=[mode]` is required
   - Automatically opens a browser window with the app running
 
 ### Deployment
