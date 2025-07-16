@@ -24,6 +24,15 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    const dep_truetype = b.dependency("TrueType", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const dep_zigimg = b.dependency("zigimg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -36,6 +45,14 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "zm",
                 .module = dep_zm.module("zm"),
+            },
+            .{
+                .name = "zigimg",
+                .module = dep_zigimg.module("zigimg"),
+            },
+            .{
+                .name = "TrueType",
+                .module = dep_truetype.module("TrueType"),
             },
             .{
                 .name = "quad_shader",
@@ -51,6 +68,14 @@ pub fn build(b: *Build) !void {
                     .module_name = "rect_shader",
                     .input_file = "src/shaders/rect.glsl",
                     .output_file = "rect_shader.zig",
+                }),
+            },
+            .{
+                .name = "text_shader",
+                .module = try createShaderModule(b, dep_sokol, .{
+                    .module_name = "text_shader",
+                    .input_file = "src/shaders/text.glsl",
+                    .output_file = "text_shader.zig",
                 }),
             },
         },
@@ -94,6 +119,10 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .use_emmalloc = true,
         .use_filesystem = false,
         .shell_file_path = b.path("src/web/shell.html"),
+        .extra_args = &.{
+            "-sUSE_OFFSET_CONVERTER",
+            "-sALLOW_MEMORY_GROWTH=1",
+        },
     });
     // attach Emscripten linker output to default install step
     b.getInstallStep().dependOn(&link_step.step);

@@ -5,9 +5,9 @@ const zm = @import("zm");
 const Vec2 = zm.Vec2f;
 const Vec3 = zm.Vec3f;
 
-const GRID_N = 1000;
+const GRID_N = 250;
 const POINTS_N = GRID_N * GRID_N;
-const GRID_DENSITY: comptime_float = 1.0 / 32.0;
+const GRID_DENSITY: comptime_float = 1.0 / 8.0;
 
 pub const RectDims = struct {
     width: f32,
