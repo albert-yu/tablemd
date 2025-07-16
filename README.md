@@ -14,7 +14,7 @@ Build and run.
 ```sh
 # there's currently a bug in zig's wasm32-emscripten target
 # where non-release builds complain about a missing base pointer
-zig build -Dtarget=wasm32-emscripten --release=small run
+zig build -Dtarget=wasm32-emscripten --release=safe run
 ```
 
 Will automatically open a browser window with the app running.
