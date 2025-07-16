@@ -159,7 +159,7 @@ pub const Renderer = struct {
         self.pip = sg.makePipeline(pip_desc);
     }
 
-    pub fn addChar(self: *Renderer, char: u8) void {
+    fn addChar(self: *Renderer, char: u8, x: f32, y: f32) void {
         if (self.count == CHAR_N) {
             return;
         }
@@ -168,8 +168,6 @@ pub const Renderer = struct {
         }
         const pixel_scale = 0.5;
         const scale = 1.0 / @as(f32, FONT_SIZE);
-        const x = 0.0;
-        const y = 0.0;
         const glyph = self.glyphs[char];
         if (glyph.width > 0 and glyph.height > 0) {
             self.elements[self.count] = CharElement{
@@ -182,6 +180,19 @@ pub const Renderer = struct {
                 .pixel_scale = pixel_scale,
             };
             self.count += 1;
+        }
+    }
+
+    pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
+        const scale = 1.0 / @as(f32, FONT_SIZE);
+        var current_x = x;
+
+        for (text) |char| {
+            if (char >= 32 and char <= 127) {
+                self.addChar(char, current_x, y);
+                const glyph = self.glyphs[char];
+                current_x += glyph.advance * scale;
+            }
         }
     }
 
