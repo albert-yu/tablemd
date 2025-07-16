@@ -64,10 +64,10 @@ pub const Renderer = struct {
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
             .data = sg.asRange(&[_]f32{
-                0, 0, 0, 0, // bottom-left, tex_coords(0,0)
-                1, 0, 1, 0, // bottom-right, tex_coords(1,0)
-                0, 1, 0, 1, // top-left, tex_coords(0,1)
-                1, 1, 1, 1, // top-right, tex_coords(1,1)
+                0, 0, // bottom-left
+                1, 0, // bottom-right
+                0, 1, // top-left
+                1, 1, // top-right
             }),
         });
 
@@ -78,6 +78,12 @@ pub const Renderer = struct {
                 0, 1, 2,
                 1, 2, 3,
             }),
+        });
+
+        // Setup instance buffer for character data
+        self.bind.vertex_buffers[1] = sg.makeBuffer(.{
+            .usage = .{ .stream_update = true },
+            .size = @sizeOf(CharElement) * CHAR_N,
         });
 
         // Setup texture binding
@@ -95,15 +101,42 @@ pub const Renderer = struct {
             .shader = sg.makeShader(shd_text.textShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
+                l.buffers[1].step_func = .PER_INSTANCE;
                 l.attrs[shd_text.ATTR_text_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
                     .offset = 0,
                 };
-                l.attrs[shd_text.ATTR_text_tex_coords] = .{
+                // Instance attributes (per-instance)
+                l.attrs[shd_text.ATTR_text_instance_position] = .{
                     .format = .FLOAT2,
-                    .buffer_index = 0,
-                    .offset = 8,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(CharElement, "instance_position"),
+                };
+                l.attrs[shd_text.ATTR_text_glyph_size] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(CharElement, "glyph_size"),
+                };
+                l.attrs[shd_text.ATTR_text_tex_offset] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(CharElement, "tex_offset"),
+                };
+                l.attrs[shd_text.ATTR_text_tex_size] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(CharElement, "tex_size"),
+                };
+                l.attrs[shd_text.ATTR_text_color] = .{
+                    .format = .FLOAT4,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(CharElement, "color"),
+                };
+                l.attrs[shd_text.ATTR_text_pixel_scale] = .{
+                    .format = .FLOAT,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(CharElement, "pixel_scale"),
                 };
                 break :init l;
             },
@@ -124,6 +157,32 @@ pub const Renderer = struct {
         };
 
         self.pip = sg.makePipeline(pip_desc);
+    }
+
+    pub fn addChar(self: *Renderer, char: u8) void {
+        if (self.count == CHAR_N) {
+            return;
+        }
+        if (char < 32 or char > 127) {
+            return;
+        }
+        const pixel_scale = 0.5;
+        const scale = 1.0 / @as(f32, FONT_SIZE);
+        const x = 0.0;
+        const y = 0.0;
+        const glyph = self.glyphs[char];
+        if (glyph.width > 0 and glyph.height > 0) {
+            self.elements[self.count] = CharElement{
+                .instance_position = .{ x + glyph.bearing_x * scale, y - glyph.bearing_y * scale },
+                .glyph_size = .{ glyph.width * scale, glyph.height * scale },
+                // tex offset/size are normalized to [0, 1]
+                .tex_offset = .{ glyph.tex_x, glyph.tex_y },
+                .tex_size = .{ glyph.tex_width, glyph.tex_height },
+                .color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .pixel_scale = pixel_scale,
+            };
+            self.count += 1;
+        }
     }
 
     fn createAtlas(self: *Renderer) !sg.Image {
@@ -240,11 +299,19 @@ pub const Renderer = struct {
         return sg.makeImage(img_desc);
     }
 
+    pub fn updateBuffer(self: Renderer) void {
+        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.count]));
+    }
+
+    pub fn clear(self: *Renderer) void {
+        self.count = 0;
+    }
+
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_text.UB_vs_params, vs_range);
-        sg.draw(0, 6, 1);
+        sg.draw(0, 6, @intCast(self.count));
     }
 
     pub fn cleanup(self: *Renderer) void {
