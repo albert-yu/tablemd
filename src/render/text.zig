@@ -27,10 +27,18 @@ const CharElement = struct {
     pixel_scale: f32,
 };
 
+/// Atlas size in pixels
 const ATLAS_SIZE = 512;
+
 /// This is the font size when rasterized to the atlas
 const FONT_SIZE = 48;
+
+/// Maximum number of characters that can be rendered
 const CHAR_N = 1024;
+
+/// Might be able to be derived from the GRID_N and GRID_DENSITY,
+/// but chosen with trial and error for now
+const PIXEL_SCALE = 1.0 / 24.0;
 
 pub const Renderer = struct {
     bind: sg.Bindings,
@@ -153,6 +161,19 @@ pub const Renderer = struct {
         self.pip = sg.makePipeline(pip_desc);
     }
 
+    pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
+        const scale = 1.0 / @as(f32, FONT_SIZE);
+        var current_x = x;
+
+        for (text) |char| {
+            if (char >= 32 and char <= 127) {
+                self.addChar(char, current_x, y);
+                const glyph = self.glyphs[char];
+                current_x += glyph.advance * scale;
+            }
+        }
+    }
+
     fn addChar(self: *Renderer, char: u8, x: f32, y: f32) void {
         if (self.count == CHAR_N) {
             return;
@@ -160,7 +181,6 @@ pub const Renderer = struct {
         if (char < 32 or char > 127) {
             return;
         }
-        // Might be able to be derived from the GRID_N and GRID_DENSITY
         const pixel_scale = 1.0 / 24.0;
         const scale = 1.0 / @as(f32, FONT_SIZE);
         const glyph = self.glyphs[char];
@@ -175,19 +195,6 @@ pub const Renderer = struct {
                 .pixel_scale = pixel_scale,
             };
             self.count += 1;
-        }
-    }
-
-    pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
-        const scale = 1.0 / @as(f32, FONT_SIZE);
-        var current_x = x;
-
-        for (text) |char| {
-            if (char >= 32 and char <= 127) {
-                self.addChar(char, current_x, y);
-                const glyph = self.glyphs[char];
-                current_x += glyph.advance * scale;
-            }
         }
     }
 
