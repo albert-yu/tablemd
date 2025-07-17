@@ -215,8 +215,39 @@ pub const Renderer = struct {
         const row_height: u32 = FONT_SIZE + 8; // padding
         var max_height: u32 = 0;
 
-        // Generate glyphs for ASCII characters 32-127
-        for (32..128) |i| {
+        // Handle space character (32) separately - no bitmap needed, just advance metrics
+        const space_glyph_index = font.codepointGlyphIndex(32);
+        if (space_glyph_index) |glyph_idx| {
+            const hmetrics = font.glyphHMetrics(glyph_idx);
+            const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
+            self.glyphs[32] = GlyphInfo{
+                .advance = advance,
+                .bearing_x = 0,
+                .bearing_y = 0,
+                .width = 0,
+                .height = 0,
+                .tex_x = 0,
+                .tex_y = 0,
+                .tex_width = 0,
+                .tex_height = 0,
+            };
+        } else {
+            // Fallback for missing space character
+            self.glyphs[32] = GlyphInfo{
+                .advance = @as(f32, FONT_SIZE) * 0.25, // Quarter of font size as fallback
+                .bearing_x = 0,
+                .bearing_y = 0,
+                .width = 0,
+                .height = 0,
+                .tex_x = 0,
+                .tex_y = 0,
+                .tex_width = 0,
+                .tex_height = 0,
+            };
+        }
+
+        // Generate glyphs for ASCII characters 33-127
+        for (33..128) |i| {
             const char = @as(u21, @intCast(i));
             const glyph_index = font.codepointGlyphIndex(char) orelse {
                 // Set empty glyph info for missing characters
