@@ -16,6 +16,20 @@ const GlyphInfo = struct {
     tex_y: f32,
     tex_width: f32,
     tex_height: f32,
+
+    pub fn empty() GlyphInfo {
+        return .{
+            .advance = 0,
+            .bearing_x = 0,
+            .bearing_y = 0,
+            .width = 0,
+            .height = 0,
+            .tex_x = 0,
+            .tex_y = 0,
+            .tex_width = 0,
+            .tex_height = 0,
+        };
+    }
 };
 
 const CharElement = struct {
@@ -251,17 +265,7 @@ pub const Renderer = struct {
             const char = @as(u21, @intCast(i));
             const glyph_index = font.codepointGlyphIndex(char) orelse {
                 // Set empty glyph info for missing characters
-                self.glyphs[i] = GlyphInfo{
-                    .advance = 0,
-                    .bearing_x = 0,
-                    .bearing_y = 0,
-                    .width = 0,
-                    .height = 0,
-                    .tex_x = 0,
-                    .tex_y = 0,
-                    .tex_width = 0,
-                    .tex_height = 0,
-                };
+                self.glyphs[i] = GlyphInfo.empty();
                 continue;
             };
 
@@ -273,17 +277,7 @@ pub const Renderer = struct {
                 const as_char = @as(u8, @intCast(char));
                 std.log.err("Failed to rasterize glyph \"{c}\": {}", .{ as_char, err });
                 // Set empty glyph info for failed glyphs
-                self.glyphs[i] = GlyphInfo{
-                    .advance = 0,
-                    .bearing_x = 0,
-                    .bearing_y = 0,
-                    .width = 0,
-                    .height = 0,
-                    .tex_x = 0,
-                    .tex_y = 0,
-                    .tex_width = 0,
-                    .tex_height = 0,
-                };
+                self.glyphs[i] = GlyphInfo.empty();
                 continue;
             };
 
