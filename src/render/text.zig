@@ -283,6 +283,8 @@ pub const Renderer = struct {
 
             const width = @as(u32, @intCast(dims.width));
             const height = @as(u32, @intCast(dims.height));
+            const off_x = dims.off_x;
+            const off_y = dims.off_y;
 
             // Check if we need to move to next row
             if (x + width > ATLAS_SIZE) {
@@ -307,8 +309,9 @@ pub const Renderer = struct {
             const hmetrics = font.glyphHMetrics(glyph_index);
 
             const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
-            const bearing_x = @as(f32, @floatFromInt(hmetrics.left_side_bearing)) * scale;
-            const bearing_y = 0.0; // will be calculated once max_height is known
+            // Use off_x and off_y from dims for proper glyph positioning
+            const bearing_x = @as(f32, @floatFromInt(off_x));
+            const bearing_y = @as(f32, @floatFromInt(off_y));
             max_height = @max(max_height, height);
 
             // Store glyph info
@@ -327,9 +330,6 @@ pub const Renderer = struct {
             x += width + 1; // padding
         }
 
-        for (&self.glyphs) |*glyph| {
-            glyph.bearing_y = @as(f32, @floatFromInt(max_height)) - glyph.height;
-        }
 
         // Create texture
         var img_desc: sg.ImageDesc = .{
