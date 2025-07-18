@@ -104,7 +104,8 @@ export fn frame() void {
         .sigma = 1e-6,
     });
     state.rect_renderer.updateBuffer();
-    state.text_renderer.addText("hello, world! good day", 0.0, 0.0);
+    state.text_renderer.addText("hello, world! good day", rect_w, rect_h);
+    state.text_renderer.addText("the quick brown fox jumps over the lazy dog", 2 * rect_w, 2 * rect_h);
     state.text_renderer.updateBuffer();
 
     const vs_params = state.t.computeVSParams();
@@ -135,12 +136,15 @@ pub fn main() void {
         .event_cb = input,
         .width = 2 * WIDTH_START,
         .height = 2 * HEIGHT_START,
-        .icon = .{ .sokol_default = true },
         .window_title = "tablemd",
         .logger = .{ .func = slog.func },
         // .sample_count = 4,
         .high_dpi = true,
     });
+}
+
+export fn add(a: i32, b: i32) i32 {
+    return a + b;
 }
 
 export fn input(ev: ?*const sapp.Event) void {

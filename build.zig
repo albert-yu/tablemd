@@ -122,6 +122,9 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .extra_args = &.{
             "-sUSE_OFFSET_CONVERTER",
             "-sALLOW_MEMORY_GROWTH=1",
+            // Need to include Sokol's original entry point (main),
+            // because specifying this flag overrides the original
+            "-sEXPORTED_FUNCTIONS=_add,_main",
         },
     });
     // attach Emscripten linker output to default install step

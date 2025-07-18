@@ -52,6 +52,11 @@
                     text = Array.prototype.slice.call(arguments).join(" ");
                     console.error(text);
                 },
+                onRuntimeInitialized: function() {
+                    // Call the exported add function from Zig
+                    const result = Module._add(5, 3);
+                    console.log("Zig add(5, 3) = " + result);
+                }
             };
             window.onerror = function () {
                 console.log("onerror: " + event.message);
