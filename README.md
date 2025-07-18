@@ -1,8 +1,8 @@
 # tablemd
 
-A simple markdown table editor. Intended to be:
+A simple markdown table editor. Intended to have:
 
-- Easy to use
+- Frictionless user input
 - Fast startup time
 
 ## Development
