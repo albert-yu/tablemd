@@ -176,11 +176,13 @@ pub const Renderer = struct {
     }
 
     pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
-        var current_x = x;
+        const scaled_x = x / PIXEL_SCALE;
+        const scaled_y = y / PIXEL_SCALE;
+        var current_x = scaled_x;
 
         for (text) |char| {
             if (char >= 32 and char <= 127) {
-                self.addChar(char, current_x, y);
+                self.addChar(char, current_x, scaled_y);
                 const glyph = self.glyphs[char];
                 current_x += glyph.advance;
             }
@@ -195,7 +197,6 @@ pub const Renderer = struct {
             return;
         }
         const glyph = self.glyphs[char];
-        // chosen through trial and error
         if (glyph.width > 0 and glyph.height > 0) {
             self.elements[self.count] = CharElement{
                 .instance_position = .{
