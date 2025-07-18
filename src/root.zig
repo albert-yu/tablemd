@@ -135,7 +135,6 @@ pub fn main() void {
         .event_cb = input,
         .width = 2 * WIDTH_START,
         .height = 2 * HEIGHT_START,
-        .icon = .{ .sokol_default = true },
         .window_title = "tablemd",
         .logger = .{ .func = slog.func },
         // .sample_count = 4,
