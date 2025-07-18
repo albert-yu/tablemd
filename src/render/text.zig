@@ -292,7 +292,7 @@ pub const Renderer = struct {
             if (x + width > ATLAS_SIZE) {
                 x = 0;
                 y += row_height;
-                if (y + height > ATLAS_SIZE) {
+                if (y + row_height > ATLAS_SIZE) {
                     return error.AtlasFull;
                 }
             }
