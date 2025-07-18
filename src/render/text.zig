@@ -197,9 +197,14 @@ pub const Renderer = struct {
         }
         const scale = 1.0 / @as(f32, FONT_SIZE);
         const glyph = self.glyphs[char];
+        // chosen through trial and error
+        const ADJUST_Y = 0.65;
         if (glyph.width > 0 and glyph.height > 0) {
             self.elements[self.count] = CharElement{
-                .instance_position = .{ x + glyph.bearing_x * scale, y + glyph.bearing_y * scale },
+                .instance_position = .{
+                    x + glyph.bearing_x * scale,
+                    y + ADJUST_Y + glyph.bearing_y * scale,
+                },
                 .glyph_size = .{ glyph.width * scale, glyph.height * scale },
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
