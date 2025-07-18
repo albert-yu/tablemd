@@ -104,7 +104,7 @@ export fn frame() void {
         .sigma = 1e-6,
     });
     state.rect_renderer.updateBuffer();
-    state.text_renderer.addText("hello, world! good day", 0.0, 0.0);
+    state.text_renderer.addText("hello, world! good day", rect_w, rect_h);
     state.text_renderer.updateBuffer();
 
     const vs_params = state.t.computeVSParams();
