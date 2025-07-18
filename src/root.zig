@@ -214,7 +214,7 @@ fn translate(k: f32, p0: Vec2, p1: Vec2) Vec2 {
 
 fn zoomWheelDelta(event: *const sapp.Event) f32 {
     if ((event.modifiers & sapp.modifier_ctrl) != 0) {
-        return 0.2;
+        return 0.25;
     } else {
         return 0.05;
     }
