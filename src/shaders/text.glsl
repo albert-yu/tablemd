@@ -37,7 +37,7 @@ out vec4 frag_color;
 
 void main() {
     vec4 sampled = texture(sampler2D(tex, smp), v_tex_coords);
-    frag_color = vec4(v_color.rgb * sampled.r, sampled.r);
+    frag_color = sampled.r * vec4(v_color);
 }
 @end
 
