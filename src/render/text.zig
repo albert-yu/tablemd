@@ -52,7 +52,7 @@ const CHAR_N = 1024;
 
 /// Might be able to be derived from the GRID_N and GRID_DENSITY,
 /// but chosen with trial and error for now
-const PIXEL_SCALE = 1.0 / 1024.0;
+const PIXEL_SCALE = 1.0 / 1500.0;
 
 pub const Renderer = struct {
     bind: sg.Bindings,
@@ -176,8 +176,11 @@ pub const Renderer = struct {
     }
 
     pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
+        // this is a hack to make sure the text doesn't bleed
+        // down into the next row
+        const manual_adjust_y = -10.0;
         const scaled_x = x / PIXEL_SCALE;
-        const scaled_y = y / PIXEL_SCALE;
+        const scaled_y = y / PIXEL_SCALE + manual_adjust_y;
         var current_x = scaled_x;
 
         for (text) |char| {
@@ -292,7 +295,7 @@ pub const Renderer = struct {
             if (x + width > ATLAS_SIZE) {
                 x = 0;
                 y += row_height;
-                if (y + height > ATLAS_SIZE) {
+                if (y + row_height > ATLAS_SIZE) {
                     return error.AtlasFull;
                 }
             }
