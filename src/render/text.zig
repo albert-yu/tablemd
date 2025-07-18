@@ -16,6 +16,20 @@ const GlyphInfo = struct {
     tex_y: f32,
     tex_width: f32,
     tex_height: f32,
+
+    pub fn empty() GlyphInfo {
+        return .{
+            .advance = 0,
+            .bearing_x = 0,
+            .bearing_y = 0,
+            .width = 0,
+            .height = 0,
+            .tex_x = 0,
+            .tex_y = 0,
+            .tex_width = 0,
+            .tex_height = 0,
+        };
+    }
 };
 
 const CharElement = struct {
@@ -183,14 +197,19 @@ pub const Renderer = struct {
         }
         const scale = 1.0 / @as(f32, FONT_SIZE);
         const glyph = self.glyphs[char];
+        // chosen through trial and error
+        const ADJUST_Y = 0.65;
         if (glyph.width > 0 and glyph.height > 0) {
             self.elements[self.count] = CharElement{
-                .instance_position = .{ x + glyph.bearing_x * scale, y + glyph.bearing_y * scale },
+                .instance_position = .{
+                    x + glyph.bearing_x * scale,
+                    y + ADJUST_Y + glyph.bearing_y * scale,
+                },
                 .glyph_size = .{ glyph.width * scale, glyph.height * scale },
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
-                .color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .color = .{ 0.0, 1.0, 0.0, 1.0 },
                 .pixel_scale = PIXEL_SCALE,
             };
             self.count += 1;
@@ -215,22 +234,43 @@ pub const Renderer = struct {
         const row_height: u32 = FONT_SIZE + 8; // padding
         var max_height: u32 = 0;
 
-        // Generate glyphs for ASCII characters 32-127
-        for (32..128) |i| {
+        // Handle space character (32) separately - no bitmap needed, just advance metrics
+        const space_glyph_index = font.codepointGlyphIndex(32);
+        if (space_glyph_index) |glyph_idx| {
+            const hmetrics = font.glyphHMetrics(glyph_idx);
+            const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
+            self.glyphs[32] = GlyphInfo{
+                .advance = advance,
+                .bearing_x = 0,
+                .bearing_y = 0,
+                .width = 0,
+                .height = 0,
+                .tex_x = 0,
+                .tex_y = 0,
+                .tex_width = 0,
+                .tex_height = 0,
+            };
+        } else {
+            // Fallback for missing space character
+            self.glyphs[32] = GlyphInfo{
+                .advance = @as(f32, FONT_SIZE) * 0.25, // Quarter of font size as fallback
+                .bearing_x = 0,
+                .bearing_y = 0,
+                .width = 0,
+                .height = 0,
+                .tex_x = 0,
+                .tex_y = 0,
+                .tex_width = 0,
+                .tex_height = 0,
+            };
+        }
+
+        // Generate glyphs for ASCII characters 33-127
+        for (33..128) |i| {
             const char = @as(u21, @intCast(i));
             const glyph_index = font.codepointGlyphIndex(char) orelse {
                 // Set empty glyph info for missing characters
-                self.glyphs[i] = GlyphInfo{
-                    .advance = 0,
-                    .bearing_x = 0,
-                    .bearing_y = 0,
-                    .width = 0,
-                    .height = 0,
-                    .tex_x = 0,
-                    .tex_y = 0,
-                    .tex_width = 0,
-                    .tex_height = 0,
-                };
+                self.glyphs[i] = GlyphInfo.empty();
                 continue;
             };
 
@@ -242,22 +282,14 @@ pub const Renderer = struct {
                 const as_char = @as(u8, @intCast(char));
                 std.log.err("Failed to rasterize glyph \"{c}\": {}", .{ as_char, err });
                 // Set empty glyph info for failed glyphs
-                self.glyphs[i] = GlyphInfo{
-                    .advance = 0,
-                    .bearing_x = 0,
-                    .bearing_y = 0,
-                    .width = 0,
-                    .height = 0,
-                    .tex_x = 0,
-                    .tex_y = 0,
-                    .tex_width = 0,
-                    .tex_height = 0,
-                };
+                self.glyphs[i] = GlyphInfo.empty();
                 continue;
             };
 
             const width = @as(u32, @intCast(dims.width));
             const height = @as(u32, @intCast(dims.height));
+            const off_x = dims.off_x;
+            const off_y = dims.off_y;
 
             // Check if we need to move to next row
             if (x + width > ATLAS_SIZE) {
@@ -282,8 +314,9 @@ pub const Renderer = struct {
             const hmetrics = font.glyphHMetrics(glyph_index);
 
             const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
-            const bearing_x = @as(f32, @floatFromInt(hmetrics.left_side_bearing)) * scale;
-            const bearing_y = 0.0; // will be calculated once max_height is known
+            // Use off_x and off_y from dims for proper glyph positioning
+            const bearing_x = @as(f32, @floatFromInt(off_x));
+            const bearing_y = @as(f32, @floatFromInt(off_y));
             max_height = @max(max_height, height);
 
             // Store glyph info
@@ -300,10 +333,6 @@ pub const Renderer = struct {
             };
 
             x += width + 1; // padding
-        }
-
-        for (&self.glyphs) |*glyph| {
-            glyph.bearing_y = @as(f32, @floatFromInt(max_height)) - glyph.height;
         }
 
         // Create texture
