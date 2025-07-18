@@ -229,7 +229,6 @@ pub const Renderer = struct {
         var x: u32 = 0;
         var y: u32 = 0;
         const row_height: u32 = FONT_SIZE + 8; // padding
-        var max_height: u32 = 0;
 
         // Handle space character (32) separately - no bitmap needed, just advance metrics
         const space_glyph_index = font.codepointGlyphIndex(32);
@@ -314,7 +313,6 @@ pub const Renderer = struct {
             // Use off_x and off_y from dims for proper glyph positioning
             const bearing_x = @as(f32, @floatFromInt(off_x));
             const bearing_y = @as(f32, @floatFromInt(off_y));
-            max_height = @max(max_height, height);
 
             // Store glyph info
             self.glyphs[i] = GlyphInfo{
