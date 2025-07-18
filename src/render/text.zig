@@ -52,7 +52,7 @@ const CHAR_N = 1024;
 
 /// Might be able to be derived from the GRID_N and GRID_DENSITY,
 /// but chosen with trial and error for now
-const PIXEL_SCALE = 1.0 / 24.0;
+const PIXEL_SCALE = 1.0 / 1024.0;
 
 pub const Renderer = struct {
     bind: sg.Bindings,
@@ -176,14 +176,13 @@ pub const Renderer = struct {
     }
 
     pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
-        const scale = 1.0 / @as(f32, FONT_SIZE);
         var current_x = x;
 
         for (text) |char| {
             if (char >= 32 and char <= 127) {
                 self.addChar(char, current_x, y);
                 const glyph = self.glyphs[char];
-                current_x += glyph.advance * scale;
+                current_x += glyph.advance;
             }
         }
     }
@@ -195,17 +194,15 @@ pub const Renderer = struct {
         if (char < 32 or char > 127) {
             return;
         }
-        const scale = 1.0 / @as(f32, FONT_SIZE);
         const glyph = self.glyphs[char];
         // chosen through trial and error
-        const ADJUST_Y = 0.65;
         if (glyph.width > 0 and glyph.height > 0) {
             self.elements[self.count] = CharElement{
                 .instance_position = .{
-                    x + glyph.bearing_x * scale,
-                    y + ADJUST_Y + glyph.bearing_y * scale,
+                    x + glyph.bearing_x,
+                    y + glyph.bearing_y,
                 },
-                .glyph_size = .{ glyph.width * scale, glyph.height * scale },
+                .glyph_size = .{ glyph.width, glyph.height },
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
