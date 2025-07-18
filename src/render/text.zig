@@ -204,7 +204,7 @@ pub const Renderer = struct {
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
-                .color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .color = .{ 0.0, 1.0, 0.0, 1.0 },
                 .pixel_scale = PIXEL_SCALE,
             };
             self.count += 1;
@@ -329,7 +329,6 @@ pub const Renderer = struct {
 
             x += width + 1; // padding
         }
-
 
         // Create texture
         var img_desc: sg.ImageDesc = .{

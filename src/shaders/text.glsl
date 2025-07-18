@@ -16,12 +16,14 @@ in vec4 color;
 in float pixel_scale;
 
 out vec2 v_tex_coords;
+out vec4 v_color;
 
 void main() {
     mat4 t = untransform * zoom * window_scale;
     vec2 scaled_pos = (position * glyph_size + instance_position) * pixel_scale;
     gl_Position = t * vec4(scaled_pos, 0.0, 1.0);
     v_tex_coords = position * tex_size + tex_offset;
+    v_color = color;
 }
 @end
 
@@ -30,11 +32,12 @@ layout(binding=0) uniform texture2D tex;
 layout(binding=0) uniform sampler smp;
 
 in vec2 v_tex_coords;
+in vec4 v_color;
 out vec4 frag_color;
 
 void main() {
     vec4 sampled = texture(sampler2D(tex, smp), v_tex_coords);
-    frag_color = vec4(1.0, 1.0, 1.0, sampled.r);
+    frag_color = vec4(v_color.rgb * sampled.r, sampled.r);
 }
 @end
 
