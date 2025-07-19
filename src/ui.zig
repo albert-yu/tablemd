@@ -227,11 +227,13 @@ pub const Cursor = union(CursorType) {
 pub const UI = struct {
     tables: ArrayList(Table),
     active_cursor: Cursor,
+    units: Units,
 
-    pub fn init(allocator: Allocator) UI {
+    pub fn init(allocator: Allocator, units: Units) UI {
         return .{
             .tables = ArrayList(Table).initCapacity(allocator, 0) catch unreachable,
             .active_cursor = .{ .cell = .{} },
+            .units = units,
         };
     }
 

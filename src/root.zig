@@ -81,7 +81,6 @@ export fn init() void {
     };
 
     state.scene = Scene.init(state.allocator);
-    state.ui = UI.init(state.allocator);
 
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
@@ -97,6 +96,10 @@ export fn init() void {
         return;
     };
     state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
+    state.ui = UI.init(state.allocator, .{
+        .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
+        .text = .{ .width = text_width, .height = rect_dims.height },
+    });
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
