@@ -36,7 +36,7 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            width: 300px;
+            width: 500px;
             height: calc(100vh - 40px);
             background-color: rgba(40, 40, 40, 0.9);
             border: rgba(120, 120, 120, 0.9) solid 1px;
@@ -51,6 +51,7 @@
             flex-direction: column;
             gap: 20px;
         }
+
         .code-section {
             flex: 1;
             background-color: rgba(60, 60, 60, 0.8);
@@ -70,17 +71,17 @@
         <div class="code-section">
             const result = add(5, 3);
             console.log("Result:", result);
-            
+
             // Initialize renderer
             state.setup();
         </div>
         <div class="code-section">
             fn handleInput(event: Event) void {
-                switch (event.type) {
-                    .CHAR => logToConsole(char),
-                    .MOUSE_MOVE => updateMouse(),
-                    else => {},
-                }
+            switch (event.type) {
+            .CHAR => logToConsole(char),
+            .MOUSE_MOVE => updateMouse(),
+            else => {},
+            }
             }
         </div>
     </div>
