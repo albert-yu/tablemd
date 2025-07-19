@@ -4,6 +4,8 @@ const sokol = @import("sokol");
 
 // External JavaScript function for console logging
 extern fn console_log(ptr: [*]const u8, len: usize) void;
+extern fn set_html_render(ptr: [*]const u8, len: usize) void;
+extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -160,6 +162,22 @@ fn logToConsole(message: []const u8) void {
     }
 }
 
+fn setHtmlRender(html: []const u8) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        set_html_render(html.ptr, html.len);
+    } else {
+        std.log.info("html:\n{s}", .{html});
+    }
+}
+
+fn setMarkdownSource(markdown: []const u8) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        set_markdown_source(markdown.ptr, markdown.len);
+    } else {
+        std.log.info("markdown:\n{s}", .{markdown});
+    }
+}
+
 export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
     switch (event.type) {
@@ -194,10 +212,12 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .CHAR => {
             if (isPrintableChar(event.char_code)) {
-                var buffer: [8]u8 = undefined;
-                const len = std.unicode.utf8Encode(@intCast(event.char_code), &buffer) catch 0;
-                const char_str = buffer[0..len];
-                logToConsole(char_str);
+                // var buffer: [8]u8 = undefined;
+                // const len = std.unicode.utf8Encode(@intCast(event.char_code), &buffer) catch 0;
+                // const char_str = buffer[0..len];
+                // logToConsole(char_str);
+                setMarkdownSource("# Test markdown\n\nHello, world!\n\n");
+                setHtmlRender("<h1>Test html</h1>");
             }
         },
         else => {},
