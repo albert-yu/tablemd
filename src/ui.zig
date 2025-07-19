@@ -268,7 +268,7 @@ pub const UI = struct {
         self.tables.deinit(allocator);
     }
 
-    pub fn handeMouseDown(self: *UI, p: Vec2) void {
+    pub fn handleMouseDown(self: *UI, p: Vec2) void {
         self.active_cursor = self.getCursor(p);
     }
 

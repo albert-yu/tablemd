@@ -235,7 +235,7 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_DOWN => {
             const normalized_p = getPointForUI(state.mouse[0]);
-            state.ui.handeMouseDown(normalized_p);
+            state.ui.handleMouseDown(normalized_p);
         },
         .TOUCHES_BEGAN => {
             handleTouchBegan(event);
