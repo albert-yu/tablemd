@@ -421,12 +421,6 @@ fn normalizePt(p: Vec2) Vec2 {
     return Vec2{ grid_x, grid_y };
 }
 
-fn getCellPosition(normalized_p: Vec2) CellPosition {
-    const row = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[1]);
-    const col = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[0]);
-    return .{ .row = row, .col = col };
-}
-
 fn isPrintableChar(char_code: u32) bool {
     return char_code >= 32 and char_code <= 126;
 }
