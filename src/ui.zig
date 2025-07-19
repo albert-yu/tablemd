@@ -70,13 +70,12 @@ pub const Table = struct {
     position: Position,
     columns: ArrayList(Column),
     allocator: Allocator,
-    next_id: u32,
 
     pub fn init(allocator: Allocator) Table {
         return Table{
+            .position = .{ .left = 0, .top = 0 },
             .columns = ArrayList(Column).initCapacity(allocator, 0) catch unreachable,
             .allocator = allocator,
-            .next_id = 1,
         };
     }
 
