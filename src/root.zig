@@ -8,7 +8,6 @@ extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 
 const Scene = ui.Scene;
-const Table = ui.Table;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -29,8 +28,6 @@ const CellPosition = struct {
     row: usize,
     col: usize,
 };
-
-const MAX_TABLES = 100;
 
 const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
 
@@ -66,7 +63,6 @@ const state = struct {
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
     var scene: Scene = undefined;
-    var tables: [MAX_TABLES]Table = undefined;
 };
 
 export fn init() void {
