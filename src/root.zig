@@ -242,6 +242,10 @@ export fn input(ev: ?*const sapp.Event) void {
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
         },
+        .MOUSE_DOWN => {
+            const normalized_p = getPointForUI(state.mouse[0]);
+            state.ui.handeMouseDown(normalized_p);
+        },
         .TOUCHES_BEGAN => {
             handleTouchBegan(event);
         },
