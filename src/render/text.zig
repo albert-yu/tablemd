@@ -183,7 +183,8 @@ pub const Renderer = struct {
         return advance_width;
     }
 
-    pub fn addText(self: *Renderer, element: TextElement) void {
+    /// Assumes that all characters are on the same line
+    pub fn addLine(self: *Renderer, element: TextElement) void {
         const text = element.text;
         const x = element.x;
         const y = element.y;

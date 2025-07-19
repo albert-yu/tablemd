@@ -135,7 +135,7 @@ export fn frame() void {
     }
     state.rect_renderer.updateBuffer();
     for (state.scene.texts.items) |text| {
-        state.text_renderer.addText(text);
+        state.text_renderer.addLine(text);
     }
     state.text_renderer.updateBuffer();
 
