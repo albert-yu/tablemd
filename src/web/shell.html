@@ -1,67 +1,86 @@
 <!doctype html>
 <html lang="en-us">
-    <head>
-        <meta charset="utf-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-        />
-        <title>tablemd</title>
-        <style>
-            body {
-                margin: 0;
-                background-color: black;
-            }
-            .game {
-                position: absolute;
-                top: 0px;
-                left: 0px;
-                margin: 0px;
-                border: 0;
-                width: 100%;
-                height: 100%;
-                overflow: hidden;
-                display: block;
-                image-rendering: optimizeSpeed;
-                image-rendering: -moz-crisp-edges;
-                image-rendering: -o-crisp-edges;
-                image-rendering: -webkit-optimize-contrast;
-                image-rendering: optimize-contrast;
-                image-rendering: crisp-edges;
-                image-rendering: pixelated;
-                -ms-interpolation-mode: nearest-neighbor;
-            }
-        </style>
-    </head>
-    <body>
-        <canvas
-            class="game"
-            id="canvas"
-            oncontextmenu="event.preventDefault()"
-        ></canvas>
-        <script type="text/javascript">
-            var Module = {
-                preRun: [],
-                print: (function () {
-                    return function (text) {
-                        text = Array.prototype.slice.call(arguments).join(" ");
-                        console.log(text);
-                    };
-                })(),
-                printErr: function (text) {
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+    <title>tablemd</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: black;
+        }
+
+        .game {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            margin: 0px;
+            border: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: block;
+            image-rendering: optimizeSpeed;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -o-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: optimize-contrast;
+            image-rendering: crisp-edges;
+            image-rendering: pixelated;
+            -ms-interpolation-mode: nearest-neighbor;
+        }
+
+        .side-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            height: calc(100vh - 40px);
+            background-color: rgba(40, 40, 40, 0.9);
+            border: rgba(120, 120, 120, 0.9) solid 1px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <div class="side-panel">
+        <h3>TableMD Panel</h3>
+        <p>This is a floating side panel</p>
+    </div>
+    <script type="text/javascript">
+        var Module = {
+            preRun: [],
+            print: (function () {
+                return function (text) {
                     text = Array.prototype.slice.call(arguments).join(" ");
-                    console.error(text);
-                },
-                onRuntimeInitialized: function() {
-                    // Call the exported add function from Zig
-                    const result = Module._add(5, 3);
-                    console.log("Zig add(5, 3) = " + result);
-                }
-            };
-            window.onerror = function () {
-                console.log("onerror: " + event.message);
-            };
-        </script>
-        {{{ SCRIPT }}}
-    </body>
+                    console.log(text);
+                };
+            })(),
+            printErr: function (text) {
+                text = Array.prototype.slice.call(arguments).join(" ");
+                console.error(text);
+            },
+            onRuntimeInitialized: function () {
+                // Call the exported add function from Zig
+                const result = Module._add(5, 3);
+                console.log("Zig add(5, 3) = " + result);
+            }
+        };
+        window.onerror = function () {
+            console.log("onerror: " + event.message);
+        };
+    </script>
+    {{{ SCRIPT }}}
+</body>
+
 </html>
