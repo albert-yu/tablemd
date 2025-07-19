@@ -125,6 +125,8 @@ fn buildWeb(b: *Build, opts: Options) !void {
             // Need to include Sokol's original entry point (main),
             // because specifying this flag overrides the original
             "-sEXPORTED_FUNCTIONS=_add,_main",
+            "-sEXPORTED_RUNTIME_METHODS=UTF8ToString",
+            "--js-library=src/web/library.js",
         },
     });
     // attach Emscripten linker output to default install step

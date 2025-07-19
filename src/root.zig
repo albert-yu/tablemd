@@ -1,6 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
+
+// External JavaScript function for console logging
+extern fn console_log(ptr: [*]const u8, len: usize) void;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -52,6 +55,8 @@ const state = struct {
 };
 
 export fn init() void {
+    logToConsole("hello");
+
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -145,6 +150,14 @@ pub fn main() void {
 
 export fn add(a: i32, b: i32) i32 {
     return a + b;
+}
+
+fn logToConsole(message: []const u8) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        console_log(message.ptr, message.len);
+    } else {
+        std.log.info("{s}", .{message});
+    }
 }
 
 export fn input(ev: ?*const sapp.Event) void {
