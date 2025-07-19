@@ -72,7 +72,11 @@ const Cell = struct {
     }
 
     pub fn addSelfToScene(self: Cell, scene: *Scene, units: Units, position: PosVec2) !void {
-        var pos_y = position.y;
+        // This is addition is here because otherwise, the
+        // text starts above the first row. Reason being that
+        // the text bearing_y is negative and pulls the text
+        // upwards
+        var pos_y = position.y + units.cell.height;
         var i: usize = 0;
         var start: usize = i;
         while (i < self.value.len) : (i += 1) {
