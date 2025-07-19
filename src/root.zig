@@ -52,6 +52,10 @@ const state = struct {
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
     var allocator: std.mem.Allocator = undefined;
+    // This is here so that deinit can deallocate.
+    // For practical purposes, we do not need to
+    // deallocate on shutdown, but we can leave this
+    // here to make sure we don't leak memory.
     var gpa: ?std.heap.GeneralPurposeAllocator(.{}) = null;
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
@@ -164,7 +168,12 @@ export fn cleanup() void {
 
     // Clean up GPA if we created one
     if (state.gpa) |*gpa| {
-        _ = gpa.deinit();
+        const deinit_status = gpa.deinit();
+        if (deinit_status == .leak) {
+            std.log.err("Memory leak detected!", .{});
+        } else {
+            std.log.info("No memory leaks detected.", .{});
+        }
     }
 }
 
