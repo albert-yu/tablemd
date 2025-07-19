@@ -120,6 +120,9 @@ export fn frame() void {
     state.scene.rects.append(state.allocator, hover_rect) catch |err| {
         std.log.err("Failed to add hover rect: {}", .{err});
     };
+    state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
+        std.log.err("Failed to add UI to scene: {}", .{err});
+    };
     state.scene.texts.append(state.allocator, .{
         .text = "hello, world! good day",
         .x = rect_w,

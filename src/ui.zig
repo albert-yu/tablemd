@@ -65,7 +65,7 @@ const Cell = struct {
         const text_units = units.text;
         var height: f32 = 0.0;
         var width: f32 = 0.0;
-        var curr_line_width = 0.0;
+        var curr_line_width: f32 = 0.0;
         for (self.value) |char| {
             if (char == '\n') {
                 width = @max(width, curr_line_width);
@@ -79,7 +79,7 @@ const Cell = struct {
         return .{ .width = container_width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Cell, scene: *Scene, units: Units, position: PosVec2) !void {
+    pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
         // This is addition is here because otherwise, the
         // text starts above the first row. Reason being that
         // the text bearing_y is negative and pulls the text
@@ -91,7 +91,7 @@ const Cell = struct {
             const char = self.value[i];
             if (char == '\n') {
                 // send the current line to the scene
-                try scene.texts.append(self.allocator, .{
+                try scene.texts.append(allocator, .{
                     .text = self.value[start..i],
                     .x = position.x,
                     .y = pos_y,
@@ -103,7 +103,7 @@ const Cell = struct {
             }
         }
         if (start < self.value.len) {
-            try scene.texts.append(self.allocator, .{
+            try scene.texts.append(allocator, .{
                 .text = self.value[start..self.value.len],
                 .x = position.x,
                 .y = pos_y,
@@ -132,7 +132,7 @@ const Column = struct {
         self.data.deinit(self.allocator);
     }
 
-    pub fn size(self: *Column, units: Units) Size2D {
+    pub fn size(self: Column, units: Units) Size2D {
         var width: f32 = 0.0;
         var height: f32 = 0.0;
         for (self.data.items) |cell| {
@@ -143,11 +143,11 @@ const Column = struct {
         return .{ .width = width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Column, scene: *Scene, units: Units, position: PosVec2) !void {
+    pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
         var pos_y = position.y;
         for (self.data.items) |cell| {
             const cell_dims = cell.size(units);
-            try cell.addSelfToScene(scene, units, .{
+            try cell.addSelfToScene(scene, allocator, units, .{
                 .x = position.x,
                 .y = pos_y,
             });
@@ -176,7 +176,7 @@ pub const Table = struct {
         self.columns.deinit(self.allocator);
     }
 
-    pub fn size(self: *Table, units: Units) Size2D {
+    pub fn size(self: Table, units: Units) Size2D {
         var width: f32 = 0.0;
         var height: f32 = 0.0;
         for (self.columns.items) |column| {
@@ -187,13 +187,13 @@ pub const Table = struct {
         return .{ .width = width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Table, scene: *Scene, units: Units) !void {
+    pub fn addSelfToScene(self: Table, scene: *Scene, allocator: Allocator, units: Units) !void {
         const cell_units = units.cell;
-        const actual_position_x = self.position.left * cell_units.width;
-        const actual_position_y = self.position.top * cell_units.height;
+        const actual_position_x = @as(f32, @floatFromInt(self.position.left)) * cell_units.width;
+        const actual_position_y = @as(f32, @floatFromInt(self.position.top)) * cell_units.height;
         const rect_size = self.size(units);
         const corner = 1.0 / 512.0;
-        try scene.rects.append(self.allocator, .{
+        try scene.rects.append(allocator, .{
             .color = .{ 0.0, 0.0, 0.0, 1.0 },
             .x = actual_position_x,
             .y = actual_position_y,
@@ -206,14 +206,12 @@ pub const Table = struct {
         var pos_x = actual_position_x;
         for (self.columns.items) |column| {
             const col_size = column.size(units);
-            try column.addSelfToScene(scene, units, .{
+            try column.addSelfToScene(scene, allocator, units, .{
                 .x = pos_x,
                 .y = actual_position_y,
             });
             pos_x += col_size.width;
         }
-
-        return scene;
     }
 };
 
@@ -280,12 +278,12 @@ pub const UI = struct {
         return Cursor{ .cell = cell_pos };
     }
 
-    pub fn addSelfToScene(self: UI, scene: *Scene) !void {
+    pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(self.allocator, cursor.getRect(self.units));
+            try scene.rects.append(allocator, cursor.getRect(self.units));
         }
         for (self.tables.items) |table| {
-            try table.addSelfToScene(scene, self.units);
+            try table.addSelfToScene(scene, allocator, self.units);
         }
     }
 
