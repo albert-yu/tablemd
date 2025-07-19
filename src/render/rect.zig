@@ -78,7 +78,7 @@ pub const Renderer = struct {
                     .buffer_index = 1,
                 };
                 l.attrs[shd_rect.ATTR_rect_sigma] = .{
-                    .format = .FLOAT2,
+                    .format = .FLOAT,
                     .buffer_index = 1,
                 };
                 break :init l;
