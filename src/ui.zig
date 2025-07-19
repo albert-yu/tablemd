@@ -44,14 +44,14 @@ pub const PosVec2 = struct {
 };
 
 pub const GridPos = struct {
-    left: usize,
-    top: usize,
+    left: usize = 0,
+    top: usize = 0,
 };
 
 pub const GridPosText = struct {
-    left: usize,
-    top: usize,
-    char_offset: usize,
+    left: usize = 0,
+    top: usize = 0,
+    char_offset: ?usize = null,
 };
 
 const Cell = struct {
@@ -212,4 +212,19 @@ pub const Table = struct {
 
         return scene;
     }
+};
+
+pub const CursorType = enum {
+    cell,
+    text,
+};
+
+pub const Cursor = union(CursorType) {
+    cell: GridPos,
+    text: GridPosText,
+};
+
+pub const UI = struct {
+    tables: ArrayList(Table),
+    active_cursor: Cursor,
 };
