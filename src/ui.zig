@@ -25,9 +25,14 @@ pub const Scene = struct {
         };
     }
 
-    pub fn deinit(self: *Scene) void {
-        self.rects.deinit(self.allocator);
-        self.texts.deinit(self.allocator);
+    pub fn deinit(self: *Scene, allocator: Allocator) void {
+        self.rects.deinit(allocator);
+        self.texts.deinit(allocator);
+    }
+
+    pub fn clear(self: *Scene) void {
+        self.rects.clearRetainingCapacity();
+        self.texts.clearRetainingCapacity();
     }
 };
 

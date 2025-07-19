@@ -1,11 +1,13 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
+const ui = @import("ui.zig");
 
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 
+const Scene = ui.Scene;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -55,6 +57,7 @@ const state = struct {
     var touch_state = TouchState{};
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
+    var scene: Scene = undefined;
 };
 
 export fn init() void {
@@ -62,6 +65,7 @@ export fn init() void {
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
     });
+    state.scene = Scene.init(state.allocator);
 
     state.allocator = if (builtin.target.cpu.arch.isWasm())
         std.heap.c_allocator
@@ -95,6 +99,8 @@ export fn init() void {
 
 export fn frame() void {
     clear();
+    var scene = state.scene;
+
     const rect_w = state.rect_dims.width;
     const rect_h = state.rect_dims.height;
     const mouse = state.mouse[0];
@@ -102,7 +108,7 @@ export fn frame() void {
     const p = normalizePt(real_mouse);
     const cell_pos = getCellPosition(p);
     const corner = 1.0 / 512.0;
-    state.rect_renderer.add(.{
+    scene.rects.append(state.allocator, .{
         .color = .{ 1.0, 0.0, 0.0, 0.25 },
         .x = @as(f32, @floatFromInt(cell_pos.col)) * rect_w,
         .y = @as(f32, @floatFromInt(cell_pos.row)) * rect_h,
@@ -110,18 +116,30 @@ export fn frame() void {
         .height = rect_h,
         .corners = .{ corner, corner, corner, corner },
         .sigma = 1e-6,
-    });
-    state.rect_renderer.updateBuffer();
-    state.text_renderer.addText(.{
+    }) catch |err| {
+        std.log.err("Failed to add rect: {}", .{err});
+    };
+    scene.texts.append(state.allocator, .{
         .text = "hello, world! good day",
         .x = rect_w,
         .y = rect_h,
-    });
-    state.text_renderer.addText(.{
+    }) catch |err| {
+        std.log.err("Failed to add text: {}", .{err});
+    };
+    scene.texts.append(state.allocator, .{
         .text = "the quick brown fox jumps over the lazy dog",
         .x = 2 * rect_w,
         .y = 2 * rect_h,
-    });
+    }) catch |err| {
+        std.log.err("Failed to add text: {}", .{err});
+    };
+    for (scene.rects.items) |rect| {
+        state.rect_renderer.add(rect);
+    }
+    state.rect_renderer.updateBuffer();
+    for (scene.texts.items) |text| {
+        state.text_renderer.addText(text);
+    }
     state.text_renderer.updateBuffer();
 
     const vs_params = state.t.computeVSParams();
@@ -142,6 +160,7 @@ export fn frame() void {
 export fn cleanup() void {
     state.text_renderer.cleanup();
     sg.shutdown();
+    state.scene.deinit(state.allocator);
 }
 
 pub fn main() void {
@@ -365,6 +384,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 fn clear() void {
     state.rect_renderer.clear();
     state.text_renderer.clear();
+    state.scene.clear();
 }
 
 fn normalizePt(p: Vec2) Vec2 {

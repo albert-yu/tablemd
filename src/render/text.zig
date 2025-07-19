@@ -41,7 +41,7 @@ const CharElement = struct {
     pixel_scale: f32,
 };
 
-const TextElement = struct {
+pub const TextElement = struct {
     text: []const u8,
     x: f32,
     y: f32,
@@ -89,7 +89,7 @@ pub const Renderer = struct {
         const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
         self.font = try TrueType.load(font_data);
         self.texture = try self.createAtlas();
-        const advance_width = self.glyphs[32].advance * PIXEL_SCALE;
+        const advance_width = self.glyphs[32].advance;
 
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{

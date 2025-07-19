@@ -4,7 +4,7 @@ const shd_rect = @import("rect_shader");
 
 const sg = sokol.gfx;
 
-const RectElement = struct {
+pub const RectElement = struct {
     color: [4]f32,
     x: f32,
     y: f32,
