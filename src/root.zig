@@ -52,6 +52,7 @@ const state = struct {
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
     var allocator: std.mem.Allocator = undefined;
+    var gpa: ?std.heap.GeneralPurposeAllocator(.{}) = null;
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var touch_state = TouchState{};
@@ -69,8 +70,8 @@ export fn init() void {
     state.allocator = if (builtin.target.cpu.arch.isWasm())
         std.heap.c_allocator
     else blk: {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        break :blk gpa.allocator();
+        state.gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        break :blk state.gpa.?.allocator();
     };
 
     state.scene = Scene.init(state.allocator);
@@ -158,8 +159,13 @@ export fn frame() void {
 
 export fn cleanup() void {
     state.text_renderer.cleanup();
-    sg.shutdown();
     state.scene.deinit(state.allocator);
+    sg.shutdown();
+
+    // Clean up GPA if we created one
+    if (state.gpa) |*gpa| {
+        _ = gpa.deinit();
+    }
 }
 
 pub fn main() void {
