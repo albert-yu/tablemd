@@ -2,10 +2,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
 
-// External JavaScript function for console logging
-extern fn console_log(ptr: [*]const u8, len: usize) void;
+// External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
+
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -57,8 +57,6 @@ const state = struct {
 };
 
 export fn init() void {
-    logToConsole("hello");
-
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -154,14 +152,6 @@ export fn add(a: i32, b: i32) i32 {
     return a + b;
 }
 
-fn logToConsole(message: []const u8) void {
-    if (builtin.target.cpu.arch.isWasm()) {
-        console_log(message.ptr, message.len);
-    } else {
-        std.log.info("{s}", .{message});
-    }
-}
-
 fn setHtmlRender(html: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
         set_html_render(html.ptr, html.len);
@@ -212,10 +202,6 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .CHAR => {
             if (isPrintableChar(event.char_code)) {
-                // var buffer: [8]u8 = undefined;
-                // const len = std.unicode.utf8Encode(@intCast(event.char_code), &buffer) catch 0;
-                // const char_str = buffer[0..len];
-                // logToConsole(char_str);
                 setMarkdownSource("# Test markdown\n\nHello, world!\n\n");
                 setHtmlRender("<h1>Test html</h1>");
             }

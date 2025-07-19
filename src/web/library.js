@@ -1,8 +1,4 @@
 mergeInto(LibraryManager.library, {
-    console_log: function(ptr, len) {
-        const message = UTF8ToString(ptr, len);
-        console.log("[Zig]: " + message);
-    },
     set_html_render: function(ptr, len) {
         const html = UTF8ToString(ptr, len);
         const renderElement = document.getElementById("html-render");
