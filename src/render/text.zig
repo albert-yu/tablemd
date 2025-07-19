@@ -83,11 +83,13 @@ pub const Renderer = struct {
         };
     }
 
-    pub fn setup(self: *Renderer) !void {
+    /// Returns the advance width
+    pub fn setup(self: *Renderer) !f32 {
         // Load font
         const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
         self.font = try TrueType.load(font_data);
         self.texture = try self.createAtlas();
+        const advance_width = self.glyphs[32].advance * PIXEL_SCALE;
 
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -179,6 +181,7 @@ pub const Renderer = struct {
         };
 
         self.pip = sg.makePipeline(pip_desc);
+        return advance_width;
     }
 
     pub fn addText(self: *Renderer, element: TextElement) void {

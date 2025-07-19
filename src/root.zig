@@ -54,6 +54,7 @@ const state = struct {
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var touch_state = TouchState{};
     var rect_dims = RectDims{ .width = 0, .height = 0 };
+    var text_dims = RectDims{ .width = 0, .height = 0 };
 };
 
 export fn init() void {
@@ -78,9 +79,11 @@ export fn init() void {
 
     // text renderer
     state.text_renderer = TextRenderer.new(state.allocator);
-    state.text_renderer.setup() catch |err| {
+    const text_width = state.text_renderer.setup() catch |err| {
         std.log.err("Failed to setup text renderer: {}", .{err});
+        return;
     };
+    state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
