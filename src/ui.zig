@@ -254,12 +254,14 @@ pub const Cursor = union(CursorType) {
 pub const UI = struct {
     tables: ArrayList(Table),
     active_cursor: ?Cursor,
+    hover_cursor: ?Cursor,
     units: Units,
 
     pub fn init(allocator: Allocator, units: Units) UI {
         return .{
             .tables = ArrayList(Table).initCapacity(allocator, 0) catch unreachable,
             .active_cursor = null,
+            .hover_cursor = null,
             .units = units,
         };
     }
@@ -272,6 +274,10 @@ pub const UI = struct {
         self.active_cursor = self.getCursor(p);
     }
 
+    pub fn handleMouseMove(self: *UI, p: Vec2) void {
+        self.hover_cursor = self.getCursor(p);
+    }
+
     pub fn getCursor(self: UI, p: Vec2) Cursor {
         const cell_pos = self.getCellPosition(p);
         // TODO: handle text cursor
@@ -279,6 +285,9 @@ pub const UI = struct {
     }
 
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
+        if (self.hover_cursor) |cursor| {
+            try scene.rects.append(allocator, cursor.getRect(self.units));
+        }
         if (self.active_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self.units));
         }

@@ -113,13 +113,6 @@ export fn frame() void {
     clear();
     const rect_w = state.rect_dims.width;
     const rect_h = state.rect_dims.height;
-    const mouse = state.mouse[0];
-    const p = getPointForUI(mouse);
-    const cursor_hover = state.ui.getCursor(p);
-    const hover_rect = cursor_hover.getRect(state.ui.units);
-    state.scene.rects.append(state.allocator, hover_rect) catch |err| {
-        std.log.err("Failed to add hover rect: {}", .{err});
-    };
     state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
         std.log.err("Failed to add UI to scene: {}", .{err});
     };
@@ -172,8 +165,6 @@ export fn cleanup() void {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) {
             std.log.err("Memory leak detected!", .{});
-        } else {
-            std.log.info("No memory leaks detected.", .{});
         }
     }
 }
@@ -221,6 +212,8 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_MOVE => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
+            const point = getPointForUI(state.mouse[0]);
+            state.ui.handleMouseMove(point);
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;

@@ -361,6 +361,9 @@ pub const Renderer = struct {
     }
 
     pub fn updateBuffer(self: Renderer) void {
+        if (self.count == 0) {
+            return;
+        }
         sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.count]));
     }
 
