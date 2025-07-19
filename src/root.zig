@@ -109,8 +109,16 @@ export fn frame() void {
         .sigma = 1e-6,
     });
     state.rect_renderer.updateBuffer();
-    state.text_renderer.addText("hello, world! good day", rect_w, rect_h);
-    state.text_renderer.addText("the quick brown fox jumps over the lazy dog", 2 * rect_w, 2 * rect_h);
+    state.text_renderer.addText(.{
+        .text = "hello, world! good day",
+        .x = rect_w,
+        .y = rect_h,
+    });
+    state.text_renderer.addText(.{
+        .text = "the quick brown fox jumps over the lazy dog",
+        .x = 2 * rect_w,
+        .y = 2 * rect_h,
+    });
     state.text_renderer.updateBuffer();
 
     const vs_params = state.t.computeVSParams();

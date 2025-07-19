@@ -41,6 +41,12 @@ const CharElement = struct {
     pixel_scale: f32,
 };
 
+const TextElement = struct {
+    text: []const u8,
+    x: f32,
+    y: f32,
+};
+
 /// Atlas size in pixels
 const ATLAS_SIZE = 512;
 
@@ -175,7 +181,11 @@ pub const Renderer = struct {
         self.pip = sg.makePipeline(pip_desc);
     }
 
-    pub fn addText(self: *Renderer, text: []const u8, x: f32, y: f32) void {
+    pub fn addText(self: *Renderer, element: TextElement) void {
+        const text = element.text;
+        const x = element.x;
+        const y = element.y;
+
         // this is a hack to make sure the text doesn't bleed
         // down into the next row
         const manual_adjust_y = -10.0;
