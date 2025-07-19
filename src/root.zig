@@ -8,6 +8,7 @@ extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 
 const Scene = ui.Scene;
+const UI = ui.UI;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -63,6 +64,7 @@ const state = struct {
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
     var scene: Scene = undefined;
+    var ui: UI = undefined;
 };
 
 export fn init() void {
@@ -79,6 +81,7 @@ export fn init() void {
     };
 
     state.scene = Scene.init(state.allocator);
+    state.ui = UI.init(state.allocator);
 
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
@@ -164,6 +167,7 @@ export fn frame() void {
 export fn cleanup() void {
     state.text_renderer.cleanup();
     state.scene.deinit(state.allocator);
+    state.ui.deinit(state.allocator);
     sg.shutdown();
 
     // Clean up GPA if we created one
