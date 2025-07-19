@@ -129,8 +129,12 @@ const Column = struct {
         };
     }
 
-    pub fn deinit(self: *Column) void {
-        self.data.deinit(self.allocator);
+    pub fn deinit(self: *Column, allocator: Allocator) void {
+        // for (self.data.items) |cell| {
+        //     // TODO: deinit cell
+        //     // cell.deinit(allocator);
+        // }
+        self.data.deinit(allocator);
     }
 
     pub fn size(self: Column, units: Units) Size2D {
@@ -160,7 +164,6 @@ const Column = struct {
 pub const Table = struct {
     position: GridPos,
     columns: ArrayList(Column),
-    allocator: Allocator,
 
     pub fn init(allocator: Allocator) Table {
         return Table{
@@ -170,11 +173,11 @@ pub const Table = struct {
         };
     }
 
-    pub fn deinit(self: *Table) void {
-        for (self.columns.items) |column| {
-            column.deinit();
+    pub fn deinit(self: *Table, allocator: Allocator) void {
+        for (self.columns.items) |*column| {
+            column.deinit(allocator);
         }
-        self.columns.deinit(self.allocator);
+        self.columns.deinit(allocator);
     }
 
     pub fn size(self: Table, units: Units) Size2D {
@@ -268,6 +271,9 @@ pub const UI = struct {
     }
 
     pub fn deinit(self: *UI, allocator: Allocator) void {
+        for (self.tables.items) |*table| {
+            table.deinit(allocator);
+        }
         self.tables.deinit(allocator);
     }
 
