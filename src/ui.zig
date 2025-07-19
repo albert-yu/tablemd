@@ -4,10 +4,13 @@ const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
 const text = @import("render/text.zig");
+const Vec2 = @import("zm").Vec2f;
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
 const Size2D = grid.Size2D;
+
+const GRID_N = grid.GRID_N;
 
 const Units = struct {
     cell: Size2D,
@@ -241,5 +244,30 @@ pub const UI = struct {
 
     pub fn deinit(self: *UI, allocator: Allocator) void {
         self.tables.deinit(allocator);
+    }
+
+    pub fn getCursor(self: UI, p: Vec2) Cursor {
+        const cell_pos = self.getCellPosition(p);
+        // TODO: handle text cursor
+        return Cursor{ .cell = cell_pos };
+    }
+
+    fn getCellPosition(self: UI, p: Vec2) GridPos {
+        const row = self.getIndexOfMaxGridPointBoundedBy(p[1]);
+        const col = self.getIndexOfMaxGridPointBoundedBy(p[0]);
+        return .{ .left = col, .top = row };
+    }
+
+    /// Uses x position, but we can reuse this for y
+    /// since the grid cells are square
+    fn getIndexOfMaxGridPointBoundedBy(self: UI, upper_bound: f32) usize {
+        var max_i: usize = 0;
+        while (max_i < GRID_N) : (max_i += 1) {
+            const x = self.units.cell.width * @as(f32, @floatFromInt(max_i));
+            if (x + self.units.cell.width > upper_bound) {
+                break;
+            }
+        }
+        return max_i;
     }
 };

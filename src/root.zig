@@ -116,12 +116,16 @@ export fn frame() void {
     const mouse = state.mouse[0];
     const real_mouse = invert(mouse);
     const p = normalizePt(real_mouse);
-    const cell_pos = getCellPosition(p);
+    const cursor = state.ui.getCursor(p);
+    const cell_pos = switch (cursor) {
+        .cell => |cell_pos| cell_pos,
+        .text => unreachable, // TODO: handle text cursor
+    };
     const corner = 1.0 / 512.0;
     state.scene.rects.append(state.allocator, .{
         .color = .{ 1.0, 0.0, 0.0, 0.25 },
-        .x = @as(f32, @floatFromInt(cell_pos.col)) * rect_w,
-        .y = @as(f32, @floatFromInt(cell_pos.row)) * rect_h,
+        .x = @as(f32, @floatFromInt(cell_pos.left)) * rect_w,
+        .y = @as(f32, @floatFromInt(cell_pos.top)) * rect_h,
         .width = rect_w,
         .height = rect_h,
         .corners = .{ corner, corner, corner, corner },
