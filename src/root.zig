@@ -114,8 +114,7 @@ export fn frame() void {
     const rect_w = state.rect_dims.width;
     const rect_h = state.rect_dims.height;
     const mouse = state.mouse[0];
-    const real_mouse = invert(mouse);
-    const p = normalizePt(real_mouse);
+    const p = getPointForUI(mouse);
     const cursor = state.ui.getCursor(p);
     const cell_pos = switch (cursor) {
         .cell => |cell_pos| cell_pos,
@@ -285,6 +284,7 @@ fn handleZoom(delta: f32, p: Vec2) void {
     state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
 }
 
+/// Unapplies the zoom transform
 fn invert(p: Vec2) Vec2 {
     const zoom = state.t.getZoom();
     const x = (p[0] - zoom.x) / zoom.k;
@@ -419,6 +419,14 @@ fn normalizePt(p: Vec2) Vec2 {
     const grid_x = p[0] / min_dim;
     const grid_y = p[1] / min_dim;
     return Vec2{ grid_x, grid_y };
+}
+
+/// Returns a normalized vec2 from a mouse position.
+/// Used to feed into the UI.
+fn getPointForUI(mouse_p: Vec2) Vec2 {
+    const inv_p = invert(mouse_p);
+    const normalized_p = normalizePt(inv_p);
+    return normalized_p;
 }
 
 fn isPrintableChar(char_code: u32) bool {

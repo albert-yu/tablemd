@@ -244,6 +244,10 @@ pub const UI = struct {
         self.tables.deinit(allocator);
     }
 
+    pub fn handeMouseDown(self: *UI, p: Vec2) void {
+        self.active_cursor = self.getCursor(p);
+    }
+
     pub fn getCursor(self: UI, p: Vec2) Cursor {
         const cell_pos = self.getCellPosition(p);
         // TODO: handle text cursor
