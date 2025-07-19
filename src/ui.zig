@@ -11,6 +11,7 @@ const TextElement = text.TextElement;
 const Size2D = grid.Size2D;
 
 const GRID_N = grid.GRID_N;
+const Color = [4]f32;
 
 const Units = struct {
     cell: Size2D,
@@ -224,12 +225,12 @@ pub const Cursor = union(CursorType) {
     cell: GridPos,
     text: GridPosText,
 
-    pub fn getRect(self: Cursor, units: Units) RectElement {
+    pub fn getRect(self: Cursor, units: Units, color: Color) RectElement {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
         return switch (self) {
             .cell => |cell_pos| .{
-                .color = .{ 1.0, 0.0, 0.0, 1.0 },
+                .color = color,
                 .x = @as(f32, @floatFromInt(cell_pos.left)) * units.cell.width,
                 .y = @as(f32, @floatFromInt(cell_pos.top)) * units.cell.height,
                 .width = units.cell.width,
@@ -238,7 +239,7 @@ pub const Cursor = union(CursorType) {
                 .sigma = 1e-6,
             },
             .text => |text_pos| .{
-                .color = .{ 1.0, 0.0, 0.0, 1.0 },
+                .color = color,
                 // TODO: fix this to use offset
                 .x = @as(f32, @floatFromInt(text_pos.left)) * units.text.width,
                 .y = @as(f32, @floatFromInt(text_pos.top)) * units.text.height,
@@ -285,11 +286,11 @@ pub const UI = struct {
     }
 
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
-        if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units));
-        }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units));
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.0, 1.0, 0.0, 1.0 }));
+        }
+        if (self.hover_cursor) |cursor| {
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 1.0, 0.0, 0.0, 1.0 }));
         }
         for (self.tables.items) |table| {
             try table.addSelfToScene(scene, allocator, self.units);
