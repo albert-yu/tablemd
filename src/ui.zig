@@ -225,6 +225,32 @@ pub const CursorType = enum {
 pub const Cursor = union(CursorType) {
     cell: GridPos,
     text: GridPosText,
+
+    pub fn getRect(self: Cursor, units: Units) RectElement {
+        const corner = 1.0 / 512.0;
+        const corners = .{ corner, corner, corner, corner };
+        return switch (self) {
+            .cell => |cell_pos| .{
+                .color = .{ 1.0, 0.0, 0.0, 1.0 },
+                .x = @as(f32, @floatFromInt(cell_pos.left)) * units.cell.width,
+                .y = @as(f32, @floatFromInt(cell_pos.top)) * units.cell.height,
+                .width = units.cell.width,
+                .height = units.cell.height,
+                .corners = corners,
+                .sigma = 1e-6,
+            },
+            .text => |text_pos| .{
+                .color = .{ 1.0, 0.0, 0.0, 1.0 },
+                // TODO: fix this to use offset
+                .x = @as(f32, @floatFromInt(text_pos.left)) * units.text.width,
+                .y = @as(f32, @floatFromInt(text_pos.top)) * units.text.height,
+                .width = units.text.width,
+                .height = units.text.height,
+                .corners = corners,
+                .sigma = 1e-6,
+            },
+        };
+    }
 };
 
 pub const UI = struct {
@@ -252,6 +278,15 @@ pub const UI = struct {
         const cell_pos = self.getCellPosition(p);
         // TODO: handle text cursor
         return Cursor{ .cell = cell_pos };
+    }
+
+    pub fn addSelfToScene(self: UI, scene: *Scene) !void {
+        if (self.active_cursor) |cursor| {
+            try scene.rects.append(self.allocator, cursor.getRect(self.units));
+        }
+        for (self.tables.items) |table| {
+            try table.addSelfToScene(scene, self.units);
+        }
     }
 
     fn getCellPosition(self: UI, p: Vec2) GridPos {

@@ -115,22 +115,10 @@ export fn frame() void {
     const rect_h = state.rect_dims.height;
     const mouse = state.mouse[0];
     const p = getPointForUI(mouse);
-    const cursor = state.ui.getCursor(p);
-    const cell_pos = switch (cursor) {
-        .cell => |cell_pos| cell_pos,
-        .text => unreachable, // TODO: handle text cursor
-    };
-    const corner = 1.0 / 512.0;
-    state.scene.rects.append(state.allocator, .{
-        .color = .{ 1.0, 0.0, 0.0, 0.25 },
-        .x = @as(f32, @floatFromInt(cell_pos.left)) * rect_w,
-        .y = @as(f32, @floatFromInt(cell_pos.top)) * rect_h,
-        .width = rect_w,
-        .height = rect_h,
-        .corners = .{ corner, corner, corner, corner },
-        .sigma = 1e-6,
-    }) catch |err| {
-        std.log.err("Failed to add rect: {}", .{err});
+    const cursor_hover = state.ui.getCursor(p);
+    const hover_rect = cursor_hover.getRect(state.ui.units);
+    state.scene.rects.append(state.allocator, hover_rect) catch |err| {
+        std.log.err("Failed to add hover rect: {}", .{err});
     };
     state.scene.texts.append(state.allocator, .{
         .text = "hello, world! good day",
