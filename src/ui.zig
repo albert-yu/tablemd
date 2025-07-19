@@ -31,12 +31,19 @@ pub const Scene = struct {
     }
 };
 
-pub const Position = struct {
+/// Represents any arbitrary position in 2D space
+/// rather than a specific grid cell
+pub const PosVec2 = struct {
+    x: f32,
+    y: f32,
+};
+
+pub const GridPos = struct {
     left: usize,
     top: usize,
 };
 
-pub const TextPosition = struct {
+pub const GridPosText = struct {
     left: usize,
     top: usize,
     char_offset: usize,
@@ -62,6 +69,34 @@ const Cell = struct {
         }
         const container_width = divCeil(width, cell_units.width);
         return .{ .width = container_width, .height = height };
+    }
+
+    pub fn addSelfToScene(self: Cell, scene: *Scene, units: Units, position: PosVec2) !void {
+        var pos_y = position.y;
+        var i: usize = 0;
+        var start: usize = i;
+        while (i < self.value.len) : (i += 1) {
+            const char = self.value[i];
+            if (char == '\n') {
+                // send the current line to the scene
+                try scene.texts.append(self.allocator, .{
+                    .text = self.value[start..i],
+                    .x = position.x,
+                    .y = pos_y,
+                });
+                i += 1; // skip the newline
+                start = i;
+                pos_y += units.text.height;
+                continue;
+            }
+        }
+        if (start < self.value.len) {
+            try scene.texts.append(self.allocator, .{
+                .text = self.value[start..self.value.len],
+                .x = position.x,
+                .y = pos_y,
+            });
+        }
     }
 };
 
@@ -95,10 +130,22 @@ const Column = struct {
         }
         return .{ .width = width, .height = height };
     }
+
+    pub fn addSelfToScene(self: Column, scene: *Scene, units: Units, position: PosVec2) !void {
+        var pos_y = position.y;
+        for (self.data.items) |cell| {
+            const cell_dims = cell.size(units);
+            try cell.addSelfToScene(scene, units, .{
+                .x = position.x,
+                .y = pos_y,
+            });
+            pos_y += cell_dims.height;
+        }
+    }
 };
 
 pub const Table = struct {
-    position: Position,
+    position: GridPos,
     columns: ArrayList(Column),
     allocator: Allocator,
 
@@ -143,6 +190,16 @@ pub const Table = struct {
             .corners = .{ corner, corner, corner, corner },
             .sigma = 1e-6,
         });
+
+        var pos_x = actual_position_x;
+        for (self.columns.items) |column| {
+            const col_size = column.size(units);
+            try column.addSelfToScene(scene, units, .{
+                .x = pos_x,
+                .y = actual_position_y,
+            });
+            pos_x += col_size.width;
+        }
 
         return scene;
     }
