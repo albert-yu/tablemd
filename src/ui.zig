@@ -1,12 +1,9 @@
 const std = @import("std");
 const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
+const grid = @import("render/dot_grid.zig");
 
-/// Used for layout calculations
-const Size2D = struct {
-    width: f32,
-    height: f32,
-};
+const Size2D = grid.Size2D;
 
 pub const Position = struct {
     left: usize,
