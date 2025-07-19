@@ -3,6 +3,7 @@ const sokol = @import("sokol");
 const shd_text = @import("text_shader");
 const zigimg = @import("zigimg");
 const TrueType = @import("TrueType");
+const ArrayList = std.ArrayListUnmanaged;
 
 const sg = sokol.gfx;
 
@@ -64,8 +65,7 @@ pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
     texture: sg.Image,
-    elements: [CHAR_N]CharElement,
-    count: usize,
+    elements: ArrayList(CharElement),
     glyphs: [128]GlyphInfo,
     font: ?TrueType,
     allocator: std.mem.Allocator,
@@ -75,8 +75,7 @@ pub const Renderer = struct {
             .bind = .{},
             .pip = .{},
             .texture = .{},
-            .elements = undefined,
-            .count = 0,
+            .elements = ArrayList(CharElement).initCapacity(allocator, 0) catch unreachable,
             .glyphs = undefined,
             .font = null,
             .allocator = allocator,
@@ -206,15 +205,12 @@ pub const Renderer = struct {
     }
 
     fn addChar(self: *Renderer, char: u8, x: f32, y: f32) void {
-        if (self.count == CHAR_N) {
-            return;
-        }
         if (char < 32 or char > 127) {
             return;
         }
         const glyph = self.glyphs[char];
         if (glyph.width > 0 and glyph.height > 0) {
-            self.elements[self.count] = CharElement{
+            const char_element = CharElement{
                 .instance_position = .{
                     x + glyph.bearing_x,
                     y + glyph.bearing_y,
@@ -226,7 +222,10 @@ pub const Renderer = struct {
                 .color = .{ 1.0, 1.0, 1.0, 1.0 },
                 .pixel_scale = PIXEL_SCALE,
             };
-            self.count += 1;
+            self.elements.append(self.allocator, char_element) catch |err| {
+                std.log.err("Failed to append character element: {}", .{err});
+                return;
+            };
         }
     }
 
@@ -361,24 +360,24 @@ pub const Renderer = struct {
     }
 
     pub fn updateBuffer(self: Renderer) void {
-        if (self.count == 0) {
+        if (self.elements.items.len == 0) {
             return;
         }
-        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.count]));
+        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements.items));
     }
 
     pub fn clear(self: *Renderer) void {
-        self.count = 0;
+        self.elements.clearRetainingCapacity();
     }
 
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_text.UB_vs_params, vs_range);
-        sg.draw(0, 6, @intCast(self.count));
+        sg.draw(0, 6, @intCast(self.elements.items.len));
     }
 
     pub fn cleanup(self: *Renderer) void {
-        _ = self;
+        self.elements.deinit(self.allocator);
     }
 };
