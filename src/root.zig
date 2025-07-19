@@ -192,6 +192,14 @@ export fn input(ev: ?*const sapp.Event) void {
         .TOUCHES_CANCELLED => {
             handleTouchCancelled(event);
         },
+        .CHAR => {
+            if (isPrintableChar(event.char_code)) {
+                var buffer: [8]u8 = undefined;
+                const len = std.unicode.utf8Encode(@intCast(event.char_code), &buffer) catch 0;
+                const char_str = buffer[0..len];
+                logToConsole(char_str);
+            }
+        },
         else => {},
     }
 }
@@ -355,4 +363,8 @@ fn getCellPosition(normalized_p: Vec2) CellPosition {
     const row = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[1]);
     const col = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[0]);
     return .{ .row = row, .col = col };
+}
+
+fn isPrintableChar(char_code: u32) bool {
+    return char_code >= 32 and char_code <= 126;
 }
