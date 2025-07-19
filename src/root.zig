@@ -65,7 +65,6 @@ export fn init() void {
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
     });
-    state.scene = Scene.init(state.allocator);
 
     state.allocator = if (builtin.target.cpu.arch.isWasm())
         std.heap.c_allocator
@@ -73,6 +72,8 @@ export fn init() void {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         break :blk gpa.allocator();
     };
+
+    state.scene = Scene.init(state.allocator);
 
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
@@ -99,8 +100,6 @@ export fn init() void {
 
 export fn frame() void {
     clear();
-    var scene = state.scene;
-
     const rect_w = state.rect_dims.width;
     const rect_h = state.rect_dims.height;
     const mouse = state.mouse[0];
@@ -108,7 +107,7 @@ export fn frame() void {
     const p = normalizePt(real_mouse);
     const cell_pos = getCellPosition(p);
     const corner = 1.0 / 512.0;
-    scene.rects.append(state.allocator, .{
+    state.scene.rects.append(state.allocator, .{
         .color = .{ 1.0, 0.0, 0.0, 0.25 },
         .x = @as(f32, @floatFromInt(cell_pos.col)) * rect_w,
         .y = @as(f32, @floatFromInt(cell_pos.row)) * rect_h,
@@ -119,25 +118,25 @@ export fn frame() void {
     }) catch |err| {
         std.log.err("Failed to add rect: {}", .{err});
     };
-    scene.texts.append(state.allocator, .{
+    state.scene.texts.append(state.allocator, .{
         .text = "hello, world! good day",
         .x = rect_w,
         .y = rect_h,
     }) catch |err| {
         std.log.err("Failed to add text: {}", .{err});
     };
-    scene.texts.append(state.allocator, .{
+    state.scene.texts.append(state.allocator, .{
         .text = "the quick brown fox jumps over the lazy dog",
         .x = 2 * rect_w,
         .y = 2 * rect_h,
     }) catch |err| {
         std.log.err("Failed to add text: {}", .{err});
     };
-    for (scene.rects.items) |rect| {
+    for (state.scene.rects.items) |rect| {
         state.rect_renderer.add(rect);
     }
     state.rect_renderer.updateBuffer();
-    for (scene.texts.items) |text| {
+    for (state.scene.texts.items) |text| {
         state.text_renderer.addText(text);
     }
     state.text_renderer.updateBuffer();
