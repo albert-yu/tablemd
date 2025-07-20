@@ -286,34 +286,31 @@ pub const Table = struct {
         const actual_position_x = @as(f32, @floatFromInt(grid_pos.left)) * cell_units.width;
         const actual_position_y = @as(f32, @floatFromInt(grid_pos.top)) * cell_units.height;
 
-        const self_x = self.position.left * cell_units.width;
-        const self_y = self.position.top * cell_units.height;
+        const self_left = @as(f32, @floatFromInt(self.position.left)) * cell_units.width;
+        const self_top = @as(f32, @floatFromInt(self.position.top)) * cell_units.height;
         const self_size = self.size(units);
-
-        const is_bounded_x = actual_position_x >= self_x and actual_position_x < self_x + self_size.width;
+        const self_bottom = self_top + self_size.height;
+        const self_right = self_left + self_size.width;
+        const is_bounded_x = actual_position_x >= self_left and actual_position_x < self_right;
+        const is_bounded_y = actual_position_y >= self_top and actual_position_y < self_bottom;
+        if (is_bounded_x and is_bounded_y) {
+            // inside table
+            return .none;
+        }
         if (is_bounded_x) {
-            if (actual_position_y >= self_y and actual_position_y < self_y + self_size.height) {
-                // inside table
-                return .none;
-            }
-            if (actual_position_y < self_y + self_size.height + cell_units.height) {
-                return .up;
-            }
-            if (actual_position_y > self_y) {
+            if (actual_position_y >= self_bottom and actual_position_y < self_bottom + cell_units.height) {
                 return .down;
+            }
+            if (actual_position_y < self_top and actual_position_y >= self_top - cell_units.height) {
+                return .up;
             }
             return .none;
         }
-        const is_bounded_y = actual_position_y >= self_y and actual_position_y < self_y + self_size.height;
         if (is_bounded_y) {
-            if (actual_position_x >= self_x and actual_position_x < self_x + self_size.width) {
-                // inside table
-                return .none;
-            }
-            if (actual_position_x < self_x + self_size.width + cell_units.width) {
+            if (actual_position_x >= self_left - cell_units.width and actual_position_x < self_left) {
                 return .left;
             }
-            if (actual_position_x > self_x) {
+            if (actual_position_x >= self_right and actual_position_x < self_right + cell_units.width) {
                 return .right;
             }
             return .none;

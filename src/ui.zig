@@ -136,6 +136,13 @@ pub const UI = struct {
                     // it should create a new table
                     // if the cell isn't adjacent to
                     // an existing table
+                    for (self.tables.items) |table| {
+                        const adj = table.adjacent(cursor.empty, self.units);
+                        if (adj != .none) {
+                            std.log.info("adjacent! {}", .{adj});
+                            break;
+                        }
+                    }
                 },
                 .cell => {
                     // Do nothing
