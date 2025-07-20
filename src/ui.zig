@@ -383,6 +383,9 @@ pub const UI = struct {
     }
 
     pub fn handleChar(self: *UI, allocator: Allocator, char_code: u32) !void {
+        if (!isPrintableChar(char_code)) {
+            return;
+        }
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
@@ -397,7 +400,15 @@ pub const UI = struct {
                 .text => |text_pos| {
                     // Convert u32 to u8, handling potential overflow
                     const char: u8 = @truncate(char_code);
-                    try text_pos.cell.value.insert(allocator, text_pos.char_offset, char);
+                    try text_pos.cell.value.insert(allocator, text_pos.char_offset + 1, char);
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = text_pos.cell,
+                            .column = text_pos.column,
+                            .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
+                            .char_offset = text_pos.char_offset + 1,
+                        },
+                    };
                 },
             }
         }
@@ -421,13 +432,18 @@ pub const UI = struct {
                 },
                 .cell => {},
                 .text => |text_pos| {
+                    if (text_pos.cell.value.items.len == 0) {
+                        return;
+                    }
                     _ = text_pos.cell.value.orderedRemove(text_pos.char_offset);
-                    self.active_cursor = .{ .text = .{
-                        .cell = text_pos.cell,
-                        .column = text_pos.column,
-                        .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
-                        .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
-                    } };
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = text_pos.cell,
+                            .column = text_pos.column,
+                            .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
+                            .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
+                        },
+                    };
                 },
             }
         }
@@ -570,4 +586,8 @@ fn countLines(cell: *const Cell) usize {
         if (char == '\n') lines += 1;
     }
     return lines;
+}
+
+fn isPrintableChar(char_code: u32) bool {
+    return char_code >= 32 and char_code <= 126;
 }
