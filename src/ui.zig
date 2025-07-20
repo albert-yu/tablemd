@@ -55,11 +55,12 @@ pub const GridPos = struct {
 
 pub const Cell = struct {
     value: ArrayList(u8),
+    column: *Column,
 
-    pub fn init(allocator: Allocator, content: []const u8) !Cell {
+    pub fn init(allocator: Allocator, content: []const u8, column: *Column) !Cell {
         var value = try ArrayList(u8).initCapacity(allocator, content.len);
         value.appendSlice(allocator, content) catch unreachable;
-        return Cell{ .value = value };
+        return Cell{ .value = value, .column = column };
     }
 
     pub fn deinit(self: *Cell, allocator: Allocator) void {
@@ -141,6 +142,11 @@ pub const Column = struct {
         self.data.deinit(allocator);
     }
 
+    pub fn addCell(self: *Column, allocator: Allocator, content: []const u8) !void {
+        const cell = try Cell.init(allocator, content, self);
+        try self.data.append(allocator, cell);
+    }
+
     pub fn size(self: Column, units: Units) Size2D {
         var width: f32 = 0.0;
         var height: f32 = 0.0;
@@ -164,20 +170,28 @@ pub const Column = struct {
 
 pub const Table = struct {
     position: GridPos,
-    columns: ArrayList(Column),
+    columns: ArrayList(*Column),
 
     pub fn init(allocator: Allocator) Table {
         return Table{
             .position = .{ .left = 0, .top = 0 },
-            .columns = ArrayList(Column).initCapacity(allocator, 0) catch unreachable,
+            .columns = ArrayList(*Column).initCapacity(allocator, 0) catch unreachable,
         };
     }
 
     pub fn deinit(self: *Table, allocator: Allocator) void {
-        for (self.columns.items) |*column| {
+        for (self.columns.items) |column| {
             column.deinit(allocator);
+            allocator.destroy(column);
         }
         self.columns.deinit(allocator);
+    }
+
+    pub fn addColumn(self: *Table, allocator: Allocator) !*Column {
+        const column = try allocator.create(Column);
+        column.* = Column.init(allocator);
+        try self.columns.append(allocator, column);
+        return column;
     }
 
     pub fn size(self: Table, units: Units) Size2D {
@@ -295,13 +309,11 @@ pub const Table = struct {
 
 const CellPos = struct {
     cell: *Cell,
-    column: *Column,
     pos: Vec2,
 };
 
 const TextPos = struct {
     cell: *Cell,
-    column: *Column,
     pos: Vec2,
     char_offset: usize,
 };
@@ -334,7 +346,7 @@ pub const Cursor = union(CursorType) {
                 .color = color,
                 .x = cell_info.pos[0],
                 .y = cell_info.pos[1],
-                .width = cell_info.column.size(units).width,
+                .width = cell_info.cell.column.size(units).width,
                 .height = cell_info.cell.size(units).height,
                 .corners = corners,
                 .sigma = 1e-6,
@@ -404,7 +416,6 @@ pub const UI = struct {
                     self.active_cursor = .{
                         .text = .{
                             .cell = text_pos.cell,
-                            .column = text_pos.column,
                             .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
                             .char_offset = text_pos.char_offset + 1,
                         },
@@ -439,7 +450,6 @@ pub const UI = struct {
                     self.active_cursor = .{
                         .text = .{
                             .cell = text_pos.cell,
-                            .column = text_pos.column,
                             .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
                             .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
                         },
@@ -501,7 +511,6 @@ pub const UI = struct {
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
                         .cell = cell,
-                        .column = containing_cell.column,
                         .pos = Vec2{ line_x, line_y },
                         .char_offset = offset,
                     };
@@ -522,7 +531,7 @@ pub const UI = struct {
                 const current_y = table_start_y;
 
                 // Iterate through columns to find which one contains the point
-                for (table.columns.items) |*column| {
+                for (table.columns.items) |column| {
                     const column_size = column.size(self.units);
 
                     // Check if point is within this column's width
@@ -537,7 +546,6 @@ pub const UI = struct {
                             if (p[1] >= cell_y and p[1] < cell_y + cell_height) {
                                 return CellPos{
                                     .cell = cell,
-                                    .column = column,
                                     .pos = Vec2{ current_x, cell_y },
                                 };
                             }
