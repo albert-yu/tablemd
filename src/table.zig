@@ -2,13 +2,9 @@ const std = @import("std");
 const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
-const rect = @import("render/rect.zig");
-const text = @import("render/text.zig");
 const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
 
-const RectElement = rect.RectElement;
-const TextElement = text.TextElement;
 const Scene = scene_mod.Scene;
 const Size2D = grid.Size2D;
 
@@ -21,7 +17,6 @@ pub const GridPos = struct {
     left: usize = 0,
     top: usize = 0,
 };
-
 
 pub const Cell = struct {
     value: ArrayList(u8),
