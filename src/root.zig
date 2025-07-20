@@ -27,7 +27,7 @@ const sglue = sokol.glue;
 const Color = sg.Color;
 
 fn createCell(allocator: std.mem.Allocator, value: []const u8) ui.Cell {
-    return ui.Cell.init(allocator, value);
+    return ui.Cell.init(allocator, value) catch unreachable;
 }
 
 const CellPosition = struct {

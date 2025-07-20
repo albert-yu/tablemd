@@ -61,8 +61,8 @@ pub const GridPosText = struct {
 pub const Cell = struct {
     value: ArrayList(u8),
 
-    pub fn init(allocator: Allocator, content: []const u8) Cell {
-        var value = ArrayList(u8).initCapacity(allocator, content.len) catch unreachable;
+    pub fn init(allocator: Allocator, content: []const u8) !Cell {
+        var value = try ArrayList(u8).initCapacity(allocator, content.len);
         value.appendSlice(allocator, content) catch unreachable;
         return Cell{ .value = value };
     }
