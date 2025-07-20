@@ -303,21 +303,48 @@ const TextPos = struct {
     char_offset: usize,
 };
 
-pub const Cursor = struct {
-    pos: Vec2,
-    size: Size2D,
+const CursorType = enum {
+    empty,
+    cell,
+    text,
+};
 
-    pub fn getRect(self: Cursor, color: Color) RectElement {
+pub const Cursor = union(CursorType) {
+    empty: GridPos,
+    cell: CellInfo,
+    text: TextPos,
+
+    pub fn getRect(self: Cursor, units: Units, color: Color) RectElement {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
-        return .{
-            .color = color,
-            .x = self.pos[0],
-            .y = self.pos[1],
-            .width = self.size.width,
-            .height = self.size.height,
-            .corners = corners,
-            .sigma = 1e-6,
+        return switch (self) {
+            .empty => |grid_pos| .{
+                .color = color,
+                .x = @as(f32, @floatFromInt(grid_pos.left)) * units.cell.width,
+                .y = @as(f32, @floatFromInt(grid_pos.top)) * units.cell.height,
+                .width = units.cell.width,
+                .height = units.cell.height,
+                .corners = corners,
+                .sigma = 1e-6,
+            },
+            .cell => |cell_info| .{
+                .color = color,
+                .x = cell_info.pos[0],
+                .y = cell_info.pos[1],
+                .width = cell_info.column.size(units).width,
+                .height = cell_info.cell.size(units).height,
+                .corners = corners,
+                .sigma = 1e-6,
+            },
+            .text => |text_pos| .{
+                .color = color,
+                .x = text_pos.pos[0],
+                .y = text_pos.pos[1],
+                .width = units.text.width,
+                .height = units.text.height,
+                .corners = corners,
+                .sigma = 1e-6,
+            },
         };
     }
 };
@@ -357,10 +384,10 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(.{ 0.5, 0.8, 1.0, 0.8 }));
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.5, 0.8, 1.0, 0.8 }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(.{ 0.7, 0.9, 1.0, 0.4 }));
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.7, 0.9, 1.0, 0.4 }));
         }
     }
 
@@ -369,29 +396,18 @@ pub const UI = struct {
         if (self.getCellAt(p)) |cell_info| {
             if (self.getTextPositionAt(p, cell_info)) |text_pos| {
                 return .{
-                    .pos = text_pos.pos,
-                    .size = self.units.text,
+                    .text = text_pos,
                 };
             }
-            const column_size = cell_info.column.size(self.units);
-            const cell_size = Size2D{
-                .width = column_size.width,
-                .height = cell_info.cell.size(self.units).height,
-            };
             return .{
-                .pos = Vec2{ cell_info.pos[0], cell_info.pos[1] },
-                .size = cell_size,
+                .cell = cell_info,
             };
         }
 
         // Default to grid cell size if no Cell found
         const cell_pos = self.getCellPosition(p);
-        const x = @as(f32, @floatFromInt(cell_pos.left)) * self.units.cell.width;
-        const y = @as(f32, @floatFromInt(cell_pos.top)) * self.units.cell.height;
-        const size = self.units.cell;
         return .{
-            .pos = Vec2{ x, y },
-            .size = size,
+            .empty = cell_pos,
         };
     }
 
