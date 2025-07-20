@@ -816,7 +816,7 @@ fn isThematicBreak(line: []const u8) bool {
 }
 
 fn closeLastBlock(p: *Parser) !void {
-    const b = p.pending_blocks.pop();
+    const b = p.pending_blocks.pop() orelse return;
     const node = switch (b.tag) {
         .list => list: {
             assert(b.string_start == p.scratch_string.items.len);
@@ -1564,7 +1564,7 @@ fn parseInlines(p: *Parser, content: []const u8) !ExtraIndex {
 }
 
 pub fn extraData(p: Parser, comptime T: type, index: ExtraIndex) ExtraData(T) {
-    const fields = @typeInfo(T).Struct.fields;
+    const fields = @typeInfo(T).@"struct".fields;
     var i: usize = @intFromEnum(index);
     var result: T = undefined;
     inline for (fields) |field| {

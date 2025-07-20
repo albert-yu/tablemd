@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
 const ui = @import("ui.zig");
+const markdown = @import("markdown");
 
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
@@ -131,9 +132,13 @@ export fn init() void {
     // Add table to UI
     state.ui.tables.append(state.allocator, table) catch unreachable;
 
-    const md = table.md(state.allocator) catch unreachable;
-    defer state.allocator.free(md);
-    setMarkdownSource(md);
+    const table_as_md = table.md(state.allocator) catch unreachable;
+    defer state.allocator.free(table_as_md);
+    setMarkdownSource(table_as_md);
+
+    // convert markdown to html
+    const html_str = markdownToHtml(table_as_md) catch unreachable;
+    setHtmlRender(html_str);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -214,11 +219,11 @@ fn setHtmlRender(html: []const u8) void {
     }
 }
 
-fn setMarkdownSource(markdown: []const u8) void {
+fn setMarkdownSource(md_src: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
-        set_markdown_source(markdown.ptr, markdown.len);
+        set_markdown_source(md_src.ptr, md_src.len);
     } else {
-        std.log.info("markdown:\n{s}", .{markdown});
+        std.log.info("markdown:\n{s}", .{md_src});
     }
 }
 
@@ -387,6 +392,23 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         state.touch_state.prev_distance = current_distance;
         state.touch_state.prev_center = current_center;
     }
+}
+
+fn markdownToHtml(md: []const u8) ![]const u8 {
+    // convert markdown to html
+    var parser = try markdown.Parser.init(state.allocator);
+    defer parser.deinit();
+    var lines = std.mem.splitScalar(u8, md, '\n');
+    while (lines.next()) |line| {
+        try parser.feedLine(line);
+    }
+    var doc = try parser.endInput();
+    defer doc.deinit(state.allocator);
+
+    var html_str = std.ArrayList(u8).init(state.allocator);
+    defer html_str.deinit();
+    try doc.render(html_str.writer());
+    return html_str.toOwnedSlice();
 }
 
 fn handleTouchEnded(event: *const sapp.Event) void {
