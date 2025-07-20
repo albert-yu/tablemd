@@ -290,7 +290,7 @@ pub const Table = struct {
     }
 };
 
-const CellInfo = struct {
+const CellPos = struct {
     cell: *const Cell,
     column: *const Column,
     pos: Vec2,
@@ -311,7 +311,7 @@ const CursorType = enum {
 
 pub const Cursor = union(CursorType) {
     empty: GridPos,
-    cell: CellInfo,
+    cell: CellPos,
     text: TextPos,
 
     pub fn getRect(self: Cursor, units: Units, color: Color) RectElement {
@@ -411,7 +411,7 @@ pub const UI = struct {
         };
     }
 
-    fn getTextPositionAt(self: UI, p: Vec2, containing_cell: CellInfo) ?TextPos {
+    fn getTextPositionAt(self: UI, p: Vec2, containing_cell: CellPos) ?TextPos {
         const cell = containing_cell.cell;
         const lines = countLines(cell);
         var offset: usize = 0;
@@ -441,7 +441,7 @@ pub const UI = struct {
         return null;
     }
 
-    fn getCellAt(self: UI, p: Vec2) ?CellInfo {
+    fn getCellAt(self: UI, p: Vec2) ?CellPos {
         for (self.tables.items) |table| {
             const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
             const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
@@ -465,7 +465,7 @@ pub const UI = struct {
 
                             // Check if point is within this cell's height
                             if (p[1] >= cell_y and p[1] < cell_y + cell_height) {
-                                return CellInfo{
+                                return CellPos{
                                     .cell = cell,
                                     .column = column,
                                     .pos = Vec2{ current_x, cell_y },
