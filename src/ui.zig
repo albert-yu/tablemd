@@ -8,6 +8,8 @@ const text = @import("render/text.zig");
 const Vec2 = @import("zm").Vec2f;
 const sapp = sokol.app;
 const Keycode = sapp.Keycode;
+const table_mod = @import("table.zig");
+const scene_mod = @import("render/scene.zig");
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
@@ -16,292 +18,25 @@ const Size2D = grid.Size2D;
 const GRID_N = grid.GRID_N;
 const Color = [4]f32;
 
-const Units = struct {
-    cell: Size2D,
-    text: Size2D,
-};
+// Re-export table types for backward compatibility
+pub const Table = table_mod.Table;
+const Cell = table_mod.Cell;
+pub const Scene = scene_mod.Scene;
+const GridPos = table_mod.GridPos;
+const Units = table_mod.Units;
 
 const ClientRect = struct {
     pos: Vec2,
     size: Size2D,
 };
 
-pub const Scene = struct {
-    rects: ArrayList(RectElement),
-    texts: ArrayList(TextElement),
-
-    pub fn init(allocator: Allocator) Scene {
-        return Scene{
-            .rects = ArrayList(RectElement).initCapacity(allocator, 0) catch unreachable,
-            .texts = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
-        };
-    }
-
-    pub fn deinit(self: *Scene, allocator: Allocator) void {
-        self.rects.deinit(allocator);
-        self.texts.deinit(allocator);
-    }
-
-    pub fn clear(self: *Scene) void {
-        self.rects.clearRetainingCapacity();
-        self.texts.clearRetainingCapacity();
-    }
-};
-
-pub const GridPos = struct {
-    left: usize = 0,
-    top: usize = 0,
-};
-
-pub const Cell = struct {
-    value: ArrayList(u8),
-
-    pub fn init(allocator: Allocator, content: []const u8) !Cell {
-        var value = try ArrayList(u8).initCapacity(allocator, content.len);
-        value.appendSlice(allocator, content) catch unreachable;
-        return Cell{ .value = value };
-    }
-
-    pub fn deinit(self: *Cell, allocator: Allocator) void {
-        self.value.deinit(allocator);
-    }
-
-    pub fn size(self: Cell, units: Units) Size2D {
-        const cell_units = units.cell;
-        const text_units = units.text;
-
-        var height: f32 = units.cell.height;
-        var width: f32 = 0.0;
-        var curr_line_width: f32 = 0.0;
-        for (self.value.items) |char| {
-            if (char == '\n') {
-                width = @max(width, curr_line_width);
-                curr_line_width = 0.0;
-                height += text_units.height;
-                continue;
-            }
-            curr_line_width += text_units.width;
-        }
-        width = @max(width, curr_line_width);
-        const container_width = cell_units.width * divCeil(width, cell_units.width);
-        return .{ .width = container_width, .height = height };
-    }
-
-    pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
-        // This is addition is here because otherwise, the
-        // text starts above the first row. Reason being that
-        // the text bearing_y is negative and pulls the text
-        // upwards
-        var pos_y = position[1] + units.cell.height;
-        var i: usize = 0;
-        var start: usize = i;
-        while (i < self.value.items.len) : (i += 1) {
-            const char = self.value.items[i];
-            if (char == '\n') {
-                // send the current line to the scene
-                try scene.texts.append(allocator, .{
-                    .text = self.value.items[start..i],
-                    .x = position[0],
-                    .y = pos_y,
-                });
-                i += 1; // skip the newline
-                start = i;
-                pos_y += units.text.height;
-                continue;
-            }
-        }
-        if (start < self.value.items.len) {
-            try scene.texts.append(allocator, .{
-                .text = self.value.items[start..self.value.items.len],
-                .x = position[0],
-                .y = pos_y,
-            });
-        }
-    }
-};
-
-fn divCeil(top: f32, bottom: f32) f32 {
-    const exact = top / bottom;
-    return @ceil(exact);
-}
-
-pub const Column = struct {
-    data: ArrayList(Cell),
-
-    pub fn init(allocator: Allocator) Column {
-        return Column{
-            .data = ArrayList(Cell).initCapacity(allocator, 0) catch unreachable,
-        };
-    }
-
-    pub fn deinit(self: *Column, allocator: Allocator) void {
-        for (self.data.items) |*cell| {
-            cell.deinit(allocator);
-        }
-        self.data.deinit(allocator);
-    }
-
-    pub fn size(self: Column, units: Units) Size2D {
-        var width: f32 = 0.0;
-        var height: f32 = 0.0;
-        for (self.data.items) |cell| {
-            const cell_dims = cell.size(units);
-            width = @max(width, cell_dims.width);
-            height += cell_dims.height;
-        }
-        return .{ .width = width, .height = height };
-    }
-
-    pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
-        var pos_y = position[1];
-        for (self.data.items) |cell| {
-            const cell_dims = cell.size(units);
-            try cell.addSelfToScene(scene, allocator, units, Vec2{ position[0], pos_y });
-            pos_y += cell_dims.height;
-        }
-    }
-};
-
-pub const Table = struct {
-    position: GridPos,
-    columns: ArrayList(Column),
-
-    pub fn init(allocator: Allocator) Table {
-        return Table{
-            .position = .{ .left = 0, .top = 0 },
-            .columns = ArrayList(Column).initCapacity(allocator, 0) catch unreachable,
-        };
-    }
-
-    pub fn deinit(self: *Table, allocator: Allocator) void {
-        for (self.columns.items) |*column| {
-            column.deinit(allocator);
-        }
-        self.columns.deinit(allocator);
-    }
-
-    pub fn size(self: Table, units: Units) Size2D {
-        var width: f32 = 0.0;
-        var height: f32 = 0.0;
-        for (self.columns.items) |column| {
-            const column_dims = column.size(units);
-            height = @max(height, column_dims.height);
-            width += column_dims.width;
-        }
-        return .{ .width = width, .height = height };
-    }
-
-    /// Convert table data to Markdown table format
-    pub fn md(self: Table, allocator: Allocator) ![]u8 {
-        if (self.columns.items.len == 0) {
-            return allocator.dupe(u8, "");
-        }
-
-        var result = ArrayList(u8).initCapacity(allocator, 0) catch unreachable;
-        defer result.deinit(allocator);
-
-        // Find the maximum number of rows
-        var max_rows: usize = 0;
-        for (self.columns.items) |column| {
-            max_rows = @max(max_rows, column.data.items.len);
-        }
-
-        if (max_rows == 0) {
-            return allocator.dupe(u8, "");
-        }
-
-        // Calculate maximum width for each column
-        var column_widths = allocator.alloc(usize, self.columns.items.len) catch return error.OutOfMemory;
-        defer allocator.free(column_widths);
-
-        for (self.columns.items, 0..) |column, col_idx| {
-            var max_width: usize = 0;
-            for (column.data.items) |cell| {
-                max_width = @max(max_width, cell.value.items.len);
-            }
-            column_widths[col_idx] = max_width;
-        }
-
-        // Generate each row
-        for (0..max_rows) |row_idx| {
-            // Add pipe at start of row
-            result.append(allocator, '|') catch return error.OutOfMemory;
-
-            // Add cells for this row
-            for (self.columns.items, 0..) |column, col_idx| {
-                result.append(allocator, ' ') catch return error.OutOfMemory;
-
-                const cell_value = if (row_idx < column.data.items.len)
-                    column.data.items[row_idx].value.items
-                else
-                    "";
-
-                result.appendSlice(allocator, cell_value) catch return error.OutOfMemory;
-
-                // Add padding to align columns
-                const padding_needed = column_widths[col_idx] - cell_value.len;
-                for (0..padding_needed) |_| {
-                    result.append(allocator, ' ') catch return error.OutOfMemory;
-                }
-
-                result.append(allocator, ' ') catch return error.OutOfMemory;
-                result.append(allocator, '|') catch return error.OutOfMemory;
-            }
-
-            result.append(allocator, '\n') catch return error.OutOfMemory;
-
-            // Add header separator after first row
-            if (row_idx == 0) {
-                result.append(allocator, '|') catch return error.OutOfMemory;
-                for (column_widths) |width| {
-                    result.append(allocator, ' ') catch return error.OutOfMemory;
-                    for (0..width) |_| {
-                        result.append(allocator, '-') catch return error.OutOfMemory;
-                    }
-                    result.append(allocator, ' ') catch return error.OutOfMemory;
-                    result.append(allocator, '|') catch return error.OutOfMemory;
-                }
-                result.append(allocator, '\n') catch return error.OutOfMemory;
-            }
-        }
-
-        return result.toOwnedSlice(allocator);
-    }
-
-    pub fn addSelfToScene(self: Table, scene: *Scene, allocator: Allocator, units: Units) !void {
-        const cell_units = units.cell;
-        const actual_position_x = @as(f32, @floatFromInt(self.position.left)) * cell_units.width;
-        const actual_position_y = @as(f32, @floatFromInt(self.position.top)) * cell_units.height;
-        const rect_size = self.size(units);
-        const corner = 1.0 / 512.0;
-        try scene.rects.append(allocator, .{
-            .color = .{ 0.0, 0.0, 0.0, 0.25 },
-            .x = actual_position_x,
-            .y = actual_position_y,
-            .width = rect_size.width,
-            .height = rect_size.height,
-            .corners = .{ corner, corner, corner, corner },
-            .sigma = 1e-6,
-        });
-
-        var pos_x = actual_position_x;
-        for (self.columns.items) |column| {
-            const col_size = column.size(units);
-            try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
-            pos_x += col_size.width;
-        }
-    }
-};
-
 const CellPos = struct {
     cell: *Cell,
-    column: *Column,
     pos: Vec2,
 };
 
 const TextPos = struct {
     cell: *Cell,
-    column: *Column,
     pos: Vec2,
     char_offset: usize,
 };
@@ -334,7 +69,7 @@ pub const Cursor = union(CursorType) {
                 .color = color,
                 .x = cell_info.pos[0],
                 .y = cell_info.pos[1],
-                .width = cell_info.column.size(units).width,
+                .width = cell_info.cell.column.size(units).width,
                 .height = cell_info.cell.size(units).height,
                 .corners = corners,
                 .sigma = 1e-6,
@@ -353,14 +88,14 @@ pub const Cursor = union(CursorType) {
 };
 
 pub const UI = struct {
-    tables: ArrayList(Table),
+    tables: ArrayList(*Table),
     active_cursor: ?Cursor,
     hover_cursor: ?Cursor,
     units: Units,
 
     pub fn init(allocator: Allocator, units: Units) UI {
         return .{
-            .tables = ArrayList(Table).initCapacity(allocator, 0) catch unreachable,
+            .tables = ArrayList(*Table).initCapacity(allocator, 0) catch unreachable,
             .active_cursor = null,
             .hover_cursor = null,
             .units = units,
@@ -368,10 +103,18 @@ pub const UI = struct {
     }
 
     pub fn deinit(self: *UI, allocator: Allocator) void {
-        for (self.tables.items) |*table| {
+        for (self.tables.items) |table| {
             table.deinit(allocator);
+            allocator.destroy(table);
         }
         self.tables.deinit(allocator);
+    }
+
+    pub fn addTable(self: *UI, allocator: Allocator) !*Table {
+        const table = try allocator.create(Table);
+        table.* = Table.init(allocator);
+        try self.tables.append(allocator, table);
+        return table;
     }
 
     pub fn handleMouseDown(self: *UI, p: Vec2) void {
@@ -400,13 +143,13 @@ pub const UI = struct {
                 .text => |text_pos| {
                     // Convert u32 to u8, handling potential overflow
                     const char: u8 = @truncate(char_code);
-                    try text_pos.cell.value.insert(allocator, text_pos.char_offset + 1, char);
+                    const new_offset = if (text_pos.cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
+                    try text_pos.cell.value.insert(allocator, new_offset, char);
                     self.active_cursor = .{
                         .text = .{
                             .cell = text_pos.cell,
-                            .column = text_pos.column,
                             .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
-                            .char_offset = text_pos.char_offset + 1,
+                            .char_offset = new_offset,
                         },
                     };
                 },
@@ -439,7 +182,6 @@ pub const UI = struct {
                     self.active_cursor = .{
                         .text = .{
                             .cell = text_pos.cell,
-                            .column = text_pos.column,
                             .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
                             .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
                         },
@@ -501,7 +243,6 @@ pub const UI = struct {
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
                         .cell = cell,
-                        .column = containing_cell.column,
                         .pos = Vec2{ line_x, line_y },
                         .char_offset = offset,
                     };
@@ -522,7 +263,7 @@ pub const UI = struct {
                 const current_y = table_start_y;
 
                 // Iterate through columns to find which one contains the point
-                for (table.columns.items) |*column| {
+                for (table.columns.items) |column| {
                     const column_size = column.size(self.units);
 
                     // Check if point is within this column's width
@@ -537,7 +278,6 @@ pub const UI = struct {
                             if (p[1] >= cell_y and p[1] < cell_y + cell_height) {
                                 return CellPos{
                                     .cell = cell,
-                                    .column = column,
                                     .pos = Vec2{ current_x, cell_y },
                                 };
                             }

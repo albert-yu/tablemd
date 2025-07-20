@@ -26,9 +26,6 @@ const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
 
-fn createCell(allocator: std.mem.Allocator, value: []const u8) ui.Cell {
-    return ui.Cell.init(allocator, value) catch unreachable;
-}
 
 const CellPosition = struct {
     row: usize,
@@ -107,34 +104,26 @@ export fn init() void {
     });
 
     // Create a simple 3x3 table
-    var table = ui.Table.init(state.allocator);
+    const table = state.ui.addTable(state.allocator) catch unreachable;
     table.position = .{ .left = 1, .top = 1 };
 
     // Column 1
-    var col1 = ui.Column.init(state.allocator);
-    col1.data.append(state.allocator, createCell(state.allocator, "Name")) catch unreachable;
-    col1.data.append(state.allocator, createCell(state.allocator, "Alice")) catch unreachable;
-    col1.data.append(state.allocator, createCell(state.allocator, "Bob")) catch unreachable;
+    const col1 = table.addColumn(state.allocator) catch unreachable;
+    col1.addCell(state.allocator, "Name") catch unreachable;
+    col1.addCell(state.allocator, "Alice") catch unreachable;
+    col1.addCell(state.allocator, "Bob") catch unreachable;
 
     // Column 2
-    var col2 = ui.Column.init(state.allocator);
-    col2.data.append(state.allocator, createCell(state.allocator, "Age")) catch unreachable;
-    col2.data.append(state.allocator, createCell(state.allocator, "25")) catch unreachable;
-    col2.data.append(state.allocator, createCell(state.allocator, "30")) catch unreachable;
+    const col2 = table.addColumn(state.allocator) catch unreachable;
+    col2.addCell(state.allocator, "Age") catch unreachable;
+    col2.addCell(state.allocator, "25") catch unreachable;
+    col2.addCell(state.allocator, "30") catch unreachable;
 
     // Column 3
-    var col3 = ui.Column.init(state.allocator);
-    col3.data.append(state.allocator, createCell(state.allocator, "City")) catch unreachable;
-    col3.data.append(state.allocator, createCell(state.allocator, "NYC")) catch unreachable;
-    col3.data.append(state.allocator, createCell(state.allocator, "LA")) catch unreachable;
-
-    // Add columns to table
-    table.columns.append(state.allocator, col1) catch unreachable;
-    table.columns.append(state.allocator, col2) catch unreachable;
-    table.columns.append(state.allocator, col3) catch unreachable;
-
-    // Add table to UI
-    state.ui.tables.append(state.allocator, table) catch unreachable;
+    const col3 = table.addColumn(state.allocator) catch unreachable;
+    col3.addCell(state.allocator, "City") catch unreachable;
+    col3.addCell(state.allocator, "NYC") catch unreachable;
+    col3.addCell(state.allocator, "LA") catch unreachable;
 
     sendTableToDOM(table) catch |err| {
         std.log.err("Failed to send table to DOM: {}", .{err});
@@ -467,7 +456,7 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
     return normalized_p;
 }
 
-fn sendTableToDOM(table: ui.Table) !void {
+fn sendTableToDOM(table: *ui.Table) !void {
     const table_as_md = table.md(state.allocator) catch unreachable;
     defer state.allocator.free(table_as_md);
     setMarkdownSource(table_as_md);
