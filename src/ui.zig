@@ -45,13 +45,6 @@ pub const Scene = struct {
     }
 };
 
-/// Represents any arbitrary position in 2D space
-/// rather than a specific grid cell
-pub const PosVec2 = struct {
-    x: f32,
-    y: f32,
-};
-
 pub const GridPos = struct {
     left: usize = 0,
     top: usize = 0,
@@ -91,12 +84,12 @@ pub const Cell = struct {
         return .{ .width = container_width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
+    pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
         // This is addition is here because otherwise, the
         // text starts above the first row. Reason being that
         // the text bearing_y is negative and pulls the text
         // upwards
-        var pos_y = position.y + units.cell.height;
+        var pos_y = position[1] + units.cell.height;
         var i: usize = 0;
         var start: usize = i;
         while (i < self.value.items.len) : (i += 1) {
@@ -105,7 +98,7 @@ pub const Cell = struct {
                 // send the current line to the scene
                 try scene.texts.append(allocator, .{
                     .text = self.value.items[start..i],
-                    .x = position.x,
+                    .x = position[0],
                     .y = pos_y,
                 });
                 i += 1; // skip the newline
@@ -117,7 +110,7 @@ pub const Cell = struct {
         if (start < self.value.items.len) {
             try scene.texts.append(allocator, .{
                 .text = self.value.items[start..self.value.items.len],
-                .x = position.x,
+                .x = position[0],
                 .y = pos_y,
             });
         }
@@ -156,14 +149,11 @@ pub const Column = struct {
         return .{ .width = width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
-        var pos_y = position.y;
+    pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
+        var pos_y = position[1];
         for (self.data.items) |cell| {
             const cell_dims = cell.size(units);
-            try cell.addSelfToScene(scene, allocator, units, .{
-                .x = position.x,
-                .y = pos_y,
-            });
+            try cell.addSelfToScene(scene, allocator, units, Vec2{ position[0], pos_y });
             pos_y += cell_dims.height;
         }
     }
@@ -294,10 +284,7 @@ pub const Table = struct {
         var pos_x = actual_position_x;
         for (self.columns.items) |column| {
             const col_size = column.size(units);
-            try column.addSelfToScene(scene, allocator, units, .{
-                .x = pos_x,
-                .y = actual_position_y,
-            });
+            try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
         }
     }
@@ -306,18 +293,18 @@ pub const Table = struct {
 const CellInfo = struct {
     cell: *const Cell,
     column: *const Column,
-    pos: PosVec2,
+    pos: Vec2,
 };
 
 const TextPos = struct {
     cell: *const Cell,
     column: *const Column,
-    pos: PosVec2,
+    pos: Vec2,
     char_offset: usize,
 };
 
 pub const Cursor = struct {
-    pos: PosVec2,
+    pos: Vec2,
     size: Size2D,
 
     pub fn getRect(self: Cursor, color: Color) RectElement {
@@ -325,8 +312,8 @@ pub const Cursor = struct {
         const corners = .{ corner, corner, corner, corner };
         return .{
             .color = color,
-            .x = self.pos.x,
-            .y = self.pos.y,
+            .x = self.pos[0],
+            .y = self.pos[1],
             .width = self.size.width,
             .height = self.size.height,
             .corners = corners,
@@ -392,7 +379,7 @@ pub const UI = struct {
                 .height = cell_info.cell.size(self.units).height,
             };
             return .{
-                .pos = .{ .x = cell_info.pos.x, .y = cell_info.pos.y },
+                .pos = Vec2{ cell_info.pos[0], cell_info.pos[1] },
                 .size = cell_size,
             };
         }
@@ -403,7 +390,7 @@ pub const UI = struct {
         const y = @as(f32, @floatFromInt(cell_pos.top)) * self.units.cell.height;
         const size = self.units.cell;
         return .{
-            .pos = .{ .x = x, .y = y },
+            .pos = Vec2{ x, y },
             .size = size,
         };
     }
@@ -412,15 +399,15 @@ pub const UI = struct {
         const cell = containing_cell.cell;
         const lines = countLines(cell);
         var offset: usize = 0;
-        var x: f32 = containing_cell.pos.x;
+        var x: f32 = containing_cell.pos[0];
         for (0..lines) |target_line| {
             var line_x = x;
-            const line_y = containing_cell.pos.y + self.units.cell.height * @as(f32, @floatFromInt(target_line));
+            const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
             while (offset < cell.value.items.len) : (offset += 1) {
                 const char = cell.value.items[offset];
                 if (char == '\n') {
                     // reset x to start
-                    x = containing_cell.pos.x;
+                    x = containing_cell.pos[0];
                     break;
                 }
                 line_x += self.units.text.width;
@@ -429,7 +416,7 @@ pub const UI = struct {
                     return TextPos{
                         .cell = cell,
                         .column = containing_cell.column,
-                        .pos = .{ .x = line_x, .y = line_y },
+                        .pos = Vec2{ line_x, line_y },
                         .char_offset = offset,
                     };
                 }
@@ -465,7 +452,7 @@ pub const UI = struct {
                                 return CellInfo{
                                     .cell = cell,
                                     .column = column,
-                                    .pos = .{ .x = current_x, .y = cell_y },
+                                    .pos = Vec2{ current_x, cell_y },
                                 };
                             }
 
