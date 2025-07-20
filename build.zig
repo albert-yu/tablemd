@@ -32,10 +32,6 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const dep_koino = b.dependency("koino", .{
-        .target = target,
-        .optimize = optimize,
-    });
 
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
@@ -57,10 +53,6 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "TrueType",
                 .module = dep_truetype.module("TrueType"),
-            },
-            .{
-                .name = "koino",
-                .module = dep_koino.module("koino"),
             },
             .{
                 .name = "quad_shader",
