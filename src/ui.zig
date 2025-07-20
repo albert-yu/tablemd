@@ -347,17 +347,6 @@ pub const UI = struct {
         self.hover_cursor = self.getCursor(p);
     }
 
-    pub fn getCursor(self: UI, p: Vec2) Cursor {
-        const cell_pos = self.getCellPosition(p);
-        const x = @as(f32, @floatFromInt(cell_pos.left)) * self.units.cell.width;
-        const y = @as(f32, @floatFromInt(cell_pos.top)) * self.units.cell.height;
-        const size = self.units.cell;
-        return .{
-            .pos = .{ .x = x, .y = y },
-            .size = size,
-        };
-    }
-
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
         for (self.tables.items) |table| {
             try table.addSelfToScene(scene, allocator, self.units);
@@ -368,6 +357,17 @@ pub const UI = struct {
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(.{ 1.0, 0.0, 0.0, 1.25 }));
         }
+    }
+
+    fn getCursor(self: UI, p: Vec2) Cursor {
+        const cell_pos = self.getCellPosition(p);
+        const x = @as(f32, @floatFromInt(cell_pos.left)) * self.units.cell.width;
+        const y = @as(f32, @floatFromInt(cell_pos.top)) * self.units.cell.height;
+        const size = self.units.cell;
+        return .{
+            .pos = .{ .x = x, .y = y },
+            .size = size,
+        };
     }
 
     fn getCellPosition(self: UI, p: Vec2) GridPos {
