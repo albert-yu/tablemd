@@ -19,11 +19,10 @@ const Color = [4]f32;
 
 // Re-export table types for backward compatibility
 pub const Table = table_mod.Table;
-pub const Column = table_mod.Column;
-pub const Cell = table_mod.Cell;
+const Cell = table_mod.Cell;
 pub const Scene = table_mod.Scene;
-pub const GridPos = table_mod.GridPos;
-pub const Units = table_mod.Units;
+const GridPos = table_mod.GridPos;
+const Units = table_mod.Units;
 
 const ClientRect = struct {
     pos: Vec2,
