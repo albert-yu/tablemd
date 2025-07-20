@@ -18,6 +18,11 @@ const Units = struct {
     text: Size2D,
 };
 
+const ClientRect = struct {
+    pos: Vec2,
+    size: Size2D,
+};
+
 pub const Scene = struct {
     rects: ArrayList(RectElement),
     texts: ArrayList(TextElement),
@@ -419,7 +424,8 @@ pub const UI = struct {
                     break;
                 }
                 line_x += self.units.text.width;
-                if (p[0] >= line_x and p[0] < line_x + self.units.text.width and p[1] >= line_y and p[1] < line_y + self.units.text.height) {
+                const char_pos = Vec2{ line_x, line_y };
+                if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
                         .cell = cell,
                         .column = containing_cell.column,
@@ -496,6 +502,10 @@ pub const UI = struct {
         return max_i;
     }
 };
+
+fn clientRectContains(r: ClientRect, p: Vec2) bool {
+    return p[0] >= r.pos[0] and p[0] < r.pos[0] + r.size.width and p[1] >= r.pos[1] and p[1] < r.pos[1] + r.size.height;
+}
 
 fn countLines(cell: *const Cell) usize {
     var lines: usize = 1;
