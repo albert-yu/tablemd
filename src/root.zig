@@ -26,6 +26,10 @@ const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
 
+fn createCell(allocator: std.mem.Allocator, value: []const u8) ui.Cell {
+    return ui.Cell.init(allocator, value);
+}
+
 const CellPosition = struct {
     row: usize,
     col: usize,
@@ -108,21 +112,21 @@ export fn init() void {
 
     // Column 1
     var col1 = ui.Column.init(state.allocator);
-    col1.data.append(state.allocator, .{ .value = "Name" }) catch unreachable;
-    col1.data.append(state.allocator, .{ .value = "Alice" }) catch unreachable;
-    col1.data.append(state.allocator, .{ .value = "Bob" }) catch unreachable;
+    col1.data.append(state.allocator, createCell(state.allocator, "Name")) catch unreachable;
+    col1.data.append(state.allocator, createCell(state.allocator, "Alice")) catch unreachable;
+    col1.data.append(state.allocator, createCell(state.allocator, "Bob")) catch unreachable;
 
     // Column 2
     var col2 = ui.Column.init(state.allocator);
-    col2.data.append(state.allocator, .{ .value = "Age" }) catch unreachable;
-    col2.data.append(state.allocator, .{ .value = "25" }) catch unreachable;
-    col2.data.append(state.allocator, .{ .value = "30" }) catch unreachable;
+    col2.data.append(state.allocator, createCell(state.allocator, "Age")) catch unreachable;
+    col2.data.append(state.allocator, createCell(state.allocator, "25")) catch unreachable;
+    col2.data.append(state.allocator, createCell(state.allocator, "30")) catch unreachable;
 
     // Column 3
     var col3 = ui.Column.init(state.allocator);
-    col3.data.append(state.allocator, .{ .value = "City" }) catch unreachable;
-    col3.data.append(state.allocator, .{ .value = "NYC" }) catch unreachable;
-    col3.data.append(state.allocator, .{ .value = "LA" }) catch unreachable;
+    col3.data.append(state.allocator, createCell(state.allocator, "City")) catch unreachable;
+    col3.data.append(state.allocator, createCell(state.allocator, "NYC")) catch unreachable;
+    col3.data.append(state.allocator, createCell(state.allocator, "LA")) catch unreachable;
 
     // Add columns to table
     table.columns.append(state.allocator, col1) catch unreachable;
@@ -138,6 +142,7 @@ export fn init() void {
 
     // convert markdown to html
     const html_str = markdownToHtml(table_as_md) catch unreachable;
+    defer state.allocator.free(html_str);
     setHtmlRender(html_str);
 
     state.pass_action.colors[0] = .{

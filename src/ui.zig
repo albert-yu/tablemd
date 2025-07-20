@@ -59,7 +59,17 @@ pub const GridPosText = struct {
 };
 
 pub const Cell = struct {
-    value: []const u8,
+    value: ArrayList(u8),
+
+    pub fn init(allocator: Allocator, content: []const u8) Cell {
+        var value = ArrayList(u8).initCapacity(allocator, content.len) catch unreachable;
+        value.appendSlice(allocator, content) catch unreachable;
+        return Cell{ .value = value };
+    }
+
+    pub fn deinit(self: *Cell, allocator: Allocator) void {
+        self.value.deinit(allocator);
+    }
 
     pub fn size(self: Cell, units: Units) Size2D {
         const cell_units = units.cell;
@@ -68,7 +78,7 @@ pub const Cell = struct {
         var height: f32 = units.cell.height;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
-        for (self.value) |char| {
+        for (self.value.items) |char| {
             if (char == '\n') {
                 width = @max(width, curr_line_width);
                 curr_line_width = 0.0;
@@ -90,12 +100,12 @@ pub const Cell = struct {
         var pos_y = position.y + units.cell.height;
         var i: usize = 0;
         var start: usize = i;
-        while (i < self.value.len) : (i += 1) {
-            const char = self.value[i];
+        while (i < self.value.items.len) : (i += 1) {
+            const char = self.value.items[i];
             if (char == '\n') {
                 // send the current line to the scene
                 try scene.texts.append(allocator, .{
-                    .text = self.value[start..i],
+                    .text = self.value.items[start..i],
                     .x = position.x,
                     .y = pos_y,
                 });
@@ -105,9 +115,9 @@ pub const Cell = struct {
                 continue;
             }
         }
-        if (start < self.value.len) {
+        if (start < self.value.items.len) {
             try scene.texts.append(allocator, .{
-                .text = self.value[start..self.value.len],
+                .text = self.value.items[start..self.value.items.len],
                 .x = position.x,
                 .y = pos_y,
             });
@@ -130,10 +140,9 @@ pub const Column = struct {
     }
 
     pub fn deinit(self: *Column, allocator: Allocator) void {
-        // for (self.data.items) |cell| {
-        //     // TODO: deinit cell
-        //     // cell.deinit(allocator);
-        // }
+        for (self.data.items) |*cell| {
+            cell.deinit(allocator);
+        }
         self.data.deinit(allocator);
     }
 
@@ -216,7 +225,7 @@ pub const Table = struct {
         for (self.columns.items, 0..) |column, col_idx| {
             var max_width: usize = 0;
             for (column.data.items) |cell| {
-                max_width = @max(max_width, cell.value.len);
+                max_width = @max(max_width, cell.value.items.len);
             }
             column_widths[col_idx] = max_width;
         }
@@ -231,7 +240,7 @@ pub const Table = struct {
                 result.append(allocator, ' ') catch return error.OutOfMemory;
 
                 const cell_value = if (row_idx < column.data.items.len)
-                    column.data.items[row_idx].value
+                    column.data.items[row_idx].value.items
                 else
                     "";
 
