@@ -197,7 +197,7 @@ pub const Table = struct {
         const rect_size = self.size(units);
         const corner = 1.0 / 512.0;
         try scene.rects.append(allocator, .{
-            .color = .{ 0.0, 0.0, 0.0, 1.0 },
+            .color = .{ 0.0, 0.0, 0.0, 0.25 },
             .x = actual_position_x,
             .y = actual_position_y,
             .width = rect_size.width,
@@ -291,14 +291,14 @@ pub const UI = struct {
     }
 
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
-        if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.0, 1.0, 0.0, 1.0 }));
-        }
-        if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 1.0, 0.0, 0.0, 1.0 }));
-        }
         for (self.tables.items) |table| {
             try table.addSelfToScene(scene, allocator, self.units);
+        }
+        if (self.active_cursor) |cursor| {
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.0, 1.0, 0.0, 0.75 }));
+        }
+        if (self.hover_cursor) |cursor| {
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 1.0, 0.0, 0.0, 1.25 }));
         }
     }
 
