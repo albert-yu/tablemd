@@ -53,6 +53,10 @@
             .url = "git+https://github.com/zigimg/zigimg.git#31bd433201d12d6aa700074d751a7db4555cdb0d",
             .hash = "zigimg-0.1.0-8_eo2qClEgC8dTSiSO6vqGe7mdtIkobGi-Uc4d0Eo7_2",
         },
+        .koino = .{
+            .url = "git+https://github.com/kivikakk/koino#2ac7fa3b3f235a416e0e8c94d78751f035010e09",
+            .hash = "koino-0.1.0-S9LuWlqLAgBe5tKcfhmAPAaY_l0lxZkpt70njA6BRem2",
+        },
     },
     .paths = .{
         "build.zig",
