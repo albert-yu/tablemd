@@ -165,8 +165,8 @@ pub const Renderer = struct {
             },
             .index_type = .UINT16,
             .depth = .{
-                .compare = .ALWAYS,
-                .write_enabled = false,
+                .compare = .LESS_EQUAL,
+                .write_enabled = true,
             },
         };
 
