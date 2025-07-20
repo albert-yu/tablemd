@@ -190,6 +190,83 @@ pub const Table = struct {
         return .{ .width = width, .height = height };
     }
 
+    /// Convert table data to Markdown table format
+    pub fn md(self: Table, allocator: Allocator) ![]u8 {
+        if (self.columns.items.len == 0) {
+            return allocator.dupe(u8, "");
+        }
+
+        var result = ArrayList(u8).initCapacity(allocator, 0) catch unreachable;
+        defer result.deinit(allocator);
+
+        // Find the maximum number of rows
+        var max_rows: usize = 0;
+        for (self.columns.items) |column| {
+            max_rows = @max(max_rows, column.data.items.len);
+        }
+
+        if (max_rows == 0) {
+            return allocator.dupe(u8, "");
+        }
+
+        // Calculate maximum width for each column
+        var column_widths = allocator.alloc(usize, self.columns.items.len) catch return error.OutOfMemory;
+        defer allocator.free(column_widths);
+
+        for (self.columns.items, 0..) |column, col_idx| {
+            var max_width: usize = 0;
+            for (column.data.items) |cell| {
+                max_width = @max(max_width, cell.value.len);
+            }
+            column_widths[col_idx] = max_width;
+        }
+
+        // Generate each row
+        for (0..max_rows) |row_idx| {
+            // Add pipe at start of row
+            result.append(allocator, '|') catch return error.OutOfMemory;
+
+            // Add cells for this row
+            for (self.columns.items, 0..) |column, col_idx| {
+                result.append(allocator, ' ') catch return error.OutOfMemory;
+
+                const cell_value = if (row_idx < column.data.items.len)
+                    column.data.items[row_idx].value
+                else
+                    "";
+
+                result.appendSlice(allocator, cell_value) catch return error.OutOfMemory;
+
+                // Add padding to align columns
+                const padding_needed = column_widths[col_idx] - cell_value.len;
+                for (0..padding_needed) |_| {
+                    result.append(allocator, ' ') catch return error.OutOfMemory;
+                }
+
+                result.append(allocator, ' ') catch return error.OutOfMemory;
+                result.append(allocator, '|') catch return error.OutOfMemory;
+            }
+
+            result.append(allocator, '\n') catch return error.OutOfMemory;
+
+            // Add header separator after first row
+            if (row_idx == 0) {
+                result.append(allocator, '|') catch return error.OutOfMemory;
+                for (column_widths) |width| {
+                    result.append(allocator, ' ') catch return error.OutOfMemory;
+                    for (0..width) |_| {
+                        result.append(allocator, '-') catch return error.OutOfMemory;
+                    }
+                    result.append(allocator, ' ') catch return error.OutOfMemory;
+                    result.append(allocator, '|') catch return error.OutOfMemory;
+                }
+                result.append(allocator, '\n') catch return error.OutOfMemory;
+            }
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
     pub fn addSelfToScene(self: Table, scene: *Scene, allocator: Allocator, units: Units) !void {
         const cell_units = units.cell;
         const actual_position_x = @as(f32, @floatFromInt(self.position.left)) * cell_units.width;

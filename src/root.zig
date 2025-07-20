@@ -131,6 +131,10 @@ export fn init() void {
     // Add table to UI
     state.ui.tables.append(state.allocator, table) catch unreachable;
 
+    const md = table.md(state.allocator) catch unreachable;
+    defer state.allocator.free(md);
+    setMarkdownSource(md);
+
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
@@ -141,25 +145,9 @@ export fn init() void {
 
 export fn frame() void {
     clear();
-    // const rect_w = state.rect_dims.width;
-    // const rect_h = state.rect_dims.height;
     state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
         std.log.err("Failed to add UI to scene: {}", .{err});
     };
-    // state.scene.texts.append(state.allocator, .{
-    //     .text = "hello, world! good day",
-    //     .x = rect_w,
-    //     .y = rect_h,
-    // }) catch |err| {
-    //     std.log.err("Failed to add text: {}", .{err});
-    // };
-    // state.scene.texts.append(state.allocator, .{
-    //     .text = "the quick brown fox jumps over the lazy dog",
-    //     .x = 2 * rect_w,
-    //     .y = 2 * rect_h,
-    // }) catch |err| {
-    //     std.log.err("Failed to add text: {}", .{err});
-    // };
     for (state.scene.rects.items) |rect| {
         state.rect_renderer.add(rect);
     }
@@ -274,8 +262,7 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .CHAR => {
             if (isPrintableChar(event.char_code)) {
-                setMarkdownSource("# Test markdown\n\nHello, world!\n\n");
-                setHtmlRender("<h1>Test html</h1>");
+                // TODO: handle input
             }
         },
         else => {},
