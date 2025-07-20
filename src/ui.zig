@@ -304,6 +304,13 @@ const CellInfo = struct {
     pos: PosVec2,
 };
 
+const TextPos = struct {
+    cell: *const Cell,
+    column: *const Column,
+    pos: PosVec2,
+    char_offset: usize,
+};
+
 pub const Cursor = struct {
     pos: PosVec2,
     size: Size2D,
@@ -368,6 +375,12 @@ pub const UI = struct {
     fn getCursor(self: UI, p: Vec2) Cursor {
         // Check if there's a Cell at this position and use its size
         if (self.getCellAt(p)) |cell_info| {
+            if (self.getTextPositionAt(p, cell_info)) |text_pos| {
+                return .{
+                    .pos = text_pos.pos,
+                    .size = self.units.text,
+                };
+            }
             const column_size = cell_info.column.size(self.units);
             const cell_size = Size2D{
                 .width = column_size.width,
@@ -388,6 +401,35 @@ pub const UI = struct {
             .pos = .{ .x = x, .y = y },
             .size = size,
         };
+    }
+
+    fn getTextPositionAt(self: UI, p: Vec2, containing_cell: CellInfo) ?TextPos {
+        const cell = containing_cell.cell;
+        const lines = countLines(cell);
+        var offset: usize = 0;
+        var x: f32 = containing_cell.pos.x;
+        for (0..lines) |target_line| {
+            var line_x = x;
+            const line_y = containing_cell.pos.y + self.units.cell.height * @as(f32, @floatFromInt(target_line));
+            while (offset < cell.value.items.len) : (offset += 1) {
+                const char = cell.value.items[offset];
+                if (char == '\n') {
+                    // reset x to start
+                    x = containing_cell.pos.x;
+                    break;
+                }
+                line_x += self.units.text.width;
+                if (p[0] >= line_x and p[0] < line_x + self.units.text.width and p[1] >= line_y and p[1] < line_y + self.units.text.height) {
+                    return TextPos{
+                        .cell = cell,
+                        .column = containing_cell.column,
+                        .pos = .{ .x = line_x, .y = line_y },
+                        .char_offset = offset,
+                    };
+                }
+            }
+        }
+        return null;
     }
 
     fn getCellAt(self: UI, p: Vec2) ?CellInfo {
@@ -454,3 +496,11 @@ pub const UI = struct {
         return max_i;
     }
 };
+
+fn countLines(cell: *const Cell) usize {
+    var lines: usize = 1;
+    for (cell.value.items) |char| {
+        if (char == '\n') lines += 1;
+    }
+    return lines;
+}
