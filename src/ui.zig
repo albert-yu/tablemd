@@ -58,13 +58,14 @@ pub const GridPosText = struct {
     char_offset: ?usize = null,
 };
 
-const Cell = struct {
+pub const Cell = struct {
     value: []const u8,
 
     pub fn size(self: Cell, units: Units) Size2D {
         const cell_units = units.cell;
         const text_units = units.text;
-        var height: f32 = 0.0;
+
+        var height: f32 = units.cell.height;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
         for (self.value) |char| {
@@ -76,7 +77,8 @@ const Cell = struct {
             }
             curr_line_width += text_units.width;
         }
-        const container_width = divCeil(width, cell_units.width);
+        width = @max(width, curr_line_width);
+        const container_width = cell_units.width * divCeil(width, cell_units.width);
         return .{ .width = container_width, .height = height };
     }
 
@@ -118,14 +120,12 @@ fn divCeil(top: f32, bottom: f32) f32 {
     return @ceil(exact);
 }
 
-const Column = struct {
+pub const Column = struct {
     data: ArrayList(Cell),
-    allocator: Allocator,
 
     pub fn init(allocator: Allocator) Column {
         return Column{
             .data = ArrayList(Cell).initCapacity(allocator, 0) catch unreachable,
-            .allocator = allocator,
         };
     }
 
@@ -169,7 +169,6 @@ pub const Table = struct {
         return Table{
             .position = .{ .left = 0, .top = 0 },
             .columns = ArrayList(Column).initCapacity(allocator, 0) catch unreachable,
-            .allocator = allocator,
         };
     }
 

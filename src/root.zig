@@ -101,6 +101,36 @@ export fn init() void {
         .text = .{ .width = text_width, .height = rect_dims.height },
     });
 
+    // Create a simple 3x3 table
+    var table = ui.Table.init(state.allocator);
+    table.position = .{ .left = 1, .top = 1 };
+
+    // Column 1
+    var col1 = ui.Column.init(state.allocator);
+    col1.data.append(state.allocator, .{ .value = "Name" }) catch unreachable;
+    col1.data.append(state.allocator, .{ .value = "Alice" }) catch unreachable;
+    col1.data.append(state.allocator, .{ .value = "Bob" }) catch unreachable;
+
+    // Column 2
+    var col2 = ui.Column.init(state.allocator);
+    col2.data.append(state.allocator, .{ .value = "Age" }) catch unreachable;
+    col2.data.append(state.allocator, .{ .value = "25" }) catch unreachable;
+    col2.data.append(state.allocator, .{ .value = "30" }) catch unreachable;
+
+    // Column 3
+    var col3 = ui.Column.init(state.allocator);
+    col3.data.append(state.allocator, .{ .value = "City" }) catch unreachable;
+    col3.data.append(state.allocator, .{ .value = "NYC" }) catch unreachable;
+    col3.data.append(state.allocator, .{ .value = "LA" }) catch unreachable;
+
+    // Add columns to table
+    table.columns.append(state.allocator, col1) catch unreachable;
+    table.columns.append(state.allocator, col2) catch unreachable;
+    table.columns.append(state.allocator, col3) catch unreachable;
+
+    // Add table to UI
+    state.ui.tables.append(state.allocator, table) catch unreachable;
+
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         .clear_value = BG_COLOR,
@@ -111,25 +141,25 @@ export fn init() void {
 
 export fn frame() void {
     clear();
-    const rect_w = state.rect_dims.width;
-    const rect_h = state.rect_dims.height;
+    // const rect_w = state.rect_dims.width;
+    // const rect_h = state.rect_dims.height;
     state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
         std.log.err("Failed to add UI to scene: {}", .{err});
     };
-    state.scene.texts.append(state.allocator, .{
-        .text = "hello, world! good day",
-        .x = rect_w,
-        .y = rect_h,
-    }) catch |err| {
-        std.log.err("Failed to add text: {}", .{err});
-    };
-    state.scene.texts.append(state.allocator, .{
-        .text = "the quick brown fox jumps over the lazy dog",
-        .x = 2 * rect_w,
-        .y = 2 * rect_h,
-    }) catch |err| {
-        std.log.err("Failed to add text: {}", .{err});
-    };
+    // state.scene.texts.append(state.allocator, .{
+    //     .text = "hello, world! good day",
+    //     .x = rect_w,
+    //     .y = rect_h,
+    // }) catch |err| {
+    //     std.log.err("Failed to add text: {}", .{err});
+    // };
+    // state.scene.texts.append(state.allocator, .{
+    //     .text = "the quick brown fox jumps over the lazy dog",
+    //     .x = 2 * rect_w,
+    //     .y = 2 * rect_h,
+    // }) catch |err| {
+    //     std.log.err("Failed to add text: {}", .{err});
+    // };
     for (state.scene.rects.items) |rect| {
         state.rect_renderer.add(rect);
     }
