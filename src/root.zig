@@ -461,7 +461,3 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
     const normalized_p = normalizePt(inv_p);
     return normalized_p;
 }
-
-fn isPrintableChar(char_code: u32) bool {
-    return char_code >= 32 and char_code <= 126;
-}
