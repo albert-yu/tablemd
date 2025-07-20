@@ -52,12 +52,6 @@ pub const GridPos = struct {
     top: usize = 0,
 };
 
-pub const GridPosText = struct {
-    left: usize = 0,
-    top: usize = 0,
-    char_offset: ?usize = null,
-};
-
 pub const Cell = struct {
     value: ArrayList(u8),
 
@@ -304,38 +298,21 @@ pub const Table = struct {
     }
 };
 
-pub const CursorType = enum {
-    cell,
-    text,
-};
+pub const Cursor = struct {
+    pos: PosVec2,
+    size: Size2D,
 
-pub const Cursor = union(CursorType) {
-    cell: GridPos,
-    text: GridPosText,
-
-    pub fn getRect(self: Cursor, units: Units, color: Color) RectElement {
+    pub fn getRect(self: Cursor, color: Color) RectElement {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
-        return switch (self) {
-            .cell => |cell_pos| .{
-                .color = color,
-                .x = @as(f32, @floatFromInt(cell_pos.left)) * units.cell.width,
-                .y = @as(f32, @floatFromInt(cell_pos.top)) * units.cell.height,
-                .width = units.cell.width,
-                .height = units.cell.height,
-                .corners = corners,
-                .sigma = 1e-6,
-            },
-            .text => |text_pos| .{
-                .color = color,
-                // TODO: fix this to use offset
-                .x = @as(f32, @floatFromInt(text_pos.left)) * units.text.width,
-                .y = @as(f32, @floatFromInt(text_pos.top)) * units.text.height,
-                .width = units.text.width,
-                .height = units.text.height,
-                .corners = corners,
-                .sigma = 1e-6,
-            },
+        return .{
+            .color = color,
+            .x = self.pos.x,
+            .y = self.pos.y,
+            .width = self.size.width,
+            .height = self.size.height,
+            .corners = corners,
+            .sigma = 1e-6,
         };
     }
 };
@@ -372,8 +349,13 @@ pub const UI = struct {
 
     pub fn getCursor(self: UI, p: Vec2) Cursor {
         const cell_pos = self.getCellPosition(p);
-        // TODO: handle text cursor
-        return Cursor{ .cell = cell_pos };
+        const x = @as(f32, @floatFromInt(cell_pos.left)) * self.units.cell.width;
+        const y = @as(f32, @floatFromInt(cell_pos.top)) * self.units.cell.height;
+        const size = self.units.cell;
+        return .{
+            .pos = .{ .x = x, .y = y },
+            .size = size,
+        };
     }
 
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
@@ -381,10 +363,10 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.0, 1.0, 0.0, 0.75 }));
+            try scene.rects.append(allocator, cursor.getRect(.{ 0.0, 1.0, 0.0, 0.75 }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 1.0, 0.0, 0.0, 1.25 }));
+            try scene.rects.append(allocator, cursor.getRect(.{ 1.0, 0.0, 0.0, 1.25 }));
         }
     }
 
