@@ -86,6 +86,51 @@ pub const Cell = struct {
         return .{ .width = container_width, .height = height };
     }
 
+    pub fn lineSizes(self: Cell, allocator: Allocator, units: Units) ![]Size2D {
+        const text_units = units.text;
+        var lines = ArrayList(Size2D).initCapacity(allocator, 0) catch return error.OutOfMemory;
+        defer lines.deinit(allocator);
+
+        var curr_line_width: f32 = 0.0;
+        var line_start: usize = 0;
+
+        for (self.value.items, 0..) |char, i| {
+            if (char == '\n') {
+                // Complete the current line
+                const line_size = Size2D{
+                    .width = curr_line_width,
+                    .height = text_units.height,
+                };
+                lines.append(allocator, line_size) catch return error.OutOfMemory;
+
+                curr_line_width = 0.0;
+                line_start = i + 1;
+                continue;
+            }
+            curr_line_width += text_units.width;
+        }
+
+        // Add the final line if there's content after the last newline
+        if (line_start < self.value.items.len) {
+            const line_size = Size2D{
+                .width = curr_line_width,
+                .height = text_units.height,
+            };
+            lines.append(allocator, line_size) catch return error.OutOfMemory;
+        }
+
+        // If the cell is empty, return a single line with zero width
+        if (lines.items.len == 0) {
+            const empty_line = Size2D{
+                .width = 0.0,
+                .height = text_units.height,
+            };
+            lines.append(allocator, empty_line) catch return error.OutOfMemory;
+        }
+
+        return lines.toOwnedSlice(allocator);
+    }
+
     pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
         // This is addition is here because otherwise, the
         // text starts above the first row. Reason being that
