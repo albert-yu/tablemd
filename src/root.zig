@@ -271,9 +271,10 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchCancelled(event);
         },
         .CHAR => {
-            if (isPrintableChar(event.char_code)) {
-                // TODO: handle input
-            }
+            state.ui.handleChar(state.allocator, event.char_code) catch {};
+        },
+        .KEY_DOWN => {
+            state.ui.handleKeyDown(event.key_code);
         },
         else => {},
     }

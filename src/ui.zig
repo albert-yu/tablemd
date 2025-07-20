@@ -1,10 +1,13 @@
 const std = @import("std");
+const sokol = @import("sokol");
 const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
 const text = @import("render/text.zig");
 const Vec2 = @import("zm").Vec2f;
+const sapp = sokol.app;
+const Keycode = sapp.Keycode;
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
@@ -291,14 +294,14 @@ pub const Table = struct {
 };
 
 const CellPos = struct {
-    cell: *const Cell,
-    column: *const Column,
+    cell: *Cell,
+    column: *Column,
     pos: Vec2,
 };
 
 const TextPos = struct {
-    cell: *const Cell,
-    column: *const Column,
+    cell: *Cell,
+    column: *Column,
     pos: Vec2,
     char_offset: usize,
 };
@@ -379,6 +382,51 @@ pub const UI = struct {
         self.hover_cursor = self.getCursor(p);
     }
 
+    pub fn handleChar(self: *UI, allocator: Allocator, char_code: u32) !void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // TODO: handle input on empty
+                    // it should create a new table
+                    // if the cell isn't adjacent to
+                    // an existing table
+                },
+                .cell => {
+                    // Do nothing
+                },
+                .text => |text_pos| {
+                    // Convert u32 to u8, handling potential overflow
+                    const char: u8 = @truncate(char_code);
+                    try text_pos.cell.value.insert(allocator, text_pos.char_offset, char);
+                },
+            }
+        }
+    }
+
+    pub fn handleKeyDown(self: *UI, key_code: Keycode) void {
+        switch (key_code) {
+            .BACKSPACE => self.handleBackspace(),
+            // TODO: handle tab, enter
+            // tab should move to next cell to the right
+            // enter should create a new row or move to next cell down
+            else => {},
+        }
+    }
+
+    fn handleBackspace(self: *UI) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // TODO: handle input on empty
+                },
+                .cell => {},
+                .text => |text_pos| {
+                    _ = text_pos.cell.value.orderedRemove(text_pos.char_offset);
+                },
+            }
+        }
+    }
+
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
         for (self.tables.items) |table| {
             try table.addSelfToScene(scene, allocator, self.units);
@@ -391,7 +439,7 @@ pub const UI = struct {
         }
     }
 
-    fn getCursor(self: UI, p: Vec2) Cursor {
+    fn getCursor(self: *UI, p: Vec2) Cursor {
         // Check if there's a Cell at this position and use its size
         if (self.getCellAt(p)) |cell_info| {
             if (self.getTextPositionAt(p, cell_info)) |text_pos| {
@@ -411,7 +459,7 @@ pub const UI = struct {
         };
     }
 
-    fn getTextPositionAt(self: UI, p: Vec2, containing_cell: CellPos) ?TextPos {
+    fn getTextPositionAt(self: *UI, p: Vec2, containing_cell: CellPos) ?TextPos {
         const cell = containing_cell.cell;
         const lines = countLines(cell);
         var offset: usize = 0;
@@ -441,7 +489,7 @@ pub const UI = struct {
         return null;
     }
 
-    fn getCellAt(self: UI, p: Vec2) ?CellPos {
+    fn getCellAt(self: *UI, p: Vec2) ?CellPos {
         for (self.tables.items) |table| {
             const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
             const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
