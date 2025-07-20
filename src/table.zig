@@ -4,10 +4,12 @@ const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
 const text = @import("render/text.zig");
+const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
+const Scene = scene_mod.Scene;
 const Size2D = grid.Size2D;
 
 pub const Units = struct {
@@ -20,27 +22,6 @@ pub const GridPos = struct {
     top: usize = 0,
 };
 
-pub const Scene = struct {
-    rects: ArrayList(RectElement),
-    texts: ArrayList(TextElement),
-
-    pub fn init(allocator: Allocator) Scene {
-        return Scene{
-            .rects = ArrayList(RectElement).initCapacity(allocator, 0) catch unreachable,
-            .texts = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
-        };
-    }
-
-    pub fn deinit(self: *Scene, allocator: Allocator) void {
-        self.rects.deinit(allocator);
-        self.texts.deinit(allocator);
-    }
-
-    pub fn clear(self: *Scene) void {
-        self.rects.clearRetainingCapacity();
-        self.texts.clearRetainingCapacity();
-    }
-};
 
 pub const Cell = struct {
     value: ArrayList(u8),

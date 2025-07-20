@@ -9,6 +9,7 @@ const Vec2 = @import("zm").Vec2f;
 const sapp = sokol.app;
 const Keycode = sapp.Keycode;
 const table_mod = @import("table.zig");
+const scene_mod = @import("render/scene.zig");
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
@@ -20,7 +21,7 @@ const Color = [4]f32;
 // Re-export table types for backward compatibility
 pub const Table = table_mod.Table;
 const Cell = table_mod.Cell;
-pub const Scene = table_mod.Scene;
+pub const Scene = scene_mod.Scene;
 const GridPos = table_mod.GridPos;
 const Units = table_mod.Units;
 
