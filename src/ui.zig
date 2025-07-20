@@ -298,6 +298,12 @@ pub const Table = struct {
     }
 };
 
+const CellInfo = struct {
+    cell: *const Cell,
+    column: *const Column,
+    pos: PosVec2,
+};
+
 pub const Cursor = struct {
     pos: PosVec2,
     size: Size2D,
@@ -360,6 +366,20 @@ pub const UI = struct {
     }
 
     fn getCursor(self: UI, p: Vec2) Cursor {
+        // Check if there's a Cell at this position and use its size
+        if (self.getCellAt(p)) |cell_info| {
+            const column_size = cell_info.column.size(self.units);
+            const cell_size = Size2D{
+                .width = column_size.width,
+                .height = cell_info.cell.size(self.units).height,
+            };
+            return .{
+                .pos = .{ .x = cell_info.pos.x, .y = cell_info.pos.y },
+                .size = cell_size,
+            };
+        }
+
+        // Default to grid cell size if no Cell found
         const cell_pos = self.getCellPosition(p);
         const x = @as(f32, @floatFromInt(cell_pos.left)) * self.units.cell.width;
         const y = @as(f32, @floatFromInt(cell_pos.top)) * self.units.cell.height;
@@ -368,6 +388,51 @@ pub const UI = struct {
             .pos = .{ .x = x, .y = y },
             .size = size,
         };
+    }
+
+    fn getCellAt(self: UI, p: Vec2) ?CellInfo {
+        for (self.tables.items) |table| {
+            const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+            const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+            // Check if position is within table area
+            if (p[0] >= table_start_x and p[1] >= table_start_y) {
+                var current_x = table_start_x;
+                const current_y = table_start_y;
+
+                // Iterate through columns to find which one contains the point
+                for (table.columns.items) |*column| {
+                    const column_size = column.size(self.units);
+
+                    // Check if point is within this column's width
+                    if (p[0] >= current_x and p[0] < current_x + column_size.width) {
+                        var cell_y = current_y;
+
+                        // Iterate through cells in this column
+                        for (column.data.items) |*cell| {
+                            const cell_height = cell.size(self.units).height;
+
+                            // Check if point is within this cell's height
+                            if (p[1] >= cell_y and p[1] < cell_y + cell_height) {
+                                return CellInfo{
+                                    .cell = cell,
+                                    .column = column,
+                                    .pos = .{ .x = current_x, .y = cell_y },
+                                };
+                            }
+
+                            cell_y += cell_height;
+                        }
+
+                        // Point is within column width but below all cells
+                        break;
+                    }
+
+                    current_x += column_size.width;
+                }
+            }
+        }
+        return null;
     }
 
     fn getCellPosition(self: UI, p: Vec2) GridPos {
