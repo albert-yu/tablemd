@@ -184,8 +184,8 @@ pub const Table = struct {
         var height: f32 = 0.0;
         for (self.columns.items) |column| {
             const column_dims = column.size(units);
+            height = @max(height, column_dims.height);
             width += column_dims.width;
-            height += column_dims.height;
         }
         return .{ .width = width, .height = height };
     }
