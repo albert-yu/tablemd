@@ -136,14 +136,9 @@ export fn init() void {
     // Add table to UI
     state.ui.tables.append(state.allocator, table) catch unreachable;
 
-    const table_as_md = table.md(state.allocator) catch unreachable;
-    defer state.allocator.free(table_as_md);
-    setMarkdownSource(table_as_md);
-
-    // convert markdown to html
-    const html_str = markdownToHtml(table_as_md) catch unreachable;
-    defer state.allocator.free(html_str);
-    setHtmlRender(html_str);
+    sendTableToDOM(table) catch |err| {
+        std.log.err("Failed to send table to DOM: {}", .{err});
+    };
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -234,6 +229,7 @@ fn setMarkdownSource(md_src: []const u8) void {
 
 export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
+    var table_dirty = false;
     switch (event.type) {
         .RESIZED => {
             state.t.updateWindowData(sapp.widthf(), sapp.heightf());
@@ -272,11 +268,20 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .CHAR => {
             state.ui.handleChar(state.allocator, event.char_code) catch {};
+            table_dirty = true;
         },
         .KEY_DOWN => {
             state.ui.handleKeyDown(event.key_code);
+            table_dirty = true;
         },
         else => {},
+    }
+    if (table_dirty) {
+        // TODO: whichever table is active should be sent to DOM
+        const table = state.ui.tables.items[0];
+        sendTableToDOM(table) catch |err| {
+            std.log.err("Failed to send table to DOM: {}", .{err});
+        };
     }
 }
 
@@ -460,4 +465,15 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
     const inv_p = invert(mouse_p);
     const normalized_p = normalizePt(inv_p);
     return normalized_p;
+}
+
+fn sendTableToDOM(table: ui.Table) !void {
+    const table_as_md = table.md(state.allocator) catch unreachable;
+    defer state.allocator.free(table_as_md);
+    setMarkdownSource(table_as_md);
+
+    // convert markdown to html
+    const html_str = markdownToHtml(table_as_md) catch unreachable;
+    defer state.allocator.free(html_str);
+    setHtmlRender(html_str);
 }
