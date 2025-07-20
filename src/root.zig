@@ -26,6 +26,10 @@ const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
 
+fn createCell(allocator: std.mem.Allocator, value: []const u8) ui.Cell {
+    return ui.Cell.init(allocator, value) catch unreachable;
+}
+
 const CellPosition = struct {
     row: usize,
     col: usize,
@@ -108,21 +112,21 @@ export fn init() void {
 
     // Column 1
     var col1 = ui.Column.init(state.allocator);
-    col1.data.append(state.allocator, .{ .value = "Name" }) catch unreachable;
-    col1.data.append(state.allocator, .{ .value = "Alice" }) catch unreachable;
-    col1.data.append(state.allocator, .{ .value = "Bob" }) catch unreachable;
+    col1.data.append(state.allocator, createCell(state.allocator, "Name")) catch unreachable;
+    col1.data.append(state.allocator, createCell(state.allocator, "Alice")) catch unreachable;
+    col1.data.append(state.allocator, createCell(state.allocator, "Bob")) catch unreachable;
 
     // Column 2
     var col2 = ui.Column.init(state.allocator);
-    col2.data.append(state.allocator, .{ .value = "Age" }) catch unreachable;
-    col2.data.append(state.allocator, .{ .value = "25" }) catch unreachable;
-    col2.data.append(state.allocator, .{ .value = "30" }) catch unreachable;
+    col2.data.append(state.allocator, createCell(state.allocator, "Age")) catch unreachable;
+    col2.data.append(state.allocator, createCell(state.allocator, "25")) catch unreachable;
+    col2.data.append(state.allocator, createCell(state.allocator, "30")) catch unreachable;
 
     // Column 3
     var col3 = ui.Column.init(state.allocator);
-    col3.data.append(state.allocator, .{ .value = "City" }) catch unreachable;
-    col3.data.append(state.allocator, .{ .value = "NYC" }) catch unreachable;
-    col3.data.append(state.allocator, .{ .value = "LA" }) catch unreachable;
+    col3.data.append(state.allocator, createCell(state.allocator, "City")) catch unreachable;
+    col3.data.append(state.allocator, createCell(state.allocator, "NYC")) catch unreachable;
+    col3.data.append(state.allocator, createCell(state.allocator, "LA")) catch unreachable;
 
     // Add columns to table
     table.columns.append(state.allocator, col1) catch unreachable;
@@ -132,13 +136,9 @@ export fn init() void {
     // Add table to UI
     state.ui.tables.append(state.allocator, table) catch unreachable;
 
-    const table_as_md = table.md(state.allocator) catch unreachable;
-    defer state.allocator.free(table_as_md);
-    setMarkdownSource(table_as_md);
-
-    // convert markdown to html
-    const html_str = markdownToHtml(table_as_md) catch unreachable;
-    setHtmlRender(html_str);
+    sendTableToDOM(table) catch |err| {
+        std.log.err("Failed to send table to DOM: {}", .{err});
+    };
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -229,6 +229,7 @@ fn setMarkdownSource(md_src: []const u8) void {
 
 export fn input(ev: ?*const sapp.Event) void {
     const event = ev.?;
+    var table_dirty = false;
     switch (event.type) {
         .RESIZED => {
             state.t.updateWindowData(sapp.widthf(), sapp.heightf());
@@ -266,11 +267,21 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchCancelled(event);
         },
         .CHAR => {
-            if (isPrintableChar(event.char_code)) {
-                // TODO: handle input
-            }
+            state.ui.handleChar(state.allocator, event.char_code) catch {};
+            table_dirty = true;
+        },
+        .KEY_DOWN => {
+            state.ui.handleKeyDown(event.key_code);
+            table_dirty = true;
         },
         else => {},
+    }
+    if (table_dirty) {
+        // TODO: whichever table is active should be sent to DOM
+        const table = state.ui.tables.items[0];
+        sendTableToDOM(table) catch |err| {
+            std.log.err("Failed to send table to DOM: {}", .{err});
+        };
     }
 }
 
@@ -456,6 +467,13 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
     return normalized_p;
 }
 
-fn isPrintableChar(char_code: u32) bool {
-    return char_code >= 32 and char_code <= 126;
+fn sendTableToDOM(table: ui.Table) !void {
+    const table_as_md = table.md(state.allocator) catch unreachable;
+    defer state.allocator.free(table_as_md);
+    setMarkdownSource(table_as_md);
+
+    // convert markdown to html
+    const html_str = markdownToHtml(table_as_md) catch unreachable;
+    defer state.allocator.free(html_str);
+    setHtmlRender(html_str);
 }

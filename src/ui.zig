@@ -1,10 +1,13 @@
 const std = @import("std");
+const sokol = @import("sokol");
 const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
 const text = @import("render/text.zig");
 const Vec2 = @import("zm").Vec2f;
+const sapp = sokol.app;
+const Keycode = sapp.Keycode;
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
@@ -16,6 +19,11 @@ const Color = [4]f32;
 const Units = struct {
     cell: Size2D,
     text: Size2D,
+};
+
+const ClientRect = struct {
+    pos: Vec2,
+    size: Size2D,
 };
 
 pub const Scene = struct {
@@ -40,26 +48,23 @@ pub const Scene = struct {
     }
 };
 
-/// Represents any arbitrary position in 2D space
-/// rather than a specific grid cell
-pub const PosVec2 = struct {
-    x: f32,
-    y: f32,
-};
-
 pub const GridPos = struct {
     left: usize = 0,
     top: usize = 0,
 };
 
-pub const GridPosText = struct {
-    left: usize = 0,
-    top: usize = 0,
-    char_offset: ?usize = null,
-};
-
 pub const Cell = struct {
-    value: []const u8,
+    value: ArrayList(u8),
+
+    pub fn init(allocator: Allocator, content: []const u8) !Cell {
+        var value = try ArrayList(u8).initCapacity(allocator, content.len);
+        value.appendSlice(allocator, content) catch unreachable;
+        return Cell{ .value = value };
+    }
+
+    pub fn deinit(self: *Cell, allocator: Allocator) void {
+        self.value.deinit(allocator);
+    }
 
     pub fn size(self: Cell, units: Units) Size2D {
         const cell_units = units.cell;
@@ -68,7 +73,7 @@ pub const Cell = struct {
         var height: f32 = units.cell.height;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
-        for (self.value) |char| {
+        for (self.value.items) |char| {
             if (char == '\n') {
                 width = @max(width, curr_line_width);
                 curr_line_width = 0.0;
@@ -82,21 +87,21 @@ pub const Cell = struct {
         return .{ .width = container_width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
+    pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
         // This is addition is here because otherwise, the
         // text starts above the first row. Reason being that
         // the text bearing_y is negative and pulls the text
         // upwards
-        var pos_y = position.y + units.cell.height;
+        var pos_y = position[1] + units.cell.height;
         var i: usize = 0;
         var start: usize = i;
-        while (i < self.value.len) : (i += 1) {
-            const char = self.value[i];
+        while (i < self.value.items.len) : (i += 1) {
+            const char = self.value.items[i];
             if (char == '\n') {
                 // send the current line to the scene
                 try scene.texts.append(allocator, .{
-                    .text = self.value[start..i],
-                    .x = position.x,
+                    .text = self.value.items[start..i],
+                    .x = position[0],
                     .y = pos_y,
                 });
                 i += 1; // skip the newline
@@ -105,10 +110,10 @@ pub const Cell = struct {
                 continue;
             }
         }
-        if (start < self.value.len) {
+        if (start < self.value.items.len) {
             try scene.texts.append(allocator, .{
-                .text = self.value[start..self.value.len],
-                .x = position.x,
+                .text = self.value.items[start..self.value.items.len],
+                .x = position[0],
                 .y = pos_y,
             });
         }
@@ -130,10 +135,9 @@ pub const Column = struct {
     }
 
     pub fn deinit(self: *Column, allocator: Allocator) void {
-        // for (self.data.items) |cell| {
-        //     // TODO: deinit cell
-        //     // cell.deinit(allocator);
-        // }
+        for (self.data.items) |*cell| {
+            cell.deinit(allocator);
+        }
         self.data.deinit(allocator);
     }
 
@@ -148,14 +152,11 @@ pub const Column = struct {
         return .{ .width = width, .height = height };
     }
 
-    pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: PosVec2) !void {
-        var pos_y = position.y;
+    pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
+        var pos_y = position[1];
         for (self.data.items) |cell| {
             const cell_dims = cell.size(units);
-            try cell.addSelfToScene(scene, allocator, units, .{
-                .x = position.x,
-                .y = pos_y,
-            });
+            try cell.addSelfToScene(scene, allocator, units, Vec2{ position[0], pos_y });
             pos_y += cell_dims.height;
         }
     }
@@ -216,7 +217,7 @@ pub const Table = struct {
         for (self.columns.items, 0..) |column, col_idx| {
             var max_width: usize = 0;
             for (column.data.items) |cell| {
-                max_width = @max(max_width, cell.value.len);
+                max_width = @max(max_width, cell.value.items.len);
             }
             column_widths[col_idx] = max_width;
         }
@@ -231,7 +232,7 @@ pub const Table = struct {
                 result.append(allocator, ' ') catch return error.OutOfMemory;
 
                 const cell_value = if (row_idx < column.data.items.len)
-                    column.data.items[row_idx].value
+                    column.data.items[row_idx].value.items
                 else
                     "";
 
@@ -286,42 +287,62 @@ pub const Table = struct {
         var pos_x = actual_position_x;
         for (self.columns.items) |column| {
             const col_size = column.size(units);
-            try column.addSelfToScene(scene, allocator, units, .{
-                .x = pos_x,
-                .y = actual_position_y,
-            });
+            try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
         }
     }
 };
 
-pub const CursorType = enum {
+const CellPos = struct {
+    cell: *Cell,
+    column: *Column,
+    pos: Vec2,
+};
+
+const TextPos = struct {
+    cell: *Cell,
+    column: *Column,
+    pos: Vec2,
+    char_offset: usize,
+};
+
+const CursorType = enum {
+    empty,
     cell,
     text,
 };
 
 pub const Cursor = union(CursorType) {
-    cell: GridPos,
-    text: GridPosText,
+    empty: GridPos,
+    cell: CellPos,
+    text: TextPos,
 
     pub fn getRect(self: Cursor, units: Units, color: Color) RectElement {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
         return switch (self) {
-            .cell => |cell_pos| .{
+            .empty => |grid_pos| .{
                 .color = color,
-                .x = @as(f32, @floatFromInt(cell_pos.left)) * units.cell.width,
-                .y = @as(f32, @floatFromInt(cell_pos.top)) * units.cell.height,
+                .x = @as(f32, @floatFromInt(grid_pos.left)) * units.cell.width,
+                .y = @as(f32, @floatFromInt(grid_pos.top)) * units.cell.height,
                 .width = units.cell.width,
                 .height = units.cell.height,
                 .corners = corners,
                 .sigma = 1e-6,
             },
+            .cell => |cell_info| .{
+                .color = color,
+                .x = cell_info.pos[0],
+                .y = cell_info.pos[1],
+                .width = cell_info.column.size(units).width,
+                .height = cell_info.cell.size(units).height,
+                .corners = corners,
+                .sigma = 1e-6,
+            },
             .text => |text_pos| .{
                 .color = color,
-                // TODO: fix this to use offset
-                .x = @as(f32, @floatFromInt(text_pos.left)) * units.text.width,
-                .y = @as(f32, @floatFromInt(text_pos.top)) * units.text.height,
+                .x = text_pos.pos[0],
+                .y = text_pos.pos[1],
                 .width = units.text.width,
                 .height = units.text.height,
                 .corners = corners,
@@ -361,10 +382,71 @@ pub const UI = struct {
         self.hover_cursor = self.getCursor(p);
     }
 
-    pub fn getCursor(self: UI, p: Vec2) Cursor {
-        const cell_pos = self.getCellPosition(p);
-        // TODO: handle text cursor
-        return Cursor{ .cell = cell_pos };
+    pub fn handleChar(self: *UI, allocator: Allocator, char_code: u32) !void {
+        if (!isPrintableChar(char_code)) {
+            return;
+        }
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // TODO: handle input on empty
+                    // it should create a new table
+                    // if the cell isn't adjacent to
+                    // an existing table
+                },
+                .cell => {
+                    // Do nothing
+                },
+                .text => |text_pos| {
+                    // Convert u32 to u8, handling potential overflow
+                    const char: u8 = @truncate(char_code);
+                    try text_pos.cell.value.insert(allocator, text_pos.char_offset + 1, char);
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = text_pos.cell,
+                            .column = text_pos.column,
+                            .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
+                            .char_offset = text_pos.char_offset + 1,
+                        },
+                    };
+                },
+            }
+        }
+    }
+
+    pub fn handleKeyDown(self: *UI, key_code: Keycode) void {
+        switch (key_code) {
+            .BACKSPACE => self.handleBackspace(),
+            // TODO: handle tab, enter
+            // tab should move to next cell to the right
+            // enter should create a new row or move to next cell down
+            else => {},
+        }
+    }
+
+    fn handleBackspace(self: *UI) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // TODO: handle input on empty
+                },
+                .cell => {},
+                .text => |text_pos| {
+                    if (text_pos.cell.value.items.len == 0) {
+                        return;
+                    }
+                    _ = text_pos.cell.value.orderedRemove(text_pos.char_offset);
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = text_pos.cell,
+                            .column = text_pos.column,
+                            .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
+                            .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
+                        },
+                    };
+                },
+            }
+        }
     }
 
     pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
@@ -372,11 +454,106 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.0, 1.0, 0.0, 0.75 }));
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.5, 0.8, 1.0, 0.8 }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 1.0, 0.0, 0.0, 1.25 }));
+            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.7, 0.9, 1.0, 0.4 }));
         }
+    }
+
+    fn getCursor(self: *UI, p: Vec2) Cursor {
+        // Check if there's a Cell at this position and use its size
+        if (self.getCellAt(p)) |cell_info| {
+            if (self.getTextPositionAt(p, cell_info)) |text_pos| {
+                return .{
+                    .text = text_pos,
+                };
+            }
+            return .{
+                .cell = cell_info,
+            };
+        }
+
+        // Default to grid cell size if no Cell found
+        const cell_pos = self.getCellPosition(p);
+        return .{
+            .empty = cell_pos,
+        };
+    }
+
+    fn getTextPositionAt(self: *UI, p: Vec2, containing_cell: CellPos) ?TextPos {
+        const cell = containing_cell.cell;
+        const lines = countLines(cell);
+        var offset: usize = 0;
+        var x: f32 = containing_cell.pos[0];
+        for (0..lines) |target_line| {
+            var line_x = x;
+            const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
+            while (offset < cell.value.items.len) : (offset += 1) {
+                const char = cell.value.items[offset];
+                if (char == '\n') {
+                    // reset x to start
+                    x = containing_cell.pos[0];
+                    break;
+                }
+                line_x += self.units.text.width;
+                const char_pos = Vec2{ line_x, line_y };
+                if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
+                    return TextPos{
+                        .cell = cell,
+                        .column = containing_cell.column,
+                        .pos = Vec2{ line_x, line_y },
+                        .char_offset = offset,
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    fn getCellAt(self: *UI, p: Vec2) ?CellPos {
+        for (self.tables.items) |table| {
+            const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+            const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+            // Check if position is within table area
+            if (p[0] >= table_start_x and p[1] >= table_start_y) {
+                var current_x = table_start_x;
+                const current_y = table_start_y;
+
+                // Iterate through columns to find which one contains the point
+                for (table.columns.items) |*column| {
+                    const column_size = column.size(self.units);
+
+                    // Check if point is within this column's width
+                    if (p[0] >= current_x and p[0] < current_x + column_size.width) {
+                        var cell_y = current_y;
+
+                        // Iterate through cells in this column
+                        for (column.data.items) |*cell| {
+                            const cell_height = cell.size(self.units).height;
+
+                            // Check if point is within this cell's height
+                            if (p[1] >= cell_y and p[1] < cell_y + cell_height) {
+                                return CellPos{
+                                    .cell = cell,
+                                    .column = column,
+                                    .pos = Vec2{ current_x, cell_y },
+                                };
+                            }
+
+                            cell_y += cell_height;
+                        }
+
+                        // Point is within column width but below all cells
+                        break;
+                    }
+
+                    current_x += column_size.width;
+                }
+            }
+        }
+        return null;
     }
 
     fn getCellPosition(self: UI, p: Vec2) GridPos {
@@ -398,3 +575,19 @@ pub const UI = struct {
         return max_i;
     }
 };
+
+fn clientRectContains(r: ClientRect, p: Vec2) bool {
+    return p[0] >= r.pos[0] and p[0] < r.pos[0] + r.size.width and p[1] >= r.pos[1] and p[1] < r.pos[1] + r.size.height;
+}
+
+fn countLines(cell: *const Cell) usize {
+    var lines: usize = 1;
+    for (cell.value.items) |char| {
+        if (char == '\n') lines += 1;
+    }
+    return lines;
+}
+
+fn isPrintableChar(char_code: u32) bool {
+    return char_code >= 32 and char_code <= 126;
+}
