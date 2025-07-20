@@ -1,14 +1,20 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
+const ui = @import("ui.zig");
+const markdown = @import("markdown");
 
-// External JavaScript function for console logging
-extern fn console_log(ptr: [*]const u8, len: usize) void;
+// External JavaScript functions
+extern fn set_html_render(ptr: [*]const u8, len: usize) void;
+extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
+
+const Scene = ui.Scene;
+const UI = ui.UI;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
-const RectDims = dot_grid.RectDims;
+const RectDims = dot_grid.Size2D;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
 const TrueType = @import("TrueType");
@@ -48,15 +54,21 @@ const state = struct {
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
     var allocator: std.mem.Allocator = undefined;
+    // This is here so that deinit can deallocate.
+    // For practical purposes, we do not need to
+    // deallocate on shutdown, but we can leave this
+    // here to make sure we don't leak memory.
+    var gpa: ?std.heap.GeneralPurposeAllocator(.{}) = null;
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var touch_state = TouchState{};
     var rect_dims = RectDims{ .width = 0, .height = 0 };
+    var text_dims = RectDims{ .width = 0, .height = 0 };
+    var scene: Scene = undefined;
+    var ui: UI = undefined;
 };
 
 export fn init() void {
-    logToConsole("hello");
-
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -65,9 +77,11 @@ export fn init() void {
     state.allocator = if (builtin.target.cpu.arch.isWasm())
         std.heap.c_allocator
     else blk: {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        break :blk gpa.allocator();
+        state.gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        break :blk state.gpa.?.allocator();
     };
+
+    state.scene = Scene.init(state.allocator);
 
     state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
 
@@ -78,9 +92,53 @@ export fn init() void {
 
     // text renderer
     state.text_renderer = TextRenderer.new(state.allocator);
-    state.text_renderer.setup() catch |err| {
+    const text_width = state.text_renderer.setup() catch |err| {
         std.log.err("Failed to setup text renderer: {}", .{err});
+        return;
     };
+    state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
+    state.ui = UI.init(state.allocator, .{
+        .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
+        .text = .{ .width = text_width, .height = rect_dims.height },
+    });
+
+    // Create a simple 3x3 table
+    var table = ui.Table.init(state.allocator);
+    table.position = .{ .left = 1, .top = 1 };
+
+    // Column 1
+    var col1 = ui.Column.init(state.allocator);
+    col1.data.append(state.allocator, .{ .value = "Name" }) catch unreachable;
+    col1.data.append(state.allocator, .{ .value = "Alice" }) catch unreachable;
+    col1.data.append(state.allocator, .{ .value = "Bob" }) catch unreachable;
+
+    // Column 2
+    var col2 = ui.Column.init(state.allocator);
+    col2.data.append(state.allocator, .{ .value = "Age" }) catch unreachable;
+    col2.data.append(state.allocator, .{ .value = "25" }) catch unreachable;
+    col2.data.append(state.allocator, .{ .value = "30" }) catch unreachable;
+
+    // Column 3
+    var col3 = ui.Column.init(state.allocator);
+    col3.data.append(state.allocator, .{ .value = "City" }) catch unreachable;
+    col3.data.append(state.allocator, .{ .value = "NYC" }) catch unreachable;
+    col3.data.append(state.allocator, .{ .value = "LA" }) catch unreachable;
+
+    // Add columns to table
+    table.columns.append(state.allocator, col1) catch unreachable;
+    table.columns.append(state.allocator, col2) catch unreachable;
+    table.columns.append(state.allocator, col3) catch unreachable;
+
+    // Add table to UI
+    state.ui.tables.append(state.allocator, table) catch unreachable;
+
+    const table_as_md = table.md(state.allocator) catch unreachable;
+    defer state.allocator.free(table_as_md);
+    setMarkdownSource(table_as_md);
+
+    // convert markdown to html
+    const html_str = markdownToHtml(table_as_md) catch unreachable;
+    setHtmlRender(html_str);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -92,25 +150,16 @@ export fn init() void {
 
 export fn frame() void {
     clear();
-    const rect_w = state.rect_dims.width;
-    const rect_h = state.rect_dims.height;
-    const mouse = state.mouse[0];
-    const real_mouse = invert(mouse);
-    const p = normalizePt(real_mouse);
-    const cell_pos = getCellPosition(p);
-    const corner = 1.0 / 512.0;
-    state.rect_renderer.add(.{
-        .color = .{ 1.0, 0.0, 0.0, 0.25 },
-        .x = @as(f32, @floatFromInt(cell_pos.col)) * rect_w,
-        .y = @as(f32, @floatFromInt(cell_pos.row)) * rect_h,
-        .width = rect_w,
-        .height = rect_h,
-        .corners = .{ corner, corner, corner, corner },
-        .sigma = 1e-6,
-    });
+    state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
+        std.log.err("Failed to add UI to scene: {}", .{err});
+    };
+    for (state.scene.rects.items) |rect| {
+        state.rect_renderer.add(rect);
+    }
     state.rect_renderer.updateBuffer();
-    state.text_renderer.addText("hello, world! good day", rect_w, rect_h);
-    state.text_renderer.addText("the quick brown fox jumps over the lazy dog", 2 * rect_w, 2 * rect_h);
+    for (state.scene.texts.items) |text| {
+        state.text_renderer.addLine(text);
+    }
     state.text_renderer.updateBuffer();
 
     const vs_params = state.t.computeVSParams();
@@ -130,7 +179,17 @@ export fn frame() void {
 
 export fn cleanup() void {
     state.text_renderer.cleanup();
+    state.scene.deinit(state.allocator);
+    state.ui.deinit(state.allocator);
     sg.shutdown();
+
+    // Clean up GPA if we created one
+    if (state.gpa) |*gpa| {
+        const deinit_status = gpa.deinit();
+        if (deinit_status == .leak) {
+            std.log.err("Memory leak detected!", .{});
+        }
+    }
 }
 
 pub fn main() void {
@@ -152,11 +211,19 @@ export fn add(a: i32, b: i32) i32 {
     return a + b;
 }
 
-fn logToConsole(message: []const u8) void {
+fn setHtmlRender(html: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
-        console_log(message.ptr, message.len);
+        set_html_render(html.ptr, html.len);
     } else {
-        std.log.info("{s}", .{message});
+        std.log.info("html:\n{s}", .{html});
+    }
+}
+
+fn setMarkdownSource(md_src: []const u8) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        set_markdown_source(md_src.ptr, md_src.len);
+    } else {
+        std.log.info("markdown:\n{s}", .{md_src});
     }
 }
 
@@ -168,6 +235,8 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_MOVE => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
+            const point = getPointForUI(state.mouse[0]);
+            state.ui.handleMouseMove(point);
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
@@ -179,6 +248,10 @@ export fn input(ev: ?*const sapp.Event) void {
                 const pan_speed = 20.0;
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
+        },
+        .MOUSE_DOWN => {
+            const normalized_p = getPointForUI(state.mouse[0]);
+            state.ui.handleMouseDown(normalized_p);
         },
         .TOUCHES_BEGAN => {
             handleTouchBegan(event);
@@ -194,10 +267,7 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .CHAR => {
             if (isPrintableChar(event.char_code)) {
-                var buffer: [8]u8 = undefined;
-                const len = std.unicode.utf8Encode(@intCast(event.char_code), &buffer) catch 0;
-                const char_str = buffer[0..len];
-                logToConsole(char_str);
+                // TODO: handle input
             }
         },
         else => {},
@@ -224,6 +294,7 @@ fn handleZoom(delta: f32, p: Vec2) void {
     state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
 }
 
+/// Unapplies the zoom transform
 fn invert(p: Vec2) Vec2 {
     const zoom = state.t.getZoom();
     const x = (p[0] - zoom.x) / zoom.k;
@@ -323,6 +394,23 @@ fn handleTouchMoved(event: *const sapp.Event) void {
     }
 }
 
+fn markdownToHtml(md: []const u8) ![]const u8 {
+    // convert markdown to html
+    var parser = try markdown.Parser.init(state.allocator);
+    defer parser.deinit();
+    var lines = std.mem.splitScalar(u8, md, '\n');
+    while (lines.next()) |line| {
+        try parser.feedLine(line);
+    }
+    var doc = try parser.endInput();
+    defer doc.deinit(state.allocator);
+
+    var html_str = std.ArrayList(u8).init(state.allocator);
+    defer html_str.deinit();
+    try doc.render(html_str.writer());
+    return html_str.toOwnedSlice();
+}
+
 fn handleTouchEnded(event: *const sapp.Event) void {
     state.touch_state.num_touches = @intCast(event.num_touches);
 
@@ -348,6 +436,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 fn clear() void {
     state.rect_renderer.clear();
     state.text_renderer.clear();
+    state.scene.clear();
 }
 
 fn normalizePt(p: Vec2) Vec2 {
@@ -359,10 +448,12 @@ fn normalizePt(p: Vec2) Vec2 {
     return Vec2{ grid_x, grid_y };
 }
 
-fn getCellPosition(normalized_p: Vec2) CellPosition {
-    const row = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[1]);
-    const col = state.dot_grid_renderer.getIndexOfMaxGridPointBoundedBy(normalized_p[0]);
-    return .{ .row = row, .col = col };
+/// Returns a normalized vec2 from a mouse position.
+/// Used to feed into the UI.
+fn getPointForUI(mouse_p: Vec2) Vec2 {
+    const inv_p = invert(mouse_p);
+    const normalized_p = normalizePt(inv_p);
+    return normalized_p;
 }
 
 fn isPrintableChar(char_code: u32) bool {

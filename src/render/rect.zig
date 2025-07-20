@@ -4,7 +4,7 @@ const shd_rect = @import("rect_shader");
 
 const sg = sokol.gfx;
 
-const RectElement = struct {
+pub const RectElement = struct {
     color: [4]f32,
     x: f32,
     y: f32,
@@ -78,7 +78,7 @@ pub const Renderer = struct {
                     .buffer_index = 1,
                 };
                 l.attrs[shd_rect.ATTR_rect_sigma] = .{
-                    .format = .FLOAT2,
+                    .format = .FLOAT,
                     .buffer_index = 1,
                 };
                 break :init l;
@@ -113,6 +113,9 @@ pub const Renderer = struct {
 
     /// Updates the instance buffer with the current rectangles
     pub fn updateBuffer(self: Renderer) void {
+        if (self.count == 0) {
+            return;
+        }
         sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.rects[0..self.count]));
     }
 

@@ -60,6 +60,41 @@
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             font-size: 12px;
             line-height: 1.4;
+            white-space: pre;
+            overflow: auto;
+            position: relative;
+        }
+
+        .copy-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(80, 80, 80, 0.9);
+            border: 1px solid rgba(120, 120, 120, 0.7);
+            border-radius: 4px;
+            color: white;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .copy-button:hover {
+            background-color: rgba(100, 100, 100, 0.9);
+        }
+
+        .copy-button:active {
+            background-color: rgba(60, 60, 60, 0.9);
+        }
+
+        #html-render {
+            flex: 1;
+            background-color: rgba(60, 60, 60, 0.8);
+            border-radius: 8px;
+            padding: 15px;
             overflow: auto;
         }
     </style>
@@ -69,20 +104,17 @@
     <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     <div class="side-panel">
         <div class="code-section">
-            const result = add(5, 3);
-            console.log("Result:", result);
-
-            // Initialize renderer
-            state.setup();
+            <div id="markdown-source">
+            </div>
+            <button class="copy-button" onclick="copyCodeSection()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                </svg>
+                Copy
+            </button>
         </div>
-        <div class="code-section">
-            fn handleInput(event: Event) void {
-            switch (event.type) {
-            .CHAR => logToConsole(char),
-            .MOUSE_MOVE => updateMouse(),
-            else => {},
-            }
-            }
+        <div id="html-render">
         </div>
     </div>
     <script type="text/javascript">
@@ -107,6 +139,25 @@
         window.onerror = function () {
             console.log("onerror: " + event.message);
         };
+
+        function copyCodeSection() {
+            const codeSection = document.getElementById('markdown-source');
+            const text = codeSection.innerText;
+            navigator.clipboard.writeText(text).then(function () {
+                // Provide visual feedback
+                const button = document.querySelector('.copy-button');
+                if (!button) {
+                    return;
+                }
+                const originalText = button.innerHTML;
+                button.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+            }).catch(function (err) {
+                console.error('Failed to copy text: ', err);
+            });
+        }
     </script>
     {{{ SCRIPT }}}
 </body>
