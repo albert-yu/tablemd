@@ -422,6 +422,12 @@ pub const UI = struct {
                 .cell => {},
                 .text => |text_pos| {
                     _ = text_pos.cell.value.orderedRemove(text_pos.char_offset);
+                    self.active_cursor = .{ .text = .{
+                        .cell = text_pos.cell,
+                        .column = text_pos.column,
+                        .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
+                        .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
+                    } };
                 },
             }
         }
