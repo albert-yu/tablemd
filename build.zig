@@ -33,6 +33,12 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
     });
 
+    const mod_markdown = b.createModule(.{
+        .root_source_file = b.path("vendor/markdown/markdown.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
@@ -53,6 +59,10 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "TrueType",
                 .module = dep_truetype.module("TrueType"),
+            },
+            .{
+                .name = "markdown",
+                .module = mod_markdown,
             },
             .{
                 .name = "quad_shader",
