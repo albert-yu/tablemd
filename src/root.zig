@@ -104,7 +104,7 @@ export fn init() void {
     });
 
     // Create a simple 3x3 table
-    var table = ui.Table.init(state.allocator);
+    const table = state.ui.addTable(state.allocator) catch unreachable;
     table.position = .{ .left = 1, .top = 1 };
 
     // Column 1
@@ -124,9 +124,6 @@ export fn init() void {
     col3.addCell(state.allocator, "City") catch unreachable;
     col3.addCell(state.allocator, "NYC") catch unreachable;
     col3.addCell(state.allocator, "LA") catch unreachable;
-
-    // Add table to UI
-    state.ui.tables.append(state.allocator, table) catch unreachable;
 
     sendTableToDOM(table) catch |err| {
         std.log.err("Failed to send table to DOM: {}", .{err});
@@ -459,7 +456,7 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
     return normalized_p;
 }
 
-fn sendTableToDOM(table: ui.Table) !void {
+fn sendTableToDOM(table: *ui.Table) !void {
     const table_as_md = table.md(state.allocator) catch unreachable;
     defer state.allocator.free(table_as_md);
     setMarkdownSource(table_as_md);

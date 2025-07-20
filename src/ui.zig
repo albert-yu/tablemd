@@ -128,10 +128,12 @@ fn divCeil(top: f32, bottom: f32) f32 {
 
 pub const Column = struct {
     data: ArrayList(Cell),
+    table: *Table,
 
-    pub fn init(allocator: Allocator) Column {
+    pub fn init(allocator: Allocator, table: *Table) Column {
         return Column{
             .data = ArrayList(Cell).initCapacity(allocator, 0) catch unreachable,
+            .table = table,
         };
     }
 
@@ -189,7 +191,7 @@ pub const Table = struct {
 
     pub fn addColumn(self: *Table, allocator: Allocator) !*Column {
         const column = try allocator.create(Column);
-        column.* = Column.init(allocator);
+        column.* = Column.init(allocator, self);
         try self.columns.append(allocator, column);
         return column;
     }
@@ -365,14 +367,14 @@ pub const Cursor = union(CursorType) {
 };
 
 pub const UI = struct {
-    tables: ArrayList(Table),
+    tables: ArrayList(*Table),
     active_cursor: ?Cursor,
     hover_cursor: ?Cursor,
     units: Units,
 
     pub fn init(allocator: Allocator, units: Units) UI {
         return .{
-            .tables = ArrayList(Table).initCapacity(allocator, 0) catch unreachable,
+            .tables = ArrayList(*Table).initCapacity(allocator, 0) catch unreachable,
             .active_cursor = null,
             .hover_cursor = null,
             .units = units,
@@ -380,10 +382,18 @@ pub const UI = struct {
     }
 
     pub fn deinit(self: *UI, allocator: Allocator) void {
-        for (self.tables.items) |*table| {
+        for (self.tables.items) |table| {
             table.deinit(allocator);
+            allocator.destroy(table);
         }
         self.tables.deinit(allocator);
+    }
+
+    pub fn addTable(self: *UI, allocator: Allocator) !*Table {
+        const table = try allocator.create(Table);
+        table.* = Table.init(allocator);
+        try self.tables.append(allocator, table);
+        return table;
     }
 
     pub fn handleMouseDown(self: *UI, p: Vec2) void {
