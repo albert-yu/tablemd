@@ -18,6 +18,14 @@ pub const GridPos = struct {
     top: usize = 0,
 };
 
+pub const Direction = enum {
+    none,
+    left,
+    right,
+    up,
+    down,
+};
+
 pub const Cell = struct {
     value: ArrayList(u8),
     column: *Column,
@@ -271,5 +279,46 @@ pub const Table = struct {
             try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
         }
+    }
+
+    pub fn adjacent(self: Table, grid_pos: GridPos, units: Units) Direction {
+        const cell_units = units.cell;
+        const actual_position_x = @as(f32, @floatFromInt(grid_pos.left)) * cell_units.width;
+        const actual_position_y = @as(f32, @floatFromInt(grid_pos.top)) * cell_units.height;
+
+        const self_x = self.position.left * cell_units.width;
+        const self_y = self.position.top * cell_units.height;
+        const self_size = self.size(units);
+
+        const is_bounded_x = actual_position_x >= self_x and actual_position_x < self_x + self_size.width;
+        if (is_bounded_x) {
+            if (actual_position_y >= self_y and actual_position_y < self_y + self_size.height) {
+                // inside table
+                return .none;
+            }
+            if (actual_position_y < self_y + self_size.height + cell_units.height) {
+                return .up;
+            }
+            if (actual_position_y > self_y) {
+                return .down;
+            }
+            return .none;
+        }
+        const is_bounded_y = actual_position_y >= self_y and actual_position_y < self_y + self_size.height;
+        if (is_bounded_y) {
+            if (actual_position_x >= self_x and actual_position_x < self_x + self_size.width) {
+                // inside table
+                return .none;
+            }
+            if (actual_position_x < self_x + self_size.width + cell_units.width) {
+                return .left;
+            }
+            if (actual_position_x > self_x) {
+                return .right;
+            }
+            return .none;
+        }
+
+        return .none;
     }
 };
