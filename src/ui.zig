@@ -357,10 +357,10 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(.{ 0.0, 1.0, 0.0, 0.75 }));
+            try scene.rects.append(allocator, cursor.getRect(.{ 0.5, 0.8, 1.0, 0.8 }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(.{ 1.0, 0.0, 0.0, 1.25 }));
+            try scene.rects.append(allocator, cursor.getRect(.{ 0.7, 0.9, 1.0, 0.4 }));
         }
     }
 
