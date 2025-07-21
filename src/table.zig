@@ -166,6 +166,7 @@ pub const Column = struct {
 
 pub const Table = struct {
     position: GridPos,
+    /// All columns are enforced to have the same number of rows
     columns: ArrayList(*Column),
 
     pub fn init(allocator: Allocator) Table {
@@ -364,5 +365,45 @@ pub const Table = struct {
         }
 
         return .none;
+    }
+
+    /// Returns the index of the row that contains the given grid position
+    /// or null if no row is found.
+    /// Does not check if the grid position is within the table.
+    pub fn matchingRow(self: Table, grid_pos: GridPos, units: Units) ?usize {
+        if (self.rows() == 0) {
+            return null;
+        }
+        var top = self.position.top;
+        for (0..self.rows()) |i| {
+            var row_height: usize = 0;
+            // get the row height
+            for (self.columns.items) |column| {
+                const cell = column.data.items[i];
+                row_height = @max(row_height, cell.gridSize(units).height);
+            }
+            const row_start = top + i;
+            if (grid_pos.top >= row_start and grid_pos.top < row_start + row_height) {
+                return i;
+            }
+            top += row_height;
+        }
+        return null;
+    }
+
+    pub fn matchingColumn(self: Table, grid_pos: GridPos, units: Units) ?usize {
+        if (self.cols() == 0) {
+            return null;
+        }
+        var left = self.position.left;
+        for (self.columns.items, 0..) |column, i| {
+            const column_width = column.gridSize(units).width;
+            const column_start = left + i;
+            if (grid_pos.left >= column_start and grid_pos.left < column_start + column_width) {
+                return i;
+            }
+            left += column_width;
+        }
+        return null;
     }
 };
