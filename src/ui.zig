@@ -164,7 +164,7 @@ pub const UI = struct {
                                 const new_y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
                                 const dist_y = new_y - table_y;
                                 const col_index_f32 = table_mod.divCeil(dist_y, self.units.cell.height);
-                                const col_index = @as(usize, @intFromFloat(col_index_f32));
+                                const col_index = @min(@as(usize, @intFromFloat(col_index_f32)), col.data.items.len - 1);
                                 const cell = &col.data.items[col_index];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
