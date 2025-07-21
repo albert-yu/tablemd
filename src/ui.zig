@@ -225,8 +225,19 @@ pub const UI = struct {
                         };
                     }
                 },
-                .cell => {
-                    // Do nothing
+                .cell => |cell_pos| {
+                    const cell = cell_pos.cell;
+                    // clear the current text
+                    cell.value.clearRetainingCapacity();
+                    const char: u8 = @truncate(char_code);
+                    try cell.value.insert(allocator, 0, char);
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = cell,
+                            .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
+                            .char_offset = 0,
+                        },
+                    };
                 },
                 .text => |text_pos| {
                     // Convert u32 to u8, handling potential overflow
