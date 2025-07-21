@@ -35,12 +35,14 @@ pub const MatchingCol = struct {
     index: usize,
     /// Grid position of the left of the column
     left: usize,
+    width: usize,
 };
 
 pub const MatchingRow = struct {
     index: usize,
     /// Grid position of the top of the row
     top: usize,
+    height: usize,
 };
 
 pub const Cell = struct {
@@ -399,6 +401,7 @@ pub const Table = struct {
                 return .{
                     .index = i,
                     .top = row_start,
+                    .height = row_height,
                 };
             }
             top += row_height;
@@ -418,6 +421,7 @@ pub const Table = struct {
                 return .{
                     .index = i,
                     .left = column_start,
+                    .width = column_width,
                 };
             }
             left += column_width;

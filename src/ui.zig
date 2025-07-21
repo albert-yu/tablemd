@@ -25,10 +25,16 @@ pub const Scene = scene_mod.Scene;
 const GridPos = table_mod.GridPos;
 const Units = table_mod.Units;
 const Direction = table_mod.Direction;
+const GridSize = table_mod.GridSize;
 
 const ClientRect = struct {
     pos: Vec2,
     size: Size2D,
+};
+
+const EmptyPos = struct {
+    grid_pos: GridPos,
+    grid_size: GridSize,
 };
 
 const CellPos = struct {
@@ -49,7 +55,7 @@ const CursorType = enum {
 };
 
 pub const Cursor = union(CursorType) {
-    empty: GridPos,
+    empty: EmptyPos,
     cell: CellPos,
     text: TextPos,
 
@@ -57,12 +63,12 @@ pub const Cursor = union(CursorType) {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
         return switch (self) {
-            .empty => |grid_pos| .{
+            .empty => |empty_pos| .{
                 .color = color,
-                .x = @as(f32, @floatFromInt(grid_pos.left)) * units.cell.width,
-                .y = @as(f32, @floatFromInt(grid_pos.top)) * units.cell.height,
-                .width = units.cell.width,
-                .height = units.cell.height,
+                .x = @as(f32, @floatFromInt(empty_pos.grid_pos.left)) * units.cell.width,
+                .y = @as(f32, @floatFromInt(empty_pos.grid_pos.top)) * units.cell.height,
+                .width = units.cell.width * @as(f32, @floatFromInt(empty_pos.grid_size.width)),
+                .height = units.cell.height * @as(f32, @floatFromInt(empty_pos.grid_size.height)),
                 .corners = corners,
                 .sigma = 1e-6,
             },
@@ -133,17 +139,14 @@ pub const UI = struct {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
-                    // TODO: handle input on empty
-                    // it should create a new table
-                    // if the cell isn't adjacent to
-                    // an existing table
                     var adjacent_table: ?*Table = null;
                     var direction: Direction = .none;
 
                     for (self.tables.items) |table| {
-                        const adj = table.adjacent(cursor.empty, self.units);
+                        const adj = table.adjacent(cursor.empty.grid_pos, self.units);
                         if (adj == .down or adj == .right) {
                             // For now, only grow down and to the right
+                            // TODO: handle up and left
                             if (adjacent_table) |_| {
                                 // Only possible once left and up are implemented
                                 std.log.info("multiple adjacent tables, ignoring", .{});
@@ -157,14 +160,14 @@ pub const UI = struct {
                     if (adjacent_table) |table| {
                         switch (direction) {
                             .right => {
-                                const matching_row = table.matchingRow(cursor.empty, self.units) orelse {
+                                const matching_row = table.matchingRow(cursor.empty.grid_pos, self.units) orelse {
                                     std.log.info("no matching row", .{});
                                     return;
                                 };
                                 var col = try table.addColumn(allocator);
                                 const char: u8 = @truncate(char_code);
                                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                                const new_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width + self.units.text.width;
+                                const new_x = @as(f32, @floatFromInt(cursor.empty.grid_pos.left)) * self.units.cell.width + self.units.text.width;
                                 const row_i = matching_row.index;
                                 const cell = &col.data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
@@ -177,7 +180,7 @@ pub const UI = struct {
                                 };
                             },
                             .down => {
-                                const matching_col = table.matchingColumn(cursor.empty, self.units) orelse {
+                                const matching_col = table.matchingColumn(cursor.empty.grid_pos, self.units) orelse {
                                     std.log.info("no matching col", .{});
                                     return;
                                 };
@@ -187,7 +190,7 @@ pub const UI = struct {
                                 const char: u8 = @truncate(char_code);
                                 const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
                                 const new_x = cursor_x + self.units.text.width;
-                                const y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
+                                const y = @as(f32, @floatFromInt(cursor.empty.grid_pos.top)) * self.units.cell.height;
                                 const cell = &table.columns.items[col_i].data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
@@ -281,10 +284,86 @@ pub const UI = struct {
             };
         }
 
-        // Default to grid cell size if no Cell found
         const cell_pos = self.getCellPosition(p);
+        var adjacent_table: ?*Table = null;
+        var direction: Direction = .none;
+        const empty: EmptyPos = .{
+            .grid_pos = cell_pos,
+            .grid_size = .{
+                .width = 1,
+                .height = 1,
+            },
+        };
+
+        for (self.tables.items) |table| {
+            const adj = table.adjacent(cell_pos, self.units);
+            if (adj == .down or adj == .right) {
+                if (adjacent_table) |_| {
+                    // Only possible once left and up are implemented
+                    std.log.info("multiple adjacent tables, ignoring", .{});
+                    return .{
+                        .empty = empty,
+                    };
+                }
+                adjacent_table = table;
+                direction = adj;
+                break;
+            }
+        }
+        if (adjacent_table) |table| {
+            switch (direction) {
+                .right => {
+                    const matching_row = table.matchingRow(cell_pos, self.units) orelse {
+                        std.log.info("no matching row", .{});
+                        return .{
+                            .empty = empty,
+                        };
+                    };
+                    return .{
+                        .empty = .{
+                            .grid_pos = .{
+                                .top = matching_row.top,
+                                .left = cell_pos.left,
+                            },
+                            .grid_size = .{
+                                .width = 1,
+                                .height = matching_row.height,
+                            },
+                        },
+                    };
+                },
+                .down => {
+                    const matching_col = table.matchingColumn(cell_pos, self.units) orelse {
+                        std.log.info("no matching col", .{});
+                        return .{
+                            .empty = empty,
+                        };
+                    };
+                    return .{
+                        .empty = .{
+                            .grid_pos = .{
+                                .top = cell_pos.top,
+                                .left = matching_col.left,
+                            },
+                            .grid_size = .{
+                                .width = matching_col.width,
+                                .height = 1,
+                            },
+                        },
+                    };
+                },
+                else => {
+                    // TODO: handle up and left
+                    return .{
+                        .empty = empty,
+                    };
+                },
+            }
+        }
+
+        // Default to grid cell size if no Cell found
         return .{
-            .empty = cell_pos,
+            .empty = empty,
         };
     }
 
