@@ -318,7 +318,9 @@ pub const UI = struct {
                 .empty => {
                     // TODO: handle input on empty
                 },
-                .cell => {},
+                .cell => |cell_pos| {
+                    cell_pos.cell.value.clearRetainingCapacity();
+                },
                 .text => |text_pos| {
                     if (text_pos.cell.value.items.len == 0) {
                         return;
