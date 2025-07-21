@@ -18,6 +18,11 @@ pub const GridPos = struct {
     top: usize = 0,
 };
 
+pub const GridSize = struct {
+    width: usize = 0,
+    height: usize = 0,
+};
+
 pub const Direction = enum {
     none,
     left,
@@ -40,25 +45,33 @@ pub const Cell = struct {
         self.value.deinit(allocator);
     }
 
-    pub fn size(self: Cell, units: Units) Size2D {
+    pub fn gridSize(self: Cell, units: Units) GridSize {
         const cell_units = units.cell;
         const text_units = units.text;
 
-        var height: f32 = units.cell.height;
+        var grid_height: usize = 1;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
         for (self.value.items) |char| {
             if (char == '\n') {
                 width = @max(width, curr_line_width);
                 curr_line_width = 0.0;
-                height += text_units.height;
+                grid_height += 1;
                 continue;
             }
             curr_line_width += text_units.width;
         }
         width = @max(width, curr_line_width);
-        const container_width = cell_units.width * divCeil(width, cell_units.width);
-        return .{ .width = container_width, .height = height };
+        const container_width = divCeil(width, cell_units.width);
+        return .{ .width = @intFromFloat(container_width), .height = grid_height };
+    }
+
+    pub fn size(self: Cell, units: Units) Size2D {
+        const grid_size = self.gridSize(units);
+        return Size2D{
+            .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
+            .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
+        };
     }
 
     pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
@@ -122,15 +135,23 @@ pub const Column = struct {
         try self.data.append(allocator, cell);
     }
 
-    pub fn size(self: Column, units: Units) Size2D {
-        var width: f32 = 0.0;
-        var height: f32 = 0.0;
+    pub fn gridSize(self: Column, units: Units) GridSize {
+        var width: usize = 0;
+        var height: usize = 0;
         for (self.data.items) |cell| {
-            const cell_dims = cell.size(units);
+            const cell_dims = cell.gridSize(units);
             width = @max(width, cell_dims.width);
             height += cell_dims.height;
         }
         return .{ .width = width, .height = height };
+    }
+
+    pub fn size(self: Column, units: Units) Size2D {
+        const grid_size = self.gridSize(units);
+        return Size2D{
+            .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
+            .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
+        };
     }
 
     pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
@@ -183,15 +204,23 @@ pub const Table = struct {
         return column;
     }
 
-    pub fn size(self: Table, units: Units) Size2D {
-        var width: f32 = 0.0;
-        var height: f32 = 0.0;
+    pub fn gridSize(self: Table, units: Units) GridSize {
+        var width: usize = 0;
+        var height: usize = 0;
         for (self.columns.items) |column| {
-            const column_dims = column.size(units);
+            const column_dims = column.gridSize(units);
             height = @max(height, column_dims.height);
             width += column_dims.width;
         }
         return .{ .width = width, .height = height };
+    }
+
+    pub fn size(self: Table, units: Units) Size2D {
+        const grid_size = self.gridSize(units);
+        return Size2D{
+            .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
+            .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
+        };
     }
 
     /// Convert table data to Markdown table format
