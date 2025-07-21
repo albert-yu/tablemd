@@ -244,6 +244,7 @@ export fn input(ev: ?*const sapp.Event) void {
         .MOUSE_DOWN => {
             const normalized_p = getPointForUI(state.mouse[0]);
             state.ui.handleMouseDown(normalized_p);
+            table_dirty = true;
         },
         .TOUCHES_BEGAN => {
             handleTouchBegan(event);
@@ -268,12 +269,21 @@ export fn input(ev: ?*const sapp.Event) void {
         else => {},
     }
     if (table_dirty) {
-        // TODO: whichever table is active should be sent to DOM
-        const table = state.ui.tables.items[0];
-        sendTableToDOM(table) catch |err| {
-            std.log.err("Failed to send table to DOM: {}", .{err});
-        };
+        if (state.ui.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {},
+                .cell => {},
+                .text => |text_pos| {
+                    const cell = text_pos.cell;
+                    const table = cell.column.table;
+                    sendTableToDOM(table) catch |err| {
+                        std.log.err("Failed to send table to DOM: {}", .{err});
+                    };
+                },
+            }
+        }
     }
+    // otherwise, leave the current table rendered as-is
 }
 
 fn handlePan(delta_x: f32, delta_y: f32) void {
