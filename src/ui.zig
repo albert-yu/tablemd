@@ -203,6 +203,26 @@ pub const UI = struct {
                             },
                             else => {},
                         }
+                    } else {
+                        // Create a new table at this position
+                        const table = try self.addTable(allocator);
+                        table.position = cursor.empty.grid_pos;
+                        const col = try table.addColumn(allocator);
+                        try col.addCell(allocator, "");
+                        const char: u8 = @truncate(char_code);
+                        const cell = &col.data.items[0]; // First cell in the new column
+                        try cell.value.insert(allocator, 0, char);
+
+                        // Set cursor to text position after the inserted character
+                        const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                        const cell_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+                        self.active_cursor = .{
+                            .text = .{
+                                .cell = cell,
+                                .pos = Vec2{ cell_x + self.units.text.width, cell_y },
+                                .char_offset = 0,
+                            },
+                        };
                     }
                 },
                 .cell => {
