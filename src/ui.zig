@@ -252,7 +252,7 @@ pub const UI = struct {
                             .char_offset = new_offset,
                         },
                     };
-                    try self.adjustTableXPositions(allocator, text_pos.cell.column.table);
+                    try self.shiftTablesRight(allocator, text_pos.cell.column.table);
                 },
             }
         }
@@ -331,14 +331,14 @@ pub const UI = struct {
                     const table = cell_pos.cell.column.table;
                     if (self.moveToNextRow(allocator, cell_pos.cell)) |next_cursor| {
                         self.active_cursor = next_cursor;
-                        self.adjustTableYPositions(allocator, table) catch {};
+                        self.shiftTablesDown(allocator, table) catch {};
                     }
                 },
                 .text => |text_pos| {
                     const table = text_pos.cell.column.table;
                     if (self.moveToNextRow(allocator, text_pos.cell)) |next_cursor| {
                         self.active_cursor = next_cursor;
-                        self.adjustTableYPositions(allocator, table) catch {};
+                        self.shiftTablesDown(allocator, table) catch {};
                     }
                 },
             }
@@ -481,7 +481,7 @@ pub const UI = struct {
 
     /// Move tables to the right if text insertion
     /// causes them to overlap
-    fn adjustTableXPositions(self: *UI, allocator: Allocator, edited_table: *Table) !void {
+    fn shiftTablesRight(self: *UI, allocator: Allocator, edited_table: *Table) !void {
         if (self.tables.items.len == 0) {
             return;
         }
@@ -531,7 +531,7 @@ pub const UI = struct {
 
     /// Move tables downward if row addition
     /// causes them to overlap vertically
-    fn adjustTableYPositions(self: *UI, allocator: Allocator, edited_table: *Table) !void {
+    fn shiftTablesDown(self: *UI, allocator: Allocator, edited_table: *Table) !void {
         if (self.tables.items.len == 0) {
             return;
         }
