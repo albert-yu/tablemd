@@ -302,9 +302,10 @@ pub const UI = struct {
         }
     }
 
-    pub fn handleKeyDown(self: *UI, key_code: Keycode) void {
+    pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode) void {
         switch (key_code) {
             .BACKSPACE => self.handleBackspace(),
+            .ENTER => self.handleEnter(allocator),
             // TODO: handle tab, enter
             // tab should move to next cell to the right
             // enter should create a new row or move to next cell down
@@ -312,11 +313,76 @@ pub const UI = struct {
         }
     }
 
+    // TODO: include modifiers
+    pub fn handleEnter(self: *UI, allocator: Allocator) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // do nothing for now
+                },
+                .cell => {
+                    // TODO: go down a row
+                },
+                .text => |text_pos| {
+                    const cell = text_pos.cell;
+                    const column = cell.column;
+                    const table = column.table;
+
+                    // Find current row index by searching for the cell in the column
+                    var current_row_index: usize = 0;
+                    for (column.data.items, 0..) |*col_cell, i| {
+                        if (col_cell == cell) {
+                            current_row_index = i;
+                            break;
+                        }
+                    }
+
+                    // Check if this is the last row
+                    if (current_row_index == table.rows() - 1) {
+                        // Add new row to table
+                        table.addRow(allocator) catch return;
+                    }
+
+                    // Move cursor to next row, first character position
+                    const next_row_index = current_row_index + 1;
+                    const next_cell = &column.data.items[next_row_index];
+
+                    // Calculate position of the next cell
+                    const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                    const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+                    // Find column position within table
+                    var column_x = table_start_x;
+                    for (table.columns.items) |col| {
+                        if (col == column) {
+                            break;
+                        }
+                        column_x += col.size(self.units).width;
+                    }
+
+                    // Calculate cell Y position by summing heights of previous rows
+                    var cell_y = table_start_y;
+                    for (0..next_row_index) |row_i| {
+                        cell_y += column.data.items[row_i].size(self.units).height;
+                    }
+
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = next_cell,
+                            .pos = Vec2{ column_x, cell_y },
+                            .char_offset = 0,
+                        },
+                    };
+                },
+            }
+        }
+    }
+
     fn handleBackspace(self: *UI) void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
-                    // TODO: handle input on empty
+                    // do nothing for now
                 },
                 .cell => |cell_pos| {
                     cell_pos.cell.value.clearRetainingCapacity();

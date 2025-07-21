@@ -263,7 +263,7 @@ export fn input(ev: ?*const sapp.Event) void {
             table_dirty = true;
         },
         .KEY_DOWN => {
-            state.ui.handleKeyDown(event.key_code);
+            state.ui.handleKeyDown(state.allocator, event.key_code);
             table_dirty = true;
         },
         else => {},
