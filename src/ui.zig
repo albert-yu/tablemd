@@ -253,18 +253,32 @@ pub const UI = struct {
                         },
                     };
 
-                    // Check if any tables are within one grid
-                    // column away of the text, and if so,
-                    // move those tables to the right.
-                    const curr_table = text_pos.cell.column.table;
-                    const curr_tbl_size = curr_table.gridSize(self.units);
-                    const curr_tbl_top = curr_table.position.top;
-                    const curr_tbl_bottom = curr_table.position.top + curr_tbl_size.height;
-                    const curr_tbl_right = curr_table.position.left + curr_tbl_size.width;
-                    for (self.tables.items) |table| {
+                    // Create a sorted array list of tables ordered by position.left
+                    var sorted_tables = ArrayList(*Table).initCapacity(allocator, self.tables.items.len) catch unreachable;
+                    defer sorted_tables.deinit(allocator);
+                    try sorted_tables.appendSlice(allocator, self.tables.items);
+
+                    // Sort tables by position.left (lowest to highest)
+                    std.sort.heap(*Table, sorted_tables.items, {}, struct {
+                        fn lessThan(context: void, a: *Table, b: *Table) bool {
+                            _ = context;
+                            return a.position.left < b.position.left;
+                        }
+                    }.lessThan);
+
+                    // Move tables to the right if text insertion
+                    // causes them to overlap
+                    var curr_table = text_pos.cell.column.table;
+
+                    for (sorted_tables.items) |table| {
                         if (table == curr_table) {
                             continue;
                         }
+                        const curr_tbl_size = curr_table.gridSize(self.units);
+                        const curr_tbl_top = curr_table.position.top;
+                        const curr_tbl_bottom = curr_table.position.top + curr_tbl_size.height;
+                        const curr_tbl_right = curr_table.position.left + curr_tbl_size.width;
+
                         const table_size = table.gridSize(self.units);
                         const table_top = table.position.top;
                         const table_bottom = table.position.top + table_size.height;
@@ -280,6 +294,7 @@ pub const UI = struct {
                         const intersects_left = table.position.left <= curr_tbl_right;
                         if (intersects_left) {
                             table.position.left += 1;
+                            curr_table = table;
                         }
                     }
                 },
