@@ -162,6 +162,17 @@ pub const Table = struct {
         self.columns.deinit(allocator);
     }
 
+    pub fn rows(self: Table) usize {
+        if (self.columns.items.len == 0) {
+            return 0;
+        }
+        return self.columns.items[0].data.items.len;
+    }
+
+    pub fn cols(self: Table) usize {
+        return self.columns.items.len;
+    }
+
     pub fn addColumn(self: *Table, allocator: Allocator) !*Column {
         const column = try allocator.create(Column);
         column.* = Column.init(allocator, self);
