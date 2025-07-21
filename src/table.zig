@@ -6,11 +6,11 @@ const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
 
 const Scene = scene_mod.Scene;
-const Size2D = grid.Size2D;
+const Size = grid.Size;
 
 pub const Units = struct {
-    cell: Size2D,
-    text: Size2D,
+    cell: Size,
+    text: Size,
 };
 
 pub const GridPos = struct {
@@ -66,9 +66,9 @@ pub const Cell = struct {
         return .{ .width = @intFromFloat(container_width), .height = grid_height };
     }
 
-    pub fn size(self: Cell, units: Units) Size2D {
+    pub fn size(self: Cell, units: Units) Size {
         const grid_size = self.gridSize(units);
-        return Size2D{
+        return Size{
             .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
             .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
         };
@@ -146,9 +146,9 @@ pub const Column = struct {
         return .{ .width = width, .height = height };
     }
 
-    pub fn size(self: Column, units: Units) Size2D {
+    pub fn size(self: Column, units: Units) Size {
         const grid_size = self.gridSize(units);
-        return Size2D{
+        return Size{
             .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
             .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
         };
@@ -215,9 +215,9 @@ pub const Table = struct {
         return .{ .width = width, .height = height };
     }
 
-    pub fn size(self: Table, units: Units) Size2D {
+    pub fn size(self: Table, units: Units) Size {
         const grid_size = self.gridSize(units);
-        return Size2D{
+        return Size{
             .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
             .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
         };

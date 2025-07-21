@@ -13,7 +13,7 @@ const scene_mod = @import("render/scene.zig");
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
-const Size2D = grid.Size2D;
+const Size2D = grid.Size;
 
 const GRID_N = grid.GRID_N;
 const Color = [4]f32;
