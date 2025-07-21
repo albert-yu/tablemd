@@ -161,7 +161,7 @@ pub const UI = struct {
                                 const char: u8 = @truncate(char_code);
                                 try col.addCell(allocator, &[_:0]u8{char});
                                 const cell = &col.data.items[col.data.items.len - 1];
-                                const new_x = @as(f32, @floatFromInt(cursor.empty.left + 1)) * self.units.text.width;
+                                const new_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width + self.units.text.width;
                                 const new_y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
                                 self.active_cursor = .{
                                     .text = .{
