@@ -325,35 +325,33 @@ pub const Table = struct {
     }
 
     pub fn adjacent(self: Table, grid_pos: GridPos, units: Units) Direction {
-        const cell_units = units.cell;
-        const actual_position_x = @as(f32, @floatFromInt(grid_pos.left)) * cell_units.width;
-        const actual_position_y = @as(f32, @floatFromInt(grid_pos.top)) * cell_units.height;
+        const self_grid_size = self.gridSize(units);
+        const self_right = self.position.left + self_grid_size.width;
+        const self_bottom = self.position.top + self_grid_size.height;
 
-        const self_left = @as(f32, @floatFromInt(self.position.left)) * cell_units.width;
-        const self_top = @as(f32, @floatFromInt(self.position.top)) * cell_units.height;
-        const self_size = self.size(units);
-        const self_bottom = self_top + self_size.height;
-        const self_right = self_left + self_size.width;
-        const is_bounded_x = actual_position_x >= self_left and actual_position_x < self_right;
-        const is_bounded_y = actual_position_y >= self_top and actual_position_y < self_bottom;
+        const is_bounded_x = grid_pos.left >= self.position.left and grid_pos.left < self_right;
+        const is_bounded_y = grid_pos.top >= self.position.top and grid_pos.top < self_bottom;
+
         if (is_bounded_x and is_bounded_y) {
             // inside table
             return .none;
         }
+
         if (is_bounded_x) {
-            if (actual_position_y >= self_bottom and actual_position_y < self_bottom + cell_units.height) {
+            if (grid_pos.top == self_bottom) {
                 return .down;
             }
-            if (actual_position_y < self_top and actual_position_y >= self_top - cell_units.height) {
+            if (grid_pos.top + 1 == self.position.top) {
                 return .up;
             }
             return .none;
         }
+
         if (is_bounded_y) {
-            if (actual_position_x >= self_left - cell_units.width and actual_position_x < self_left) {
+            if (grid_pos.left + 1 == self.position.left) {
                 return .left;
             }
-            if (actual_position_x >= self_right and actual_position_x < self_right + cell_units.width) {
+            if (grid_pos.left == self_right) {
                 return .right;
             }
             return .none;
