@@ -244,13 +244,44 @@ pub const UI = struct {
                     const char: u8 = @truncate(char_code);
                     const new_offset = if (text_pos.cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
                     try text_pos.cell.value.insert(allocator, new_offset, char);
+                    const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
                         .text = .{
                             .cell = text_pos.cell,
-                            .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
+                            .pos = .{ new_x, text_pos.pos[1] },
                             .char_offset = new_offset,
                         },
                     };
+
+                    // Check if any tables are within one grid
+                    // column away of the text, and if so,
+                    // move those tables to the right.
+                    const curr_table = text_pos.cell.column.table;
+                    const curr_tbl_size = curr_table.gridSize(self.units);
+                    const curr_tbl_top = curr_table.position.top;
+                    const curr_tbl_bottom = curr_table.position.top + curr_tbl_size.height;
+                    const curr_tbl_right = curr_table.position.left + curr_tbl_size.width;
+                    for (self.tables.items) |table| {
+                        if (table == curr_table) {
+                            continue;
+                        }
+                        const table_size = table.gridSize(self.units);
+                        const table_top = table.position.top;
+                        const table_bottom = table.position.top + table_size.height;
+                        const table_right = table.position.left + table_size.width;
+
+                        if (table_right < curr_table.position.left) {
+                            continue;
+                        }
+                        const intersects_y = !(table_top > curr_tbl_bottom or table_bottom < curr_tbl_top);
+                        if (!intersects_y) {
+                            continue;
+                        }
+                        const intersects_left = table.position.left <= curr_tbl_right;
+                        if (intersects_left) {
+                            table.position.left += 1;
+                        }
+                    }
                 },
             }
         }
