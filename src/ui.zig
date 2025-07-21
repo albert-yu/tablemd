@@ -159,10 +159,14 @@ pub const UI = struct {
                             .right => {
                                 var col = try table.addColumn(allocator);
                                 const char: u8 = @truncate(char_code);
-                                try col.addCell(allocator, &[_:0]u8{char});
-                                const cell = &col.data.items[col.data.items.len - 1];
+                                const table_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
                                 const new_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width + self.units.text.width;
                                 const new_y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
+                                const dist_y = new_y - table_y;
+                                const col_index_f32 = table_mod.divCeil(dist_y, self.units.cell.height);
+                                const col_index = @as(usize, @intFromFloat(col_index_f32));
+                                const cell = &col.data.items[col_index];
+                                try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
                                     .text = .{
                                         .cell = cell,

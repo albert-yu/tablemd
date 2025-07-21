@@ -94,7 +94,7 @@ pub const Cell = struct {
     }
 };
 
-fn divCeil(top: f32, bottom: f32) f32 {
+pub fn divCeil(top: f32, bottom: f32) f32 {
     const exact = top / bottom;
     return @ceil(exact);
 }
@@ -176,6 +176,9 @@ pub const Table = struct {
     pub fn addColumn(self: *Table, allocator: Allocator) !*Column {
         const column = try allocator.create(Column);
         column.* = Column.init(allocator, self);
+        for (0..self.rows()) |_| {
+            try column.addCell(allocator, "");
+        }
         try self.columns.append(allocator, column);
         return column;
     }
