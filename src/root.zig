@@ -14,7 +14,7 @@ const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
-const RectDims = dot_grid.Size2D;
+const RectDims = dot_grid.Size;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
 const TrueType = @import("TrueType");
@@ -25,7 +25,6 @@ const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
-
 
 const CellPosition = struct {
     row: usize,
@@ -107,20 +106,21 @@ export fn init() void {
     const table = state.ui.addTable(state.allocator) catch unreachable;
     table.position = .{ .left = 1, .top = 1 };
 
-    // Column 1
     const col1 = table.addColumn(state.allocator) catch unreachable;
+    const col2 = table.addColumn(state.allocator) catch unreachable;
+    const col3 = table.addColumn(state.allocator) catch unreachable;
+
+    // Column 1
     col1.addCell(state.allocator, "Name") catch unreachable;
     col1.addCell(state.allocator, "Alice") catch unreachable;
     col1.addCell(state.allocator, "Bob") catch unreachable;
 
     // Column 2
-    const col2 = table.addColumn(state.allocator) catch unreachable;
     col2.addCell(state.allocator, "Age") catch unreachable;
     col2.addCell(state.allocator, "25") catch unreachable;
     col2.addCell(state.allocator, "30") catch unreachable;
 
     // Column 3
-    const col3 = table.addColumn(state.allocator) catch unreachable;
     col3.addCell(state.allocator, "City") catch unreachable;
     col3.addCell(state.allocator, "NYC") catch unreachable;
     col3.addCell(state.allocator, "LA") catch unreachable;
@@ -200,10 +200,12 @@ export fn add(a: i32, b: i32) i32 {
     return a + b;
 }
 
+const PRINT_DOM_STUFF = false;
+
 fn setHtmlRender(html: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
         set_html_render(html.ptr, html.len);
-    } else {
+    } else if (PRINT_DOM_STUFF) {
         std.log.info("html:\n{s}", .{html});
     }
 }
@@ -211,7 +213,7 @@ fn setHtmlRender(html: []const u8) void {
 fn setMarkdownSource(md_src: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
         set_markdown_source(md_src.ptr, md_src.len);
-    } else {
+    } else if (PRINT_DOM_STUFF) {
         std.log.info("markdown:\n{s}", .{md_src});
     }
 }
@@ -242,6 +244,7 @@ export fn input(ev: ?*const sapp.Event) void {
         .MOUSE_DOWN => {
             const normalized_p = getPointForUI(state.mouse[0]);
             state.ui.handleMouseDown(normalized_p);
+            table_dirty = true;
         },
         .TOUCHES_BEGAN => {
             handleTouchBegan(event);
@@ -266,12 +269,20 @@ export fn input(ev: ?*const sapp.Event) void {
         else => {},
     }
     if (table_dirty) {
-        // TODO: whichever table is active should be sent to DOM
-        const table = state.ui.tables.items[0];
-        sendTableToDOM(table) catch |err| {
-            std.log.err("Failed to send table to DOM: {}", .{err});
-        };
+        if (state.ui.active_cursor) |cursor| {
+            const table: ?*ui.Table = switch (cursor) {
+                .empty => null,
+                .cell => |cell_pos| cell_pos.cell.column.table,
+                .text => |text_pos| text_pos.cell.column.table,
+            };
+            if (table) |tbl| {
+                sendTableToDOM(tbl) catch |err| {
+                    std.log.err("Failed to send table to DOM: {}", .{err});
+                };
+            }
+        }
     }
+    // otherwise, leave the current table rendered as-is
 }
 
 fn handlePan(delta_x: f32, delta_y: f32) void {

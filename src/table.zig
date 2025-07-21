@@ -2,19 +2,15 @@ const std = @import("std");
 const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
-const rect = @import("render/rect.zig");
-const text = @import("render/text.zig");
 const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
 
-const RectElement = rect.RectElement;
-const TextElement = text.TextElement;
 const Scene = scene_mod.Scene;
-const Size2D = grid.Size2D;
+const Size = grid.Size;
 
 pub const Units = struct {
-    cell: Size2D,
-    text: Size2D,
+    cell: Size,
+    text: Size,
 };
 
 pub const GridPos = struct {
@@ -22,6 +18,32 @@ pub const GridPos = struct {
     top: usize = 0,
 };
 
+pub const GridSize = struct {
+    width: usize = 0,
+    height: usize = 0,
+};
+
+pub const Direction = enum {
+    none,
+    left,
+    right,
+    up,
+    down,
+};
+
+pub const MatchingCol = struct {
+    index: usize,
+    /// Grid position of the left of the column
+    left: usize,
+    width: usize,
+};
+
+pub const MatchingRow = struct {
+    index: usize,
+    /// Grid position of the top of the row
+    top: usize,
+    height: usize,
+};
 
 pub const Cell = struct {
     value: ArrayList(u8),
@@ -37,25 +59,33 @@ pub const Cell = struct {
         self.value.deinit(allocator);
     }
 
-    pub fn size(self: Cell, units: Units) Size2D {
+    pub fn gridSize(self: Cell, units: Units) GridSize {
         const cell_units = units.cell;
         const text_units = units.text;
 
-        var height: f32 = units.cell.height;
+        var grid_height: usize = 1;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
         for (self.value.items) |char| {
             if (char == '\n') {
                 width = @max(width, curr_line_width);
                 curr_line_width = 0.0;
-                height += text_units.height;
+                grid_height += 1;
                 continue;
             }
             curr_line_width += text_units.width;
         }
         width = @max(width, curr_line_width);
-        const container_width = cell_units.width * divCeil(width, cell_units.width);
-        return .{ .width = container_width, .height = height };
+        const container_width = divCeil(width, cell_units.width);
+        return .{ .width = @intFromFloat(container_width), .height = grid_height };
+    }
+
+    pub fn size(self: Cell, units: Units) Size {
+        const grid_size = self.gridSize(units);
+        return Size{
+            .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
+            .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
+        };
     }
 
     pub fn addSelfToScene(self: Cell, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
@@ -91,7 +121,7 @@ pub const Cell = struct {
     }
 };
 
-fn divCeil(top: f32, bottom: f32) f32 {
+pub fn divCeil(top: f32, bottom: f32) f32 {
     const exact = top / bottom;
     return @ceil(exact);
 }
@@ -119,15 +149,23 @@ pub const Column = struct {
         try self.data.append(allocator, cell);
     }
 
-    pub fn size(self: Column, units: Units) Size2D {
-        var width: f32 = 0.0;
-        var height: f32 = 0.0;
+    pub fn gridSize(self: Column, units: Units) GridSize {
+        var width: usize = 0;
+        var height: usize = 0;
         for (self.data.items) |cell| {
-            const cell_dims = cell.size(units);
+            const cell_dims = cell.gridSize(units);
             width = @max(width, cell_dims.width);
             height += cell_dims.height;
         }
         return .{ .width = width, .height = height };
+    }
+
+    pub fn size(self: Column, units: Units) Size {
+        const grid_size = self.gridSize(units);
+        return Size{
+            .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
+            .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
+        };
     }
 
     pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
@@ -142,6 +180,7 @@ pub const Column = struct {
 
 pub const Table = struct {
     position: GridPos,
+    /// All columns are enforced to have the same number of rows
     columns: ArrayList(*Column),
 
     pub fn init(allocator: Allocator) Table {
@@ -159,22 +198,50 @@ pub const Table = struct {
         self.columns.deinit(allocator);
     }
 
+    pub fn rows(self: Table) usize {
+        if (self.columns.items.len == 0) {
+            return 0;
+        }
+        return self.columns.items[0].data.items.len;
+    }
+
+    pub fn cols(self: Table) usize {
+        return self.columns.items.len;
+    }
+
     pub fn addColumn(self: *Table, allocator: Allocator) !*Column {
         const column = try allocator.create(Column);
         column.* = Column.init(allocator, self);
+        for (0..self.rows()) |_| {
+            try column.addCell(allocator, "");
+        }
         try self.columns.append(allocator, column);
         return column;
     }
 
-    pub fn size(self: Table, units: Units) Size2D {
-        var width: f32 = 0.0;
-        var height: f32 = 0.0;
+    pub fn addRow(self: *Table, allocator: Allocator) !void {
         for (self.columns.items) |column| {
-            const column_dims = column.size(units);
+            try column.addCell(allocator, "");
+        }
+    }
+
+    pub fn gridSize(self: Table, units: Units) GridSize {
+        var width: usize = 0;
+        var height: usize = 0;
+        for (self.columns.items) |column| {
+            const column_dims = column.gridSize(units);
             height = @max(height, column_dims.height);
             width += column_dims.width;
         }
         return .{ .width = width, .height = height };
+    }
+
+    pub fn size(self: Table, units: Units) Size {
+        const grid_size = self.gridSize(units);
+        return Size{
+            .width = @as(f32, @floatFromInt(grid_size.width)) * units.cell.width,
+            .height = @as(f32, @floatFromInt(grid_size.height)) * units.cell.height,
+        };
     }
 
     /// Convert table data to Markdown table format
@@ -276,5 +343,89 @@ pub const Table = struct {
             try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
         }
+    }
+
+    pub fn adjacent(self: Table, grid_pos: GridPos, units: Units) Direction {
+        const self_grid_size = self.gridSize(units);
+        const self_right = self.position.left + self_grid_size.width;
+        const self_bottom = self.position.top + self_grid_size.height;
+
+        const is_bounded_x = grid_pos.left >= self.position.left and grid_pos.left < self_right;
+        const is_bounded_y = grid_pos.top >= self.position.top and grid_pos.top < self_bottom;
+
+        if (is_bounded_x and is_bounded_y) {
+            // inside table
+            return .none;
+        }
+
+        if (is_bounded_x) {
+            if (grid_pos.top == self_bottom) {
+                return .down;
+            }
+            if (grid_pos.top + 1 == self.position.top) {
+                return .up;
+            }
+            return .none;
+        }
+
+        if (is_bounded_y) {
+            if (grid_pos.left + 1 == self.position.left) {
+                return .left;
+            }
+            if (grid_pos.left == self_right) {
+                return .right;
+            }
+            return .none;
+        }
+
+        return .none;
+    }
+
+    /// Returns the index of the row that contains the given grid position
+    /// or null if no row is found.
+    /// Does not check if the grid position is within the table.
+    pub fn matchingRow(self: Table, grid_pos: GridPos, units: Units) ?MatchingRow {
+        if (self.rows() == 0) {
+            return null;
+        }
+        var top = self.position.top;
+        for (0..self.rows()) |i| {
+            var row_height: usize = 0;
+            // get the row height
+            for (self.columns.items) |column| {
+                const cell = column.data.items[i];
+                row_height = @max(row_height, cell.gridSize(units).height);
+            }
+            const row_start = top;
+            if (grid_pos.top >= row_start and grid_pos.top < row_start + row_height) {
+                return .{
+                    .index = i,
+                    .top = row_start,
+                    .height = row_height,
+                };
+            }
+            top += row_height;
+        }
+        return null;
+    }
+
+    pub fn matchingColumn(self: Table, grid_pos: GridPos, units: Units) ?MatchingCol {
+        if (self.cols() == 0) {
+            return null;
+        }
+        var left = self.position.left;
+        for (self.columns.items, 0..) |column, i| {
+            const column_width = column.gridSize(units).width;
+            const column_start = left;
+            if (grid_pos.left >= column_start and grid_pos.left < column_start + column_width) {
+                return .{
+                    .index = i,
+                    .left = column_start,
+                    .width = column_width,
+                };
+            }
+            left += column_width;
+        }
+        return null;
     }
 };

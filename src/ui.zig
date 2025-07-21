@@ -13,7 +13,7 @@ const scene_mod = @import("render/scene.zig");
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
-const Size2D = grid.Size2D;
+const Size2D = grid.Size;
 
 const GRID_N = grid.GRID_N;
 const Color = [4]f32;
@@ -24,10 +24,17 @@ const Cell = table_mod.Cell;
 pub const Scene = scene_mod.Scene;
 const GridPos = table_mod.GridPos;
 const Units = table_mod.Units;
+const Direction = table_mod.Direction;
+const GridSize = table_mod.GridSize;
 
 const ClientRect = struct {
     pos: Vec2,
     size: Size2D,
+};
+
+const EmptyPos = struct {
+    grid_pos: GridPos,
+    grid_size: GridSize,
 };
 
 const CellPos = struct {
@@ -48,7 +55,7 @@ const CursorType = enum {
 };
 
 pub const Cursor = union(CursorType) {
-    empty: GridPos,
+    empty: EmptyPos,
     cell: CellPos,
     text: TextPos,
 
@@ -56,12 +63,12 @@ pub const Cursor = union(CursorType) {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
         return switch (self) {
-            .empty => |grid_pos| .{
+            .empty => |empty_pos| .{
                 .color = color,
-                .x = @as(f32, @floatFromInt(grid_pos.left)) * units.cell.width,
-                .y = @as(f32, @floatFromInt(grid_pos.top)) * units.cell.height,
-                .width = units.cell.width,
-                .height = units.cell.height,
+                .x = @as(f32, @floatFromInt(empty_pos.grid_pos.left)) * units.cell.width,
+                .y = @as(f32, @floatFromInt(empty_pos.grid_pos.top)) * units.cell.height,
+                .width = units.cell.width * @as(f32, @floatFromInt(empty_pos.grid_size.width)),
+                .height = units.cell.height * @as(f32, @floatFromInt(empty_pos.grid_size.height)),
                 .corners = corners,
                 .sigma = 1e-6,
             },
@@ -132,26 +139,164 @@ pub const UI = struct {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
-                    // TODO: handle input on empty
-                    // it should create a new table
-                    // if the cell isn't adjacent to
-                    // an existing table
+                    var adjacent_table: ?*Table = null;
+                    var direction: Direction = .none;
+
+                    for (self.tables.items) |table| {
+                        const adj = table.adjacent(cursor.empty.grid_pos, self.units);
+                        if (adj == .down or adj == .right) {
+                            // For now, only grow down and to the right
+                            // TODO: handle up and left
+                            if (adjacent_table) |_| {
+                                // Only possible once left and up are implemented
+                                std.log.info("multiple adjacent tables, ignoring", .{});
+                                return;
+                            }
+                            adjacent_table = table;
+                            direction = adj;
+                            break;
+                        }
+                    }
+                    if (adjacent_table) |table| {
+                        switch (direction) {
+                            .right => {
+                                const matching_row = table.matchingRow(cursor.empty.grid_pos, self.units) orelse {
+                                    std.log.info("no matching row", .{});
+                                    return;
+                                };
+                                var col = try table.addColumn(allocator);
+                                const char: u8 = @truncate(char_code);
+                                const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
+                                const new_x = @as(f32, @floatFromInt(cursor.empty.grid_pos.left)) * self.units.cell.width + self.units.text.width;
+                                const row_i = matching_row.index;
+                                const cell = &col.data.items[row_i];
+                                try cell.value.insert(allocator, 0, char);
+                                self.active_cursor = .{
+                                    .text = .{
+                                        .cell = cell,
+                                        .pos = Vec2{ new_x, new_y },
+                                        .char_offset = 0,
+                                    },
+                                };
+                            },
+                            .down => {
+                                const matching_col = table.matchingColumn(cursor.empty.grid_pos, self.units) orelse {
+                                    std.log.info("no matching col", .{});
+                                    return;
+                                };
+                                try table.addRow(allocator);
+                                const row_i = table.rows() - 1;
+                                const col_i = matching_col.index;
+                                const char: u8 = @truncate(char_code);
+                                const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
+                                const new_x = cursor_x + self.units.text.width;
+                                const y = @as(f32, @floatFromInt(cursor.empty.grid_pos.top)) * self.units.cell.height;
+                                const cell = &table.columns.items[col_i].data.items[row_i];
+                                try cell.value.insert(allocator, 0, char);
+                                self.active_cursor = .{
+                                    .text = .{
+                                        .cell = cell,
+                                        .pos = Vec2{ new_x, y },
+                                        .char_offset = 0,
+                                    },
+                                };
+                            },
+                            else => {},
+                        }
+                    } else {
+                        // Create a new table at this position
+                        const table = try self.addTable(allocator);
+                        table.position = cursor.empty.grid_pos;
+                        const col = try table.addColumn(allocator);
+                        try col.addCell(allocator, "");
+                        const char: u8 = @truncate(char_code);
+                        const cell = &col.data.items[0]; // First cell in the new column
+                        try cell.value.insert(allocator, 0, char);
+
+                        // Set cursor to text position after the inserted character
+                        const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                        const cell_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+                        self.active_cursor = .{
+                            .text = .{
+                                .cell = cell,
+                                .pos = Vec2{ cell_x + self.units.text.width, cell_y },
+                                .char_offset = 0,
+                            },
+                        };
+                    }
                 },
-                .cell => {
-                    // Do nothing
+                .cell => |cell_pos| {
+                    const cell = cell_pos.cell;
+                    // clear the current text
+                    cell.value.clearRetainingCapacity();
+                    const char: u8 = @truncate(char_code);
+                    try cell.value.insert(allocator, 0, char);
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell = cell,
+                            .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
+                            .char_offset = 0,
+                        },
+                    };
                 },
                 .text => |text_pos| {
                     // Convert u32 to u8, handling potential overflow
                     const char: u8 = @truncate(char_code);
                     const new_offset = if (text_pos.cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
                     try text_pos.cell.value.insert(allocator, new_offset, char);
+                    const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
                         .text = .{
                             .cell = text_pos.cell,
-                            .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
+                            .pos = .{ new_x, text_pos.pos[1] },
                             .char_offset = new_offset,
                         },
                     };
+
+                    // Create a sorted array list of tables ordered by position.left
+                    var sorted_tables = ArrayList(*Table).initCapacity(allocator, self.tables.items.len) catch unreachable;
+                    defer sorted_tables.deinit(allocator);
+                    try sorted_tables.appendSlice(allocator, self.tables.items);
+
+                    // Sort tables by position.left (lowest to highest)
+                    std.sort.heap(*Table, sorted_tables.items, {}, struct {
+                        fn lessThan(context: void, a: *Table, b: *Table) bool {
+                            _ = context;
+                            return a.position.left < b.position.left;
+                        }
+                    }.lessThan);
+
+                    // Move tables to the right if text insertion
+                    // causes them to overlap
+                    var curr_table = text_pos.cell.column.table;
+
+                    for (sorted_tables.items) |table| {
+                        if (table == curr_table) {
+                            continue;
+                        }
+                        const curr_tbl_size = curr_table.gridSize(self.units);
+                        const curr_tbl_top = curr_table.position.top;
+                        const curr_tbl_bottom = curr_table.position.top + curr_tbl_size.height;
+                        const curr_tbl_right = curr_table.position.left + curr_tbl_size.width;
+
+                        const table_size = table.gridSize(self.units);
+                        const table_top = table.position.top;
+                        const table_bottom = table.position.top + table_size.height;
+                        const table_right = table.position.left + table_size.width;
+
+                        if (table_right < curr_table.position.left) {
+                            continue;
+                        }
+                        const intersects_y = !(table_top > curr_tbl_bottom or table_bottom < curr_tbl_top);
+                        if (!intersects_y) {
+                            continue;
+                        }
+                        const intersects_left = table.position.left <= curr_tbl_right;
+                        if (intersects_left) {
+                            table.position.left += 1;
+                            curr_table = table;
+                        }
+                    }
                 },
             }
         }
@@ -173,7 +318,9 @@ pub const UI = struct {
                 .empty => {
                     // TODO: handle input on empty
                 },
-                .cell => {},
+                .cell => |cell_pos| {
+                    cell_pos.cell.value.clearRetainingCapacity();
+                },
                 .text => |text_pos| {
                     if (text_pos.cell.value.items.len == 0) {
                         return;
@@ -216,10 +363,86 @@ pub const UI = struct {
             };
         }
 
-        // Default to grid cell size if no Cell found
         const cell_pos = self.getCellPosition(p);
+        var adjacent_table: ?*Table = null;
+        var direction: Direction = .none;
+        const empty: EmptyPos = .{
+            .grid_pos = cell_pos,
+            .grid_size = .{
+                .width = 1,
+                .height = 1,
+            },
+        };
+
+        for (self.tables.items) |table| {
+            const adj = table.adjacent(cell_pos, self.units);
+            if (adj == .down or adj == .right) {
+                if (adjacent_table) |_| {
+                    // Only possible once left and up are implemented
+                    std.log.info("multiple adjacent tables, ignoring", .{});
+                    return .{
+                        .empty = empty,
+                    };
+                }
+                adjacent_table = table;
+                direction = adj;
+                break;
+            }
+        }
+        if (adjacent_table) |table| {
+            switch (direction) {
+                .right => {
+                    const matching_row = table.matchingRow(cell_pos, self.units) orelse {
+                        std.log.info("no matching row", .{});
+                        return .{
+                            .empty = empty,
+                        };
+                    };
+                    return .{
+                        .empty = .{
+                            .grid_pos = .{
+                                .top = matching_row.top,
+                                .left = cell_pos.left,
+                            },
+                            .grid_size = .{
+                                .width = 1,
+                                .height = matching_row.height,
+                            },
+                        },
+                    };
+                },
+                .down => {
+                    const matching_col = table.matchingColumn(cell_pos, self.units) orelse {
+                        std.log.info("no matching col", .{});
+                        return .{
+                            .empty = empty,
+                        };
+                    };
+                    return .{
+                        .empty = .{
+                            .grid_pos = .{
+                                .top = cell_pos.top,
+                                .left = matching_col.left,
+                            },
+                            .grid_size = .{
+                                .width = matching_col.width,
+                                .height = 1,
+                            },
+                        },
+                    };
+                },
+                else => {
+                    // TODO: handle up and left
+                    return .{
+                        .empty = empty,
+                    };
+                },
+            }
+        }
+
+        // Default to grid cell size if no Cell found
         return .{
-            .empty = cell_pos,
+            .empty = empty,
         };
     }
 
