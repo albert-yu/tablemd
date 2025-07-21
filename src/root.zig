@@ -26,7 +26,6 @@ const sg = sokol.gfx;
 const sglue = sokol.glue;
 const Color = sg.Color;
 
-
 const CellPosition = struct {
     row: usize,
     col: usize,

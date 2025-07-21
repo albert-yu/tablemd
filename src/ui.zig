@@ -24,6 +24,7 @@ const Cell = table_mod.Cell;
 pub const Scene = scene_mod.Scene;
 const GridPos = table_mod.GridPos;
 const Units = table_mod.Units;
+const Direction = table_mod.Direction;
 
 const ClientRect = struct {
     pos: Vec2,
@@ -136,11 +137,44 @@ pub const UI = struct {
                     // it should create a new table
                     // if the cell isn't adjacent to
                     // an existing table
+                    var adjacent_table: ?*Table = null;
+                    var direction: Direction = .none;
+
                     for (self.tables.items) |table| {
                         const adj = table.adjacent(cursor.empty, self.units);
-                        if (adj != .none) {
-                            std.log.info("adjacent! {}", .{adj});
+                        if (adj == .down or adj == .right) {
+                            // For now, only grow down and to the right
+                            if (adjacent_table) |_| {
+                                // Only possible once left and up are implemented
+                                std.log.info("multiple adjacent tables, ignoring", .{});
+                                return;
+                            }
+                            adjacent_table = table;
+                            direction = adj;
                             break;
+                        }
+                    }
+                    if (adjacent_table) |table| {
+                        switch (direction) {
+                            .right => {
+                                var col = try table.addColumn(allocator);
+                                const char: u8 = @truncate(char_code);
+                                try col.addCell(allocator, &[_:0]u8{char});
+                                const cell = &col.data.items[col.data.items.len - 1];
+                                const new_x = @as(f32, @floatFromInt(cursor.empty.left + 1)) * self.units.text.width;
+                                const new_y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
+                                self.active_cursor = .{
+                                    .text = .{
+                                        .cell = cell,
+                                        .pos = Vec2{ new_x, new_y },
+                                        .char_offset = 0,
+                                    },
+                                };
+                            },
+                            .down => {
+                                // TODO: create a new row
+                            },
+                            else => {},
                         }
                     }
                 },
