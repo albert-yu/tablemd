@@ -270,16 +270,15 @@ export fn input(ev: ?*const sapp.Event) void {
     }
     if (table_dirty) {
         if (state.ui.active_cursor) |cursor| {
-            switch (cursor) {
-                .empty => {},
-                .cell => {},
-                .text => |text_pos| {
-                    const cell = text_pos.cell;
-                    const table = cell.column.table;
-                    sendTableToDOM(table) catch |err| {
-                        std.log.err("Failed to send table to DOM: {}", .{err});
-                    };
-                },
+            const table: ?*ui.Table = switch (cursor) {
+                .empty => null,
+                .cell => |cell_pos| cell_pos.cell.column.table,
+                .text => |text_pos| text_pos.cell.column.table,
+            };
+            if (table) |tbl| {
+                sendTableToDOM(tbl) catch |err| {
+                    std.log.err("Failed to send table to DOM: {}", .{err});
+                };
             }
         }
     }
