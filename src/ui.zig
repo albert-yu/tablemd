@@ -163,9 +163,9 @@ pub const UI = struct {
                                 const new_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width + self.units.text.width;
                                 const new_y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
                                 const dist_y = new_y - table_y;
-                                const col_index_f32 = table_mod.divCeil(dist_y, self.units.cell.height);
-                                const col_index = @min(@as(usize, @intFromFloat(col_index_f32)), col.data.items.len - 1);
-                                const cell = &col.data.items[col_index];
+                                const row_index = table_mod.divCeil(dist_y, self.units.cell.height);
+                                const row_i = @min(@as(usize, @intFromFloat(row_index)), col.data.items.len - 1);
+                                const cell = &col.data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
                                     .text = .{
@@ -176,7 +176,25 @@ pub const UI = struct {
                                 };
                             },
                             .down => {
-                                // TODO: create a new row
+                                try table.addRow(allocator);
+                                const row_i = table.rows() - 1;
+                                const char: u8 = @truncate(char_code);
+                                const table_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                                const cursor_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width;
+                                const new_x = cursor_x + self.units.text.width;
+                                const y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
+                                const dist_x = new_x - table_x;
+                                const col_index = @divFloor(dist_x, self.units.cell.width);
+                                const col_i = @min(@as(usize, @intFromFloat(col_index)), table.cols() - 1);
+                                const cell = &table.columns.items[col_i].data.items[row_i];
+                                try cell.value.insert(allocator, 0, char);
+                                self.active_cursor = .{
+                                    .text = .{
+                                        .cell = cell,
+                                        .pos = Vec2{ new_x, y },
+                                        .char_offset = 0,
+                                    },
+                                };
                             },
                             else => {},
                         }
