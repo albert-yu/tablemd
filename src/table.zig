@@ -204,6 +204,12 @@ pub const Table = struct {
         return column;
     }
 
+    pub fn addRow(self: *Table, allocator: Allocator) !void {
+        for (self.columns.items) |column| {
+            try column.addCell(allocator, "");
+        }
+    }
+
     pub fn gridSize(self: Table, units: Units) GridSize {
         var width: usize = 0;
         var height: usize = 0;
