@@ -31,6 +31,18 @@ pub const Direction = enum {
     down,
 };
 
+pub const MatchingCol = struct {
+    index: usize,
+    /// Grid position of the left of the column
+    left: usize,
+};
+
+pub const MatchingRow = struct {
+    index: usize,
+    /// Grid position of the top of the row
+    top: usize,
+};
+
 pub const Cell = struct {
     value: ArrayList(u8),
     column: *Column,
@@ -370,7 +382,7 @@ pub const Table = struct {
     /// Returns the index of the row that contains the given grid position
     /// or null if no row is found.
     /// Does not check if the grid position is within the table.
-    pub fn matchingRow(self: Table, grid_pos: GridPos, units: Units) ?usize {
+    pub fn matchingRow(self: Table, grid_pos: GridPos, units: Units) ?MatchingRow {
         if (self.rows() == 0) {
             return null;
         }
@@ -384,14 +396,17 @@ pub const Table = struct {
             }
             const row_start = top + i;
             if (grid_pos.top >= row_start and grid_pos.top < row_start + row_height) {
-                return i;
+                return .{
+                    .index = i,
+                    .top = row_start,
+                };
             }
             top += row_height;
         }
         return null;
     }
 
-    pub fn matchingColumn(self: Table, grid_pos: GridPos, units: Units) ?usize {
+    pub fn matchingColumn(self: Table, grid_pos: GridPos, units: Units) ?MatchingCol {
         if (self.cols() == 0) {
             return null;
         }
@@ -400,7 +415,10 @@ pub const Table = struct {
             const column_width = column.gridSize(units).width;
             const column_start = left + i;
             if (grid_pos.left >= column_start and grid_pos.left < column_start + column_width) {
-                return i;
+                return .{
+                    .index = i,
+                    .left = column_start,
+                };
             }
             left += column_width;
         }
