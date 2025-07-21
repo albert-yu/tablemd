@@ -272,8 +272,20 @@ export fn input(ev: ?*const sapp.Event) void {
         if (state.ui.active_cursor) |cursor| {
             const table: ?*ui.Table = switch (cursor) {
                 .empty => null,
-                .cell => |cell_pos| cell_pos.cell.column.table,
-                .text => |text_pos| text_pos.cell.column.table,
+                .cell => |cell_pos| blk: {
+                    if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
+                        break :blk cell.column.table;
+                    } else {
+                        break :blk null;
+                    }
+                },
+                .text => |text_pos| blk: {
+                    if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
+                        break :blk cell.column.table;
+                    } else {
+                        break :blk null;
+                    }
+                },
             };
             if (table) |tbl| {
                 sendTableToDOM(tbl) catch |err| {

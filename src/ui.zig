@@ -37,13 +37,19 @@ const EmptyPos = struct {
     grid_size: GridSize,
 };
 
+const CellIndex = struct {
+    table_index: usize,
+    column_index: usize,
+    row_index: usize,
+};
+
 const CellPos = struct {
-    cell: *Cell,
+    cell_index: CellIndex,
     pos: Vec2,
 };
 
 const TextPos = struct {
-    cell: *Cell,
+    cell_index: CellIndex,
     pos: Vec2,
     char_offset: usize,
 };
@@ -59,7 +65,7 @@ pub const Cursor = union(CursorType) {
     cell: CellPos,
     text: TextPos,
 
-    pub fn getRect(self: Cursor, units: Units, color: Color) RectElement {
+    pub fn getRect(self: Cursor, ui: *UI, units: Units, color: Color) RectElement {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
         return switch (self) {
@@ -72,14 +78,28 @@ pub const Cursor = union(CursorType) {
                 .corners = corners,
                 .sigma = 1e-6,
             },
-            .cell => |cell_info| .{
-                .color = color,
-                .x = cell_info.pos[0],
-                .y = cell_info.pos[1],
-                .width = cell_info.cell.column.size(units).width,
-                .height = cell_info.cell.size(units).height,
-                .corners = corners,
-                .sigma = 1e-6,
+            .cell => |cell_info| blk: {
+                if (ui.getCellFromIndex(cell_info.cell_index)) |cell| {
+                    break :blk .{
+                        .color = color,
+                        .x = cell_info.pos[0],
+                        .y = cell_info.pos[1],
+                        .width = cell.column.size(units).width,
+                        .height = cell.size(units).height,
+                        .corners = corners,
+                        .sigma = 1e-6,
+                    };
+                } else {
+                    break :blk .{
+                        .color = color,
+                        .x = cell_info.pos[0],
+                        .y = cell_info.pos[1],
+                        .width = units.cell.width,
+                        .height = units.cell.height,
+                        .corners = corners,
+                        .sigma = 1e-6,
+                    };
+                }
             },
             .text => |text_pos| .{
                 .color = color,
@@ -115,6 +135,34 @@ pub const UI = struct {
             allocator.destroy(table);
         }
         self.tables.deinit(allocator);
+    }
+
+    pub fn getCellFromIndex(self: *UI, cell_index: CellIndex) ?*Cell {
+        if (cell_index.table_index >= self.tables.items.len) return null;
+        const table = self.tables.items[cell_index.table_index];
+
+        if (cell_index.column_index >= table.columns.items.len) return null;
+        const column = table.columns.items[cell_index.column_index];
+
+        if (cell_index.row_index >= column.data.items.len) return null;
+        return &column.data.items[cell_index.row_index];
+    }
+
+    fn getCellIndex(self: *UI, cell: *Cell) ?CellIndex {
+        for (self.tables.items, 0..) |table, table_idx| {
+            for (table.columns.items, 0..) |column, col_idx| {
+                for (column.data.items, 0..) |*table_cell, row_idx| {
+                    if (table_cell == cell) {
+                        return CellIndex{
+                            .table_index = table_idx,
+                            .column_index = col_idx,
+                            .row_index = row_idx,
+                        };
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     pub fn addTable(self: *UI, allocator: Allocator) !*Table {
@@ -164,6 +212,12 @@ pub const UI = struct {
                                     std.log.info("no matching row", .{});
                                     return;
                                 };
+
+                                // Find table index
+                                const table_idx = for (self.tables.items, 0..) |t, idx| {
+                                    if (t == table) break idx;
+                                } else unreachable;
+
                                 var col = try table.addColumn(allocator);
                                 const char: u8 = @truncate(char_code);
                                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
@@ -173,7 +227,11 @@ pub const UI = struct {
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
                                     .text = .{
-                                        .cell = cell,
+                                        .cell_index = CellIndex{
+                                            .table_index = table_idx,
+                                            .column_index = table.columns.items.len - 1, // Last column added
+                                            .row_index = row_i,
+                                        },
                                         .pos = Vec2{ new_x, new_y },
                                         .char_offset = 0,
                                     },
@@ -184,6 +242,12 @@ pub const UI = struct {
                                     std.log.info("no matching col", .{});
                                     return;
                                 };
+
+                                // Find table index
+                                const table_idx = for (self.tables.items, 0..) |t, idx| {
+                                    if (t == table) break idx;
+                                } else unreachable;
+
                                 try table.addRow(allocator);
                                 const row_i = table.rows() - 1;
                                 const col_i = matching_col.index;
@@ -195,7 +259,11 @@ pub const UI = struct {
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
                                     .text = .{
-                                        .cell = cell,
+                                        .cell_index = CellIndex{
+                                            .table_index = table_idx,
+                                            .column_index = col_i,
+                                            .row_index = row_i,
+                                        },
                                         .pos = Vec2{ new_x, y },
                                         .char_offset = 0,
                                     },
@@ -216,9 +284,14 @@ pub const UI = struct {
                         // Set cursor to text position after the inserted character
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
                         const cell_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+                        const table_idx = self.tables.items.len - 1; // Last table added
                         self.active_cursor = .{
                             .text = .{
-                                .cell = cell,
+                                .cell_index = CellIndex{
+                                    .table_index = table_idx,
+                                    .column_index = 0,
+                                    .row_index = 0,
+                                },
                                 .pos = Vec2{ cell_x + self.units.text.width, cell_y },
                                 .char_offset = 0,
                             },
@@ -226,33 +299,34 @@ pub const UI = struct {
                     }
                 },
                 .cell => |cell_pos| {
-                    const cell = cell_pos.cell;
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
                     // clear the current text
                     cell.value.clearRetainingCapacity();
                     const char: u8 = @truncate(char_code);
                     try cell.value.insert(allocator, 0, char);
                     self.active_cursor = .{
                         .text = .{
-                            .cell = cell,
+                            .cell_index = cell_pos.cell_index,
                             .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
                             .char_offset = 0,
                         },
                     };
                 },
                 .text => |text_pos| {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
                     // Convert u32 to u8, handling potential overflow
                     const char: u8 = @truncate(char_code);
-                    const new_offset = if (text_pos.cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
-                    try text_pos.cell.value.insert(allocator, new_offset, char);
+                    const new_offset = if (cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
+                    try cell.value.insert(allocator, new_offset, char);
                     const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
                         .text = .{
-                            .cell = text_pos.cell,
+                            .cell_index = text_pos.cell_index,
                             .pos = .{ new_x, text_pos.pos[1] },
                             .char_offset = new_offset,
                         },
                     };
-                    try self.shiftTablesRight(allocator, text_pos.cell.column.table);
+                    try self.shiftTablesRight(allocator, cell.column.table);
                 },
             }
         }
@@ -269,18 +343,12 @@ pub const UI = struct {
         }
     }
 
-    fn moveToNextRow(self: *UI, allocator: Allocator, cell: *Cell) ?Cursor {
+    fn moveToNextRow(self: *UI, allocator: Allocator, cell_index: CellIndex) ?Cursor {
+        const cell = self.getCellFromIndex(cell_index) orelse return null;
         const column = cell.column;
         const table = column.table;
 
-        // Find current row index by searching for the cell in the column
-        var current_row_index: usize = 0;
-        for (column.data.items, 0..) |*col_cell, i| {
-            if (col_cell == cell) {
-                current_row_index = i;
-                break;
-            }
-        }
+        const current_row_index = cell_index.row_index;
 
         // Check if this is the last row
         if (current_row_index == table.rows() - 1) {
@@ -290,7 +358,6 @@ pub const UI = struct {
 
         // Move cursor to next row
         const next_row_index = current_row_index + 1;
-        const next_cell = &column.data.items[next_row_index];
 
         // Calculate position of the next cell
         const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
@@ -298,8 +365,8 @@ pub const UI = struct {
 
         // Find column position within table
         var column_x = table_start_x;
-        for (table.columns.items) |col| {
-            if (col == column) {
+        for (table.columns.items, 0..) |col, col_idx| {
+            if (col_idx == cell_index.column_index) {
                 break;
             }
             column_x += col.size(self.units).width;
@@ -313,7 +380,11 @@ pub const UI = struct {
 
         return .{
             .text = .{
-                .cell = next_cell,
+                .cell_index = CellIndex{
+                    .table_index = cell_index.table_index,
+                    .column_index = cell_index.column_index,
+                    .row_index = next_row_index,
+                },
                 .pos = Vec2{ column_x, cell_y },
                 .char_offset = 0,
             },
@@ -328,15 +399,17 @@ pub const UI = struct {
                     // do nothing for now
                 },
                 .cell => |cell_pos| {
-                    const table = cell_pos.cell.column.table;
-                    if (self.moveToNextRow(allocator, cell_pos.cell)) |next_cursor| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    const table = cell.column.table;
+                    if (self.moveToNextRow(allocator, cell_pos.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(allocator, table) catch {};
                     }
                 },
                 .text => |text_pos| {
-                    const table = text_pos.cell.column.table;
-                    if (self.moveToNextRow(allocator, text_pos.cell)) |next_cursor| {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    const table = cell.column.table;
+                    if (self.moveToNextRow(allocator, text_pos.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(allocator, table) catch {};
                     }
@@ -352,16 +425,18 @@ pub const UI = struct {
                     // do nothing for now
                 },
                 .cell => |cell_pos| {
-                    cell_pos.cell.value.clearRetainingCapacity();
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    cell.value.clearRetainingCapacity();
                 },
                 .text => |text_pos| {
-                    if (text_pos.cell.value.items.len == 0) {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    if (cell.value.items.len == 0) {
                         return;
                     }
-                    _ = text_pos.cell.value.orderedRemove(text_pos.char_offset);
+                    _ = cell.value.orderedRemove(text_pos.char_offset);
                     self.active_cursor = .{
                         .text = .{
-                            .cell = text_pos.cell,
+                            .cell_index = text_pos.cell_index,
                             .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
                             .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
                         },
@@ -371,15 +446,15 @@ pub const UI = struct {
         }
     }
 
-    pub fn addSelfToScene(self: UI, allocator: Allocator, scene: *Scene) !void {
+    pub fn addSelfToScene(self: *UI, allocator: Allocator, scene: *Scene) !void {
         for (self.tables.items) |table| {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.5, 0.8, 1.0, 0.8 }));
+            try scene.rects.append(allocator, cursor.getRect(self, self.units, .{ 0.5, 0.8, 1.0, 0.8 }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self.units, .{ 0.7, 0.9, 1.0, 0.4 }));
+            try scene.rects.append(allocator, cursor.getRect(self, self.units, .{ 0.7, 0.9, 1.0, 0.4 }));
         }
     }
 
@@ -580,7 +655,7 @@ pub const UI = struct {
     }
 
     fn getTextPositionAt(self: *UI, p: Vec2, containing_cell: CellPos) ?TextPos {
-        const cell = containing_cell.cell;
+        const cell = self.getCellFromIndex(containing_cell.cell_index) orelse return null;
         const lines = countLines(cell);
         var offset: usize = 0;
         var x: f32 = containing_cell.pos[0];
@@ -598,7 +673,7 @@ pub const UI = struct {
                 const char_pos = Vec2{ line_x, line_y };
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
-                        .cell = cell,
+                        .cell_index = containing_cell.cell_index,
                         .pos = Vec2{ line_x, line_y },
                         .char_offset = offset,
                     };
@@ -609,7 +684,7 @@ pub const UI = struct {
     }
 
     fn getCellAt(self: *UI, p: Vec2) ?CellPos {
-        for (self.tables.items) |table| {
+        for (self.tables.items, 0..) |table, table_idx| {
             const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
             const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
 
@@ -619,7 +694,7 @@ pub const UI = struct {
                 const current_y = table_start_y;
 
                 // Iterate through columns to find which one contains the point
-                for (table.columns.items) |column| {
+                for (table.columns.items, 0..) |column, col_idx| {
                     const column_size = column.size(self.units);
 
                     // Check if point is within this column's width
@@ -627,13 +702,17 @@ pub const UI = struct {
                         var cell_y = current_y;
 
                         // Iterate through cells in this column
-                        for (column.data.items) |*cell| {
+                        for (column.data.items, 0..) |*cell, row_idx| {
                             const cell_height = cell.size(self.units).height;
 
                             // Check if point is within this cell's height
                             if (p[1] >= cell_y and p[1] < cell_y + cell_height) {
                                 return CellPos{
-                                    .cell = cell,
+                                    .cell_index = CellIndex{
+                                        .table_index = table_idx,
+                                        .column_index = col_idx,
+                                        .row_index = row_idx,
+                                    },
                                     .pos = Vec2{ current_x, cell_y },
                                 };
                             }
