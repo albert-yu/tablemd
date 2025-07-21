@@ -127,27 +127,25 @@ pub fn divCeil(top: f32, bottom: f32) f32 {
 }
 
 pub const Column = struct {
-    data: ArrayList(*Cell),
+    data: ArrayList(Cell),
     table: *Table,
 
     pub fn init(allocator: Allocator, table: *Table) Column {
         return Column{
-            .data = ArrayList(*Cell).initCapacity(allocator, 0) catch unreachable,
+            .data = ArrayList(Cell).initCapacity(allocator, 0) catch unreachable,
             .table = table,
         };
     }
 
     pub fn deinit(self: *Column, allocator: Allocator) void {
-        for (self.data.items) |cell| {
+        for (self.data.items) |*cell| {
             cell.deinit(allocator);
-            allocator.destroy(cell);
         }
         self.data.deinit(allocator);
     }
 
     pub fn addCell(self: *Column, allocator: Allocator, content: []const u8) !void {
-        const cell = try allocator.create(Cell);
-        cell.* = try Cell.init(allocator, content, self);
+        const cell = try Cell.init(allocator, content, self);
         try self.data.append(allocator, cell);
     }
 

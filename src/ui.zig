@@ -164,12 +164,12 @@ pub const UI = struct {
                                     std.log.info("no matching row", .{});
                                     return;
                                 };
-                                const col = try table.addColumn(allocator);
+                                var col = try table.addColumn(allocator);
                                 const char: u8 = @truncate(char_code);
                                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
                                 const new_x = @as(f32, @floatFromInt(cursor.empty.grid_pos.left)) * self.units.cell.width + self.units.text.width;
                                 const row_i = matching_row.index;
-                                const cell = col.data.items[row_i];
+                                const cell = &col.data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
                                     .text = .{
@@ -191,7 +191,7 @@ pub const UI = struct {
                                 const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
                                 const new_x = cursor_x + self.units.text.width;
                                 const y = @as(f32, @floatFromInt(cursor.empty.grid_pos.top)) * self.units.cell.height;
-                                const cell = table.columns.items[col_i].data.items[row_i];
+                                const cell = &table.columns.items[col_i].data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
                                     .text = .{
@@ -210,7 +210,7 @@ pub const UI = struct {
                         const col = try table.addColumn(allocator);
                         try col.addCell(allocator, "");
                         const char: u8 = @truncate(char_code);
-                        const cell = col.data.items[0]; // First cell in the new column
+                        const cell = &col.data.items[0]; // First cell in the new column
                         try cell.value.insert(allocator, 0, char);
 
                         // Set cursor to text position after the inserted character
@@ -275,7 +275,7 @@ pub const UI = struct {
 
         // Find current row index by searching for the cell in the column
         var current_row_index: usize = 0;
-        for (column.data.items, 0..) |col_cell, i| {
+        for (column.data.items, 0..) |*col_cell, i| {
             if (col_cell == cell) {
                 current_row_index = i;
                 break;
@@ -290,7 +290,7 @@ pub const UI = struct {
 
         // Move cursor to next row
         const next_row_index = current_row_index + 1;
-        const next_cell = column.data.items[next_row_index];
+        const next_cell = &column.data.items[next_row_index];
 
         // Calculate position of the next cell
         const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
@@ -627,7 +627,7 @@ pub const UI = struct {
                         var cell_y = current_y;
 
                         // Iterate through cells in this column
-                        for (column.data.items) |cell| {
+                        for (column.data.items) |*cell| {
                             const cell_height = cell.size(self.units).height;
 
                             // Check if point is within this cell's height
