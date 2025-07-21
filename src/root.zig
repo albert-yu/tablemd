@@ -200,10 +200,12 @@ export fn add(a: i32, b: i32) i32 {
     return a + b;
 }
 
+const PRINT_DOM_STUFF = false;
+
 fn setHtmlRender(html: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
         set_html_render(html.ptr, html.len);
-    } else {
+    } else if (PRINT_DOM_STUFF) {
         std.log.info("html:\n{s}", .{html});
     }
 }
@@ -211,7 +213,7 @@ fn setHtmlRender(html: []const u8) void {
 fn setMarkdownSource(md_src: []const u8) void {
     if (builtin.target.cpu.arch.isWasm()) {
         set_markdown_source(md_src.ptr, md_src.len);
-    } else {
+    } else if (PRINT_DOM_STUFF) {
         std.log.info("markdown:\n{s}", .{md_src});
     }
 }
