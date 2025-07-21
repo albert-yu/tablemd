@@ -328,13 +328,17 @@ pub const UI = struct {
                     // do nothing for now
                 },
                 .cell => |cell_pos| {
+                    const table = cell_pos.cell.column.table;
                     if (self.moveToNextRow(allocator, cell_pos.cell)) |next_cursor| {
                         self.active_cursor = next_cursor;
+                        self.adjustTableYPositions(allocator, table) catch {};
                     }
                 },
                 .text => |text_pos| {
+                    const table = text_pos.cell.column.table;
                     if (self.moveToNextRow(allocator, text_pos.cell)) |next_cursor| {
                         self.active_cursor = next_cursor;
+                        self.adjustTableYPositions(allocator, table) catch {};
                     }
                 },
             }
@@ -520,6 +524,56 @@ pub const UI = struct {
             const intersects_left = table.position.left <= curr_tbl_right;
             if (intersects_left) {
                 table.position.left += 1;
+                prev_table = table;
+            }
+        }
+    }
+
+    /// Move tables downward if row addition
+    /// causes them to overlap vertically
+    fn adjustTableYPositions(self: *UI, allocator: Allocator, edited_table: *Table) !void {
+        if (self.tables.items.len == 0) {
+            return;
+        }
+        // Create a sorted array list of tables ordered by position.top
+        var sorted_tables = ArrayList(*Table).initCapacity(allocator, self.tables.items.len) catch unreachable;
+        defer sorted_tables.deinit(allocator);
+        try sorted_tables.appendSlice(allocator, self.tables.items);
+
+        // Sort tables by position.top (lowest to highest)
+        std.sort.heap(*Table, sorted_tables.items, {}, struct {
+            fn lessThan(context: void, a: *Table, b: *Table) bool {
+                _ = context;
+                return a.position.top < b.position.top;
+            }
+        }.lessThan);
+
+        var prev_table = edited_table;
+
+        for (sorted_tables.items) |table| {
+            if (table == prev_table) {
+                continue;
+            }
+            const curr_tbl_size = prev_table.gridSize(self.units);
+            const curr_tbl_left = prev_table.position.left;
+            const curr_tbl_right = prev_table.position.left + curr_tbl_size.width;
+            const curr_tbl_bottom = prev_table.position.top + curr_tbl_size.height;
+
+            const table_size = table.gridSize(self.units);
+            const table_left = table.position.left;
+            const table_right = table.position.left + table_size.width;
+            const table_bottom = table.position.top + table_size.height;
+
+            if (table_bottom < prev_table.position.top) {
+                continue;
+            }
+            const intersects_x = !(table_left > curr_tbl_right or table_right < curr_tbl_left);
+            if (!intersects_x) {
+                continue;
+            }
+            const intersects_top = table.position.top <= curr_tbl_bottom;
+            if (intersects_top) {
+                table.position.top += 1;
                 prev_table = table;
             }
         }
