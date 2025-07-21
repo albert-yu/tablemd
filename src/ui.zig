@@ -252,51 +252,7 @@ pub const UI = struct {
                             .char_offset = new_offset,
                         },
                     };
-
-                    // Create a sorted array list of tables ordered by position.left
-                    var sorted_tables = ArrayList(*Table).initCapacity(allocator, self.tables.items.len) catch unreachable;
-                    defer sorted_tables.deinit(allocator);
-                    try sorted_tables.appendSlice(allocator, self.tables.items);
-
-                    // Sort tables by position.left (lowest to highest)
-                    std.sort.heap(*Table, sorted_tables.items, {}, struct {
-                        fn lessThan(context: void, a: *Table, b: *Table) bool {
-                            _ = context;
-                            return a.position.left < b.position.left;
-                        }
-                    }.lessThan);
-
-                    // Move tables to the right if text insertion
-                    // causes them to overlap
-                    var curr_table = text_pos.cell.column.table;
-
-                    for (sorted_tables.items) |table| {
-                        if (table == curr_table) {
-                            continue;
-                        }
-                        const curr_tbl_size = curr_table.gridSize(self.units);
-                        const curr_tbl_top = curr_table.position.top;
-                        const curr_tbl_bottom = curr_table.position.top + curr_tbl_size.height;
-                        const curr_tbl_right = curr_table.position.left + curr_tbl_size.width;
-
-                        const table_size = table.gridSize(self.units);
-                        const table_top = table.position.top;
-                        const table_bottom = table.position.top + table_size.height;
-                        const table_right = table.position.left + table_size.width;
-
-                        if (table_right < curr_table.position.left) {
-                            continue;
-                        }
-                        const intersects_y = !(table_top > curr_tbl_bottom or table_bottom < curr_tbl_top);
-                        if (!intersects_y) {
-                            continue;
-                        }
-                        const intersects_left = table.position.left <= curr_tbl_right;
-                        if (intersects_left) {
-                            table.position.left += 1;
-                            curr_table = table;
-                        }
-                    }
+                    try self.adjustTableXPositions(allocator, text_pos.cell.column.table);
                 },
             }
         }
@@ -517,6 +473,56 @@ pub const UI = struct {
         return .{
             .empty = empty,
         };
+    }
+
+    /// Move tables to the right if text insertion
+    /// causes them to overlap
+    fn adjustTableXPositions(self: *UI, allocator: Allocator, edited_table: *Table) !void {
+        if (self.tables.items.len == 0) {
+            return;
+        }
+        // Create a sorted array list of tables ordered by position.left
+        var sorted_tables = ArrayList(*Table).initCapacity(allocator, self.tables.items.len) catch unreachable;
+        defer sorted_tables.deinit(allocator);
+        try sorted_tables.appendSlice(allocator, self.tables.items);
+
+        // Sort tables by position.left (lowest to highest)
+        std.sort.heap(*Table, sorted_tables.items, {}, struct {
+            fn lessThan(context: void, a: *Table, b: *Table) bool {
+                _ = context;
+                return a.position.left < b.position.left;
+            }
+        }.lessThan);
+
+        var prev_table = edited_table;
+
+        for (sorted_tables.items) |table| {
+            if (table == prev_table) {
+                continue;
+            }
+            const curr_tbl_size = prev_table.gridSize(self.units);
+            const curr_tbl_top = prev_table.position.top;
+            const curr_tbl_bottom = prev_table.position.top + curr_tbl_size.height;
+            const curr_tbl_right = prev_table.position.left + curr_tbl_size.width;
+
+            const table_size = table.gridSize(self.units);
+            const table_top = table.position.top;
+            const table_bottom = table.position.top + table_size.height;
+            const table_right = table.position.left + table_size.width;
+
+            if (table_right < prev_table.position.left) {
+                continue;
+            }
+            const intersects_y = !(table_top > curr_tbl_bottom or table_bottom < curr_tbl_top);
+            if (!intersects_y) {
+                continue;
+            }
+            const intersects_left = table.position.left <= curr_tbl_right;
+            if (intersects_left) {
+                table.position.left += 1;
+                prev_table = table;
+            }
+        }
     }
 
     fn getTextPositionAt(self: *UI, p: Vec2, containing_cell: CellPos) ?TextPos {
