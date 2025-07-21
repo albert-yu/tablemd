@@ -65,9 +65,10 @@ pub const Cursor = union(CursorType) {
     cell: CellPos,
     text: TextPos,
 
-    pub fn getRect(self: Cursor, ui: *UI, units: Units, color: Color) RectElement {
+    pub fn getRect(self: Cursor, ui: *UI, color: Color) RectElement {
         const corner = 1.0 / 512.0;
         const corners = .{ corner, corner, corner, corner };
+        const units = ui.units;
         return switch (self) {
             .empty => |empty_pos| .{
                 .color = color,
@@ -451,10 +452,10 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, self.units, .{ 0.5, 0.8, 1.0, 0.8 }));
+            try scene.rects.append(allocator, cursor.getRect(self, .{ 0.5, 0.8, 1.0, 0.8 }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, self.units, .{ 0.7, 0.9, 1.0, 0.4 }));
+            try scene.rects.append(allocator, cursor.getRect(self, .{ 0.7, 0.9, 1.0, 0.4 }));
         }
     }
 
