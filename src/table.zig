@@ -394,7 +394,7 @@ pub const Table = struct {
                 const cell = column.data.items[i];
                 row_height = @max(row_height, cell.gridSize(units).height);
             }
-            const row_start = top + i;
+            const row_start = top;
             if (grid_pos.top >= row_start and grid_pos.top < row_start + row_height) {
                 return .{
                     .index = i,
@@ -413,7 +413,7 @@ pub const Table = struct {
         var left = self.position.left;
         for (self.columns.items, 0..) |column, i| {
             const column_width = column.gridSize(units).width;
-            const column_start = left + i;
+            const column_start = left;
             if (grid_pos.left >= column_start and grid_pos.left < column_start + column_width) {
                 return .{
                     .index = i,

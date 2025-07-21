@@ -157,14 +157,15 @@ pub const UI = struct {
                     if (adjacent_table) |table| {
                         switch (direction) {
                             .right => {
+                                const matching_row = table.matchingRow(cursor.empty, self.units) orelse {
+                                    std.log.info("no matching row", .{});
+                                    return;
+                                };
                                 var col = try table.addColumn(allocator);
                                 const char: u8 = @truncate(char_code);
-                                const table_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+                                const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
                                 const new_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width + self.units.text.width;
-                                const new_y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
-                                const dist_y = new_y - table_y;
-                                const row_index = table_mod.divCeil(dist_y, self.units.cell.height);
-                                const row_i = @min(@as(usize, @intFromFloat(row_index)), col.data.items.len - 1);
+                                const row_i = matching_row.index;
                                 const cell = &col.data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
@@ -176,16 +177,17 @@ pub const UI = struct {
                                 };
                             },
                             .down => {
+                                const matching_col = table.matchingColumn(cursor.empty, self.units) orelse {
+                                    std.log.info("no matching col", .{});
+                                    return;
+                                };
                                 try table.addRow(allocator);
                                 const row_i = table.rows() - 1;
+                                const col_i = matching_col.index;
                                 const char: u8 = @truncate(char_code);
-                                const table_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
-                                const cursor_x = @as(f32, @floatFromInt(cursor.empty.left)) * self.units.cell.width;
+                                const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
                                 const new_x = cursor_x + self.units.text.width;
                                 const y = @as(f32, @floatFromInt(cursor.empty.top)) * self.units.cell.height;
-                                const dist_x = new_x - table_x;
-                                const col_index = @divFloor(dist_x, self.units.cell.width);
-                                const col_i = @min(@as(usize, @intFromFloat(col_index)), table.cols() - 1);
                                 const cell = &table.columns.items[col_i].data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
                                 self.active_cursor = .{
