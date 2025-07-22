@@ -207,9 +207,6 @@ pub const UI = struct {
             switch (cursor) {
                 .empty => {
                     const adjacent = self.findAdjacentTable(cursor.empty.grid_pos);
-                    if (adjacent.direction == .none) {
-                        return;
-                    }
                     if (adjacent.table) |table| {
                         switch (adjacent.direction) {
                             .right => {
