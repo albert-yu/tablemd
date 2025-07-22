@@ -565,10 +565,20 @@ pub const UI = struct {
             return;
         }
 
-        const edited_table_right = edited_table.position.left + edited_table.gridSize(self.units).width;
+        const edited_table_size = edited_table.gridSize(self.units);
+        const edited_table_top = edited_table.position.top;
+        const edited_table_right = edited_table.position.left + edited_table_size.width;
+        const edited_table_bottom = edited_table.position.top + edited_table_size.height;
 
         for (self.tables.items) |table| {
             if (table == edited_table) {
+                continue;
+            }
+            const table_size = table.gridSize(self.units);
+            const table_top = table.position.top;
+            const table_bottom = table.position.top + table_size.height;
+            const intersects_y = !(table_top > edited_table_bottom or table_bottom < edited_table_top);
+            if (!intersects_y) {
                 continue;
             }
             // Shift any table to the right of edited_table
