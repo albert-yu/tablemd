@@ -181,7 +181,7 @@ pub const UI = struct {
         self.hover_cursor = self.getCursor(p);
     }
 
-    fn findAdjacentTable(self: *UI, grid_pos: GridPos) struct { table: ?*Table, direction: Direction } {
+    fn findAdjacentTable(self: *UI, grid_pos: GridPos) struct { table: ?*Table, direction: Direction, multiple: bool } {
         var adjacent_table: ?*Table = null;
         var direction: Direction = .none;
 
@@ -190,13 +190,13 @@ pub const UI = struct {
             if (adj != .none) {
                 if (adjacent_table) |_| {
                     // Multiple adjacent tables found, return none
-                    return .{ .table = null, .direction = .none };
+                    return .{ .table = null, .direction = .none, .multiple = true };
                 }
                 adjacent_table = table;
                 direction = adj;
             }
         }
-        return .{ .table = adjacent_table, .direction = direction };
+        return .{ .table = adjacent_table, .direction = direction, .multiple = false };
     }
 
     fn handleAdjacentTableChar(self: *UI, allocator: Allocator, table: *Table, direction: Direction, grid_pos: GridPos, char_code: u32) !void {
@@ -322,6 +322,9 @@ pub const UI = struct {
             switch (cursor) {
                 .empty => {
                     const adjacent = self.findAdjacentTable(cursor.empty.grid_pos);
+                    if (adjacent.multiple) {
+                        return;
+                    }
                     if (adjacent.table) |table| {
                         try self.handleAdjacentTableChar(allocator, table, adjacent.direction, cursor.empty.grid_pos, char_code);
                     } else {
