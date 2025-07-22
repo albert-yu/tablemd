@@ -219,9 +219,34 @@ pub const Table = struct {
         return column;
     }
 
+    pub fn insertColumn(self: *Table, allocator: Allocator, index: usize) !*Column {
+        if (index > self.columns.items.len) {
+            return error.IndexOutOfBounds;
+        }
+
+        const column = try allocator.create(Column);
+        column.* = Column.init(allocator, self);
+        for (0..self.rows()) |_| {
+            try column.addCell(allocator, "");
+        }
+        try self.columns.insert(allocator, index, column);
+        return column;
+    }
+
     pub fn addRow(self: *Table, allocator: Allocator) !void {
         for (self.columns.items) |column| {
             try column.addCell(allocator, "");
+        }
+    }
+
+    pub fn insertRow(self: *Table, allocator: Allocator, index: usize) !void {
+        if (index > self.rows()) {
+            return error.IndexOutOfBounds;
+        }
+
+        for (self.columns.items) |column| {
+            const cell = try Cell.init(allocator, "", column);
+            try column.data.insert(allocator, index, cell);
         }
     }
 
