@@ -294,6 +294,7 @@ pub const UI = struct {
                                 const y = @as(f32, @floatFromInt(cursor.empty.grid_pos.top)) * self.units.cell.height;
                                 const cell = &table.columns.items[col_i].data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
+                                table.position.top -= 1;
                                 self.active_cursor = .{
                                     .text = .{
                                         .cell_index = CellIndex{
@@ -324,6 +325,7 @@ pub const UI = struct {
                                 const row_i = matching_row.index;
                                 const cell = &col.data.items[row_i];
                                 try cell.value.insert(allocator, 0, char);
+                                table.position.left -= 1;
                                 self.active_cursor = .{
                                     .text = .{
                                         .cell_index = CellIndex{
