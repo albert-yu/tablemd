@@ -373,7 +373,7 @@ pub const UI = struct {
                     const curr_table_width = cell.column.table.gridSize(self.units).width;
                     // Convert u32 to u8, handling potential overflow
                     const char: u8 = @truncate(char_code);
-                    const new_offset = if (cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
+                    const new_offset = text_pos.char_offset;
                     try cell.value.insert(allocator, new_offset, char);
                     const new_table_width = cell.column.table.gridSize(self.units).width;
                     const new_x = text_pos.pos[0] + self.units.text.width;
@@ -381,7 +381,7 @@ pub const UI = struct {
                         .text = .{
                             .cell_index = text_pos.cell_index,
                             .pos = .{ new_x, text_pos.pos[1] },
-                            .char_offset = new_offset,
+                            .char_offset = new_offset + 1,
                         },
                     };
                     if (new_table_width > curr_table_width) {
@@ -490,15 +490,16 @@ pub const UI = struct {
                 },
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
-                    if (cell.value.items.len == 0) {
+                    if (cell.value.items.len == 0 or text_pos.char_offset == 0) {
                         return;
                     }
-                    _ = cell.value.orderedRemove(text_pos.char_offset);
+                    const offset_to_remove = text_pos.char_offset - 1;
+                    _ = cell.value.orderedRemove(offset_to_remove);
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = text_pos.cell_index,
                             .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
-                            .char_offset = if (text_pos.char_offset > 0) text_pos.char_offset - 1 else 0,
+                            .char_offset = offset_to_remove,
                         },
                     };
                 },
@@ -715,7 +716,7 @@ pub const UI = struct {
                     return TextPos{
                         .cell_index = containing_cell.cell_index,
                         .pos = Vec2{ line_x, line_y },
-                        .char_offset = if (offset > 0) offset - 1 else 0,
+                        .char_offset = offset,
                     };
                 }
                 line_x += self.units.text.width;
@@ -727,7 +728,7 @@ pub const UI = struct {
                 return TextPos{
                     .cell_index = containing_cell.cell_index,
                     .pos = Vec2{ line_x, line_y },
-                    .char_offset = if (offset > 0) offset - 1 else 0,
+                    .char_offset = offset,
                 };
             }
         }
