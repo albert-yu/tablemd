@@ -715,10 +715,20 @@ pub const UI = struct {
                     return TextPos{
                         .cell_index = containing_cell.cell_index,
                         .pos = Vec2{ line_x, line_y },
-                        .char_offset = offset,
+                        .char_offset = if (offset > 0) offset - 1 else 0,
                     };
                 }
                 line_x += self.units.text.width;
+            }
+            // allow positioning to the right of the last character
+            // so that the user can backspace (delete) the last character
+            const last_char_pos = Vec2{ line_x, line_y };
+            if (clientRectContains(.{ .pos = last_char_pos, .size = self.units.text }, p)) {
+                return TextPos{
+                    .cell_index = containing_cell.cell_index,
+                    .pos = Vec2{ line_x, line_y },
+                    .char_offset = if (offset > 0) offset - 1 else 0,
+                };
             }
         }
         return null;
