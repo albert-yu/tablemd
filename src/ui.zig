@@ -490,13 +490,13 @@ pub const UI = struct {
         };
 
         const adjacent = self.findAdjacentTable(cell_pos);
-        if (adjacent.direction == .none) {
-            return .{
-                .empty = empty,
-            };
-        }
         if (adjacent.table) |table| {
             switch (adjacent.direction) {
+                .none => {
+                    return .{
+                        .empty = empty,
+                    };
+                },
                 .right => {
                     const matching_row = table.matchingRow(cell_pos, self.units) orelse {
                         std.log.info("no matching row", .{});
@@ -537,10 +537,44 @@ pub const UI = struct {
                         },
                     };
                 },
-                else => {
-                    // TODO: handle up and left
+                .up => {
+                    const matching_col = table.matchingColumn(cell_pos, self.units) orelse {
+                        std.log.info("no matching col", .{});
+                        return .{
+                            .empty = empty,
+                        };
+                    };
                     return .{
-                        .empty = empty,
+                        .empty = .{
+                            .grid_pos = .{
+                                .top = cell_pos.top,
+                                .left = matching_col.left,
+                            },
+                            .grid_size = .{
+                                .width = matching_col.width,
+                                .height = 1,
+                            },
+                        },
+                    };
+                },
+                .left => {
+                    const matching_row = table.matchingRow(cell_pos, self.units) orelse {
+                        std.log.info("no matching row", .{});
+                        return .{
+                            .empty = empty,
+                        };
+                    };
+                    return .{
+                        .empty = .{
+                            .grid_pos = .{
+                                .top = matching_row.top,
+                                .left = cell_pos.left,
+                            },
+                            .grid_size = .{
+                                .width = 1,
+                                .height = matching_row.height,
+                            },
+                        },
                     };
                 },
             }
