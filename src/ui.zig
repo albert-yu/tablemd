@@ -199,6 +199,121 @@ pub const UI = struct {
         return .{ .table = adjacent_table, .direction = direction };
     }
 
+    fn handleAdjacentTableChar(self: *UI, allocator: Allocator, table: *Table, direction: Direction, grid_pos: GridPos, char_code: u32) !void {
+        const char: u8 = @truncate(char_code);
+
+        // Find table index
+        const table_idx = for (self.tables.items, 0..) |t, idx| {
+            if (t == table) break idx;
+        } else unreachable;
+
+        switch (direction) {
+            .right => {
+                const matching_row = table.matchingRow(grid_pos, self.units) orelse {
+                    std.log.info("no matching row", .{});
+                    return;
+                };
+
+                var col = try table.addColumn(allocator);
+                const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
+                const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
+                const row_i = matching_row.index;
+                const cell = &col.data.items[row_i];
+                try cell.value.insert(allocator, 0, char);
+                self.active_cursor = .{
+                    .text = .{
+                        .cell_index = CellIndex{
+                            .table_index = table_idx,
+                            .column_index = table.columns.items.len - 1, // Last column added
+                            .row_index = row_i,
+                        },
+                        .pos = Vec2{ new_x, new_y },
+                        .char_offset = 0,
+                    },
+                };
+            },
+            .down => {
+                const matching_col = table.matchingColumn(grid_pos, self.units) orelse {
+                    std.log.info("no matching col", .{});
+                    return;
+                };
+
+                try table.addRow(allocator);
+                const row_i = table.rows() - 1;
+                const col_i = matching_col.index;
+                const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
+                const new_x = cursor_x + self.units.text.width;
+                const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
+                const cell = &table.columns.items[col_i].data.items[row_i];
+                try cell.value.insert(allocator, 0, char);
+                self.active_cursor = .{
+                    .text = .{
+                        .cell_index = CellIndex{
+                            .table_index = table_idx,
+                            .column_index = col_i,
+                            .row_index = row_i,
+                        },
+                        .pos = Vec2{ new_x, y },
+                        .char_offset = 0,
+                    },
+                };
+            },
+            .up => {
+                const matching_col = table.matchingColumn(grid_pos, self.units) orelse {
+                    std.log.info("no matching col", .{});
+                    return;
+                };
+
+                try table.insertRow(allocator, 0);
+                const row_i: usize = 0;
+                const col_i = matching_col.index;
+                const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
+                const new_x = cursor_x + self.units.text.width;
+                const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
+                const cell = &table.columns.items[col_i].data.items[row_i];
+                try cell.value.insert(allocator, 0, char);
+                table.position.top -= 1;
+                self.active_cursor = .{
+                    .text = .{
+                        .cell_index = CellIndex{
+                            .table_index = table_idx,
+                            .column_index = col_i,
+                            .row_index = row_i,
+                        },
+                        .pos = Vec2{ new_x, y },
+                        .char_offset = 0,
+                    },
+                };
+            },
+            .left => {
+                const matching_row = table.matchingRow(grid_pos, self.units) orelse {
+                    std.log.info("no matching row", .{});
+                    return;
+                };
+
+                var col = try table.insertColumn(allocator, 0);
+                const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
+                const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
+                const row_i = matching_row.index;
+                const cell = &col.data.items[row_i];
+                try cell.value.insert(allocator, 0, char);
+                table.position.left -= 1;
+                self.active_cursor = .{
+                    .text = .{
+                        .cell_index = CellIndex{
+                            .table_index = table_idx,
+                            .column_index = 0, // First column inserted
+                            .row_index = row_i,
+                        },
+                        .pos = Vec2{ new_x, new_y },
+                        .char_offset = 0,
+                    },
+                };
+            },
+            else => {},
+        }
+    }
+
     pub fn handleChar(self: *UI, allocator: Allocator, char_code: u32) !void {
         if (!isPrintableChar(char_code)) {
             return;
@@ -208,135 +323,7 @@ pub const UI = struct {
                 .empty => {
                     const adjacent = self.findAdjacentTable(cursor.empty.grid_pos);
                     if (adjacent.table) |table| {
-                        switch (adjacent.direction) {
-                            .right => {
-                                const matching_row = table.matchingRow(cursor.empty.grid_pos, self.units) orelse {
-                                    std.log.info("no matching row", .{});
-                                    return;
-                                };
-
-                                // Find table index
-                                const table_idx = for (self.tables.items, 0..) |t, idx| {
-                                    if (t == table) break idx;
-                                } else unreachable;
-
-                                var col = try table.addColumn(allocator);
-                                const char: u8 = @truncate(char_code);
-                                const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                                const new_x = @as(f32, @floatFromInt(cursor.empty.grid_pos.left)) * self.units.cell.width + self.units.text.width;
-                                const row_i = matching_row.index;
-                                const cell = &col.data.items[row_i];
-                                try cell.value.insert(allocator, 0, char);
-                                self.active_cursor = .{
-                                    .text = .{
-                                        .cell_index = CellIndex{
-                                            .table_index = table_idx,
-                                            .column_index = table.columns.items.len - 1, // Last column added
-                                            .row_index = row_i,
-                                        },
-                                        .pos = Vec2{ new_x, new_y },
-                                        .char_offset = 0,
-                                    },
-                                };
-                            },
-                            .down => {
-                                const matching_col = table.matchingColumn(cursor.empty.grid_pos, self.units) orelse {
-                                    std.log.info("no matching col", .{});
-                                    return;
-                                };
-
-                                // Find table index
-                                const table_idx = for (self.tables.items, 0..) |t, idx| {
-                                    if (t == table) break idx;
-                                } else unreachable;
-
-                                try table.addRow(allocator);
-                                const row_i = table.rows() - 1;
-                                const col_i = matching_col.index;
-                                const char: u8 = @truncate(char_code);
-                                const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
-                                const new_x = cursor_x + self.units.text.width;
-                                const y = @as(f32, @floatFromInt(cursor.empty.grid_pos.top)) * self.units.cell.height;
-                                const cell = &table.columns.items[col_i].data.items[row_i];
-                                try cell.value.insert(allocator, 0, char);
-                                self.active_cursor = .{
-                                    .text = .{
-                                        .cell_index = CellIndex{
-                                            .table_index = table_idx,
-                                            .column_index = col_i,
-                                            .row_index = row_i,
-                                        },
-                                        .pos = Vec2{ new_x, y },
-                                        .char_offset = 0,
-                                    },
-                                };
-                            },
-                            .up => {
-                                const matching_col = table.matchingColumn(cursor.empty.grid_pos, self.units) orelse {
-                                    std.log.info("no matching col", .{});
-                                    return;
-                                };
-
-                                // Find table index
-                                const table_idx = for (self.tables.items, 0..) |t, idx| {
-                                    if (t == table) break idx;
-                                } else unreachable;
-
-                                try table.insertRow(allocator, 0);
-                                const row_i: usize = 0;
-                                const col_i = matching_col.index;
-                                const char: u8 = @truncate(char_code);
-                                const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
-                                const new_x = cursor_x + self.units.text.width;
-                                const y = @as(f32, @floatFromInt(cursor.empty.grid_pos.top)) * self.units.cell.height;
-                                const cell = &table.columns.items[col_i].data.items[row_i];
-                                try cell.value.insert(allocator, 0, char);
-                                table.position.top -= 1;
-                                self.active_cursor = .{
-                                    .text = .{
-                                        .cell_index = CellIndex{
-                                            .table_index = table_idx,
-                                            .column_index = col_i,
-                                            .row_index = row_i,
-                                        },
-                                        .pos = Vec2{ new_x, y },
-                                        .char_offset = 0,
-                                    },
-                                };
-                            },
-                            .left => {
-                                const matching_row = table.matchingRow(cursor.empty.grid_pos, self.units) orelse {
-                                    std.log.info("no matching row", .{});
-                                    return;
-                                };
-
-                                // Find table index
-                                const table_idx = for (self.tables.items, 0..) |t, idx| {
-                                    if (t == table) break idx;
-                                } else unreachable;
-
-                                var col = try table.insertColumn(allocator, 0);
-                                const char: u8 = @truncate(char_code);
-                                const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                                const new_x = @as(f32, @floatFromInt(cursor.empty.grid_pos.left)) * self.units.cell.width + self.units.text.width;
-                                const row_i = matching_row.index;
-                                const cell = &col.data.items[row_i];
-                                try cell.value.insert(allocator, 0, char);
-                                table.position.left -= 1;
-                                self.active_cursor = .{
-                                    .text = .{
-                                        .cell_index = CellIndex{
-                                            .table_index = table_idx,
-                                            .column_index = 0, // First column inserted
-                                            .row_index = row_i,
-                                        },
-                                        .pos = Vec2{ new_x, new_y },
-                                        .char_offset = 0,
-                                    },
-                                };
-                            },
-                            else => {},
-                        }
+                        try self.handleAdjacentTableChar(allocator, table, adjacent.direction, cursor.empty.grid_pos, char_code);
                     } else {
                         // Create a new table at this position
                         const table = try self.addTable(allocator);
