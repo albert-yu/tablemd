@@ -181,6 +181,24 @@ pub const UI = struct {
         self.hover_cursor = self.getCursor(p);
     }
 
+    fn findAdjacentTable(self: *UI, grid_pos: GridPos) struct { table: ?*Table, direction: Direction } {
+        var adjacent_table: ?*Table = null;
+        var direction: Direction = .none;
+
+        for (self.tables.items) |table| {
+            const adj = table.adjacent(grid_pos, self.units);
+            if (adj != .none) {
+                if (adjacent_table) |_| {
+                    // Multiple adjacent tables found, return none
+                    return .{ .table = null, .direction = .none };
+                }
+                adjacent_table = table;
+                direction = adj;
+            }
+        }
+        return .{ .table = adjacent_table, .direction = direction };
+    }
+
     pub fn handleChar(self: *UI, allocator: Allocator, char_code: u32) !void {
         if (!isPrintableChar(char_code)) {
             return;
@@ -188,26 +206,12 @@ pub const UI = struct {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
-                    var adjacent_table: ?*Table = null;
-                    var direction: Direction = .none;
-
-                    for (self.tables.items) |table| {
-                        const adj = table.adjacent(cursor.empty.grid_pos, self.units);
-                        if (adj == .down or adj == .right) {
-                            // For now, only grow down and to the right
-                            // TODO: handle up and left
-                            if (adjacent_table) |_| {
-                                // Only possible once left and up are implemented
-                                std.log.info("multiple adjacent tables, ignoring", .{});
-                                return;
-                            }
-                            adjacent_table = table;
-                            direction = adj;
-                            break;
-                        }
+                    const adjacent = self.findAdjacentTable(cursor.empty.grid_pos);
+                    if (adjacent.direction == .none) {
+                        return;
                     }
-                    if (adjacent_table) |table| {
-                        switch (direction) {
+                    if (adjacent.table) |table| {
+                        switch (adjacent.direction) {
                             .right => {
                                 const matching_row = table.matchingRow(cursor.empty.grid_pos, self.units) orelse {
                                     std.log.info("no matching row", .{});
@@ -477,8 +481,6 @@ pub const UI = struct {
         }
 
         const cell_pos = self.getCellPosition(p);
-        var adjacent_table: ?*Table = null;
-        var direction: Direction = .none;
         const empty: EmptyPos = .{
             .grid_pos = cell_pos,
             .grid_size = .{
@@ -487,23 +489,14 @@ pub const UI = struct {
             },
         };
 
-        for (self.tables.items) |table| {
-            const adj = table.adjacent(cell_pos, self.units);
-            if (adj == .down or adj == .right) {
-                if (adjacent_table) |_| {
-                    // Only possible once left and up are implemented
-                    std.log.info("multiple adjacent tables, ignoring", .{});
-                    return .{
-                        .empty = empty,
-                    };
-                }
-                adjacent_table = table;
-                direction = adj;
-                break;
-            }
+        const adjacent = self.findAdjacentTable(cell_pos);
+        if (adjacent.direction == .none) {
+            return .{
+                .empty = empty,
+            };
         }
-        if (adjacent_table) |table| {
-            switch (direction) {
+        if (adjacent.table) |table| {
+            switch (adjacent.direction) {
                 .right => {
                     const matching_row = table.matchingRow(cell_pos, self.units) orelse {
                         std.log.info("no matching row", .{});
