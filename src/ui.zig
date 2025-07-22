@@ -330,7 +330,7 @@ pub const UI = struct {
                         },
                     };
                     if (new_table_width > curr_table_width) {
-                        self.shiftTablesRightOf(cell.column.table);
+                        self.shiftTablesRightOf(cell.column.table, new_table_width - curr_table_width);
                     }
                 },
             }
@@ -560,7 +560,7 @@ pub const UI = struct {
     }
 
     /// Move tables to the right
-    fn shiftTablesRightOf(self: *UI, edited_table: *Table) void {
+    fn shiftTablesRightOf(self: *UI, edited_table: *Table, delta: usize) void {
         if (self.tables.items.len == 0) {
             return;
         }
@@ -573,7 +573,7 @@ pub const UI = struct {
             }
             // Shift any table to the right of edited_table
             if (table.position.left >= edited_table_right) {
-                table.position.left += 1;
+                table.position.left += delta;
             }
         }
     }
