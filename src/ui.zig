@@ -315,10 +315,12 @@ pub const UI = struct {
                 },
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    const curr_table_width = cell.column.table.gridSize(self.units).width;
                     // Convert u32 to u8, handling potential overflow
                     const char: u8 = @truncate(char_code);
                     const new_offset = if (cell.value.items.len == 0) 0 else text_pos.char_offset + 1;
                     try cell.value.insert(allocator, new_offset, char);
+                    const new_table_width = cell.column.table.gridSize(self.units).width;
                     const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
                         .text = .{
@@ -327,7 +329,9 @@ pub const UI = struct {
                             .char_offset = new_offset,
                         },
                     };
-                    try self.shiftTablesRight(allocator, cell.column.table);
+                    if (new_table_width > curr_table_width) {
+                        self.shiftTablesRightOf(cell.column.table);
+                    }
                 },
             }
         }
@@ -555,52 +559,21 @@ pub const UI = struct {
         };
     }
 
-    /// Move tables to the right if text insertion
-    /// causes them to overlap
-    fn shiftTablesRight(self: *UI, allocator: Allocator, edited_table: *Table) !void {
+    /// Move tables to the right
+    fn shiftTablesRightOf(self: *UI, edited_table: *Table) void {
         if (self.tables.items.len == 0) {
             return;
         }
-        // Create a sorted array list of tables ordered by position.left
-        var sorted_tables = ArrayList(*Table).initCapacity(allocator, self.tables.items.len) catch unreachable;
-        defer sorted_tables.deinit(allocator);
-        try sorted_tables.appendSlice(allocator, self.tables.items);
 
-        // Sort tables by position.left (lowest to highest)
-        std.sort.heap(*Table, sorted_tables.items, {}, struct {
-            fn lessThan(context: void, a: *Table, b: *Table) bool {
-                _ = context;
-                return a.position.left < b.position.left;
-            }
-        }.lessThan);
+        const edited_table_right = edited_table.position.left + edited_table.gridSize(self.units).width;
 
-        var prev_table = edited_table;
-
-        for (sorted_tables.items) |table| {
-            if (table == prev_table) {
+        for (self.tables.items) |table| {
+            if (table == edited_table) {
                 continue;
             }
-            const curr_tbl_size = prev_table.gridSize(self.units);
-            const curr_tbl_top = prev_table.position.top;
-            const curr_tbl_bottom = prev_table.position.top + curr_tbl_size.height;
-            const curr_tbl_right = prev_table.position.left + curr_tbl_size.width;
-
-            const table_size = table.gridSize(self.units);
-            const table_top = table.position.top;
-            const table_bottom = table.position.top + table_size.height;
-            const table_right = table.position.left + table_size.width;
-
-            if (table_right < prev_table.position.left) {
-                continue;
-            }
-            const intersects_y = !(table_top > curr_tbl_bottom or table_bottom < curr_tbl_top);
-            if (!intersects_y) {
-                continue;
-            }
-            const intersects_left = table.position.left <= curr_tbl_right;
-            if (intersects_left) {
+            // Shift any table to the right of edited_table
+            if (table.position.left >= edited_table_right) {
                 table.position.left += 1;
-                prev_table = table;
             }
         }
     }
