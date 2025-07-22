@@ -710,7 +710,6 @@ pub const UI = struct {
                     x = containing_cell.pos[0];
                     break;
                 }
-                line_x += self.units.text.width;
                 const char_pos = Vec2{ line_x, line_y };
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
@@ -719,6 +718,7 @@ pub const UI = struct {
                         .char_offset = offset,
                     };
                 }
+                line_x += self.units.text.width;
             }
         }
         return null;
