@@ -72,8 +72,8 @@ pub const Cursor = union(CursorType) {
         return switch (self) {
             .empty => |empty_pos| .{
                 .color = color,
-                .x = @as(f32, @floatFromInt(empty_pos.grid_pos.left)) * units.cell.width,
-                .y = @as(f32, @floatFromInt(empty_pos.grid_pos.top)) * units.cell.height,
+                .x = units.cell.width * @as(f32, @floatFromInt(empty_pos.grid_pos.left)),
+                .y = units.cell.height * @as(f32, @floatFromInt(empty_pos.grid_pos.top)),
                 .width = units.cell.width * @as(f32, @floatFromInt(empty_pos.grid_size.width)),
                 .height = units.cell.height * @as(f32, @floatFromInt(empty_pos.grid_size.height)),
                 .corners = corners,
