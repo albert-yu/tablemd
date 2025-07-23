@@ -51,6 +51,11 @@ const CellPos = struct {
 const TextPos = struct {
     cell_index: CellIndex,
     pos: Vec2,
+    /// Not guaranteed to be a valid index,
+    /// as it is possible to point past
+    /// the last character.
+    /// This is mainly used for positioning
+    /// the cursor, not indexing into the text.
     char_offset: usize,
 };
 
