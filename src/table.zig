@@ -8,6 +8,10 @@ const Vec2 = @import("zm").Vec2f;
 const Scene = scene_mod.Scene;
 const Size = grid.Size;
 
+pub const Color = [4]f32;
+
+const TABLE_BG_COLOR: Color = .{ 0.0, 214.0 / 256.0, 196.0 / 256.0, 0.50 };
+
 pub const Units = struct {
     cell: Size,
     text: Size,
@@ -353,7 +357,7 @@ pub const Table = struct {
         const rect_size = self.size(units);
         const corner = 1.0 / 512.0;
         try scene.rects.append(allocator, .{
-            .color = .{ 0.0, 0.0, 0.0, 0.25 },
+            .color = TABLE_BG_COLOR,
             .x = actual_position_x,
             .y = actual_position_y,
             .width = rect_size.width,

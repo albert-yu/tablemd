@@ -16,7 +16,7 @@ const TextElement = text.TextElement;
 const Size2D = grid.Size;
 
 const GRID_N = grid.GRID_N;
-const Color = [4]f32;
+const Color = table_mod.Color;
 
 // Re-export table types for backward compatibility
 pub const Table = table_mod.Table;
