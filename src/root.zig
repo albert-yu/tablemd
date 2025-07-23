@@ -238,7 +238,7 @@ export fn input(ev: ?*const sapp.Event) void {
             if (state.mouse_press_pos) |press_pos| {
                 const delta_x = state.mouse[0][0] - press_pos[0];
                 const delta_y = state.mouse[0][1] - press_pos[1];
-                const tolerance = 1e-6;
+                const tolerance = 1e-1;
                 if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance)) {
                     state.is_dragging = true;
                     handlePan(delta_x, delta_y);
@@ -320,6 +320,8 @@ export fn input(ev: ?*const sapp.Event) void {
                     std.log.err("Failed to send table to DOM: {}", .{err});
                 };
             }
+        } else {
+            clearTableInDOM();
         }
     }
     // otherwise, leave the current table rendered as-is
@@ -522,4 +524,9 @@ fn sendTableToDOM(table: *ui.Table) !void {
     const html_str = markdownToHtml(table_as_md) catch unreachable;
     defer state.allocator.free(html_str);
     setHtmlRender(html_str);
+}
+
+fn clearTableInDOM() void {
+    setMarkdownSource("");
+    setHtmlRender("");
 }

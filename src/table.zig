@@ -257,6 +257,32 @@ pub const Table = struct {
         }
     }
 
+    pub fn removeColumn(self: *Table, allocator: Allocator, index: usize) void {
+        var column = self.columns.orderedRemove(index);
+        column.deinit(allocator);
+        allocator.destroy(column);
+    }
+
+    pub fn removeRow(self: *Table, allocator: Allocator, index: usize) void {
+        for (self.columns.items) |column| {
+            var cell = column.data.orderedRemove(index);
+            cell.deinit(allocator);
+        }
+    }
+
+    pub fn rowIsEmpty(self: Table, row_index: usize) bool {
+        if (row_index >= self.rows()) {
+            return false;
+        }
+        for (self.columns.items) |column| {
+            const cell = column.data.items[row_index];
+            if (cell.value.items.len > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     pub fn gridSize(self: Table, units: Units) GridSize {
         var width: usize = 0;
         var height: usize = 0;
