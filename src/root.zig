@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const sokol = @import("sokol");
 const ui = @import("ui.zig");
 const markdown = @import("markdown");
+const theme = @import("theme.zig");
 
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
@@ -31,7 +32,7 @@ const CellPosition = struct {
     col: usize,
 };
 
-const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
+const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
@@ -133,7 +134,8 @@ export fn init() void {
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
-        .clear_value = BG_COLOR,
+        // if we see red, something is wrong
+        .clear_value = .{ .r = 1.0, .g = 0.0, .b = 0.0, .a = 1.0 },
     };
 
     state.t.updateWindowData(sapp.widthf(), sapp.heightf());
@@ -155,6 +157,10 @@ export fn frame() void {
 
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
+    state.pass_action.colors[0] = .{
+        .load_action = .CLEAR,
+        .clear_value = theme.DARK_THEME.background_color,
+    };
 
     sg.beginPass(.{
         .action = state.pass_action,

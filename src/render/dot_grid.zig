@@ -4,6 +4,8 @@ const shd = @import("quad_shader");
 const zm = @import("zm");
 const Vec2 = zm.Vec2f;
 const Vec3 = zm.Vec3f;
+const theme = @import("../theme.zig");
+const dark_theme = theme.DARK_THEME;
 
 pub const GRID_N = 250;
 const POINTS_N = GRID_N * GRID_N;
@@ -32,7 +34,7 @@ pub const Renderer = struct {
     /// Returns width, height of rect size of one cell
     pub fn setup(self: *Renderer) Size {
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
-            .data = sg.asRange(&makeQuadVertexBuffer(.{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 0.25 })),
+            .data = sg.asRange(&makeQuadVertexBuffer(dark_theme.dot_grid_color)),
         });
 
         // an index buffer

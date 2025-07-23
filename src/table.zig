@@ -4,9 +4,14 @@ const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
+const sokol = @import("sokol");
+const sg = sokol.gfx;
+const theme = @import("theme.zig");
 
 const Scene = scene_mod.Scene;
 const Size = grid.Size;
+
+const TABLE_BG_COLOR: sg.Color = theme.DARK_THEME.table_background_color;
 
 pub const Units = struct {
     cell: Size,
@@ -104,6 +109,7 @@ pub const Cell = struct {
                     .text = self.value.items[start..i],
                     .x = position[0],
                     .y = pos_y,
+                    .color = theme.DARK_THEME.text_color,
                 });
                 i += 1; // skip the newline
                 start = i;
@@ -116,6 +122,7 @@ pub const Cell = struct {
                 .text = self.value.items[start..self.value.items.len],
                 .x = position[0],
                 .y = pos_y,
+                .color = theme.DARK_THEME.text_color,
             });
         }
     }
@@ -353,7 +360,7 @@ pub const Table = struct {
         const rect_size = self.size(units);
         const corner = 1.0 / 512.0;
         try scene.rects.append(allocator, .{
-            .color = .{ 0.0, 0.0, 0.0, 0.25 },
+            .color = TABLE_BG_COLOR,
             .x = actual_position_x,
             .y = actual_position_y,
             .width = rect_size.width,

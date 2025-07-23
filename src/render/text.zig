@@ -38,7 +38,7 @@ const CharElement = struct {
     glyph_size: [2]f32,
     tex_offset: [2]f32,
     tex_size: [2]f32,
-    color: [4]f32,
+    color: sg.Color,
     pixel_scale: f32,
 };
 
@@ -46,6 +46,7 @@ pub const TextElement = struct {
     text: []const u8,
     x: f32,
     y: f32,
+    color: sg.Color,
 };
 
 /// Atlas size in pixels
@@ -188,6 +189,7 @@ pub const Renderer = struct {
         const text = element.text;
         const x = element.x;
         const y = element.y;
+        const color = element.color;
 
         // this is a hack to make sure the text doesn't bleed
         // down into the next row
@@ -198,14 +200,14 @@ pub const Renderer = struct {
 
         for (text) |char| {
             if (char >= 32 and char <= 127) {
-                self.addChar(char, current_x, scaled_y);
+                self.addChar(char, current_x, scaled_y, color);
                 const glyph = self.glyphs[char];
                 current_x += glyph.advance;
             }
         }
     }
 
-    fn addChar(self: *Renderer, char: u8, x: f32, y: f32) void {
+    fn addChar(self: *Renderer, char: u8, x: f32, y: f32, color: sg.Color) void {
         if (char < 32 or char > 127) {
             return;
         }
@@ -220,7 +222,7 @@ pub const Renderer = struct {
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
-                .color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .color = color,
                 .pixel_scale = PIXEL_SCALE,
             };
             self.elements.append(self.allocator, char_element) catch |err| {
