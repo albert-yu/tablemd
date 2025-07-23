@@ -193,9 +193,7 @@
                 console.error(text);
             },
             onRuntimeInitialized: function () {
-                // Call the exported add function from Zig
-                const result = Module._add(5, 3);
-                console.log("Zig add(5, 3) = " + result);
+                console.log("Initialized");
             }
         };
         window.onerror = function () {
@@ -225,6 +223,27 @@
             const sidePanel = document.getElementById('side-panel');
             sidePanel.classList.toggle('collapsed');
         }
+
+        function handleWebPaste(text) {
+            if (Module._handle_paste_from_web) {
+                const textPtr = Module._malloc(text.length + 1);
+                Module.stringToUTF8(text, textPtr, text.length + 1);
+                Module._handle_paste_from_web(textPtr);
+                Module._free(textPtr);
+            }
+        }
+
+        // Add keyboard event listener for paste
+        document.addEventListener('keydown', function (event) {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+                event.preventDefault();
+                navigator.clipboard.readText().then(function (text) {
+                    handleWebPaste(text);
+                }).catch(function (err) {
+                    console.error('Failed to read clipboard: ', err);
+                });
+            }
+        });
     </script>
     {{{ SCRIPT }}}
 </body>

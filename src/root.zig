@@ -199,13 +199,18 @@ pub fn main() void {
         .height = 2 * HEIGHT_START,
         .window_title = "tablemd",
         .logger = .{ .func = slog.func },
+        .enable_clipboard = true,
         // .sample_count = 4,
         .high_dpi = true,
     });
 }
 
-export fn add(a: i32, b: i32) i32 {
-    return a + b;
+export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
+    const text = std.mem.span(text_ptr);
+    if (text.len > 0) {
+        state.ui.handlePaste(state.allocator, text) catch {};
+        updateTableFromCursorState();
+    }
 }
 
 const PRINT_DOM_STUFF = false;
@@ -287,44 +292,57 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchCancelled(event);
         },
         .CHAR => {
-            state.ui.handleChar(state.allocator, event.char_code) catch {};
-            table_dirty = true;
+            if (event.modifiers & sapp.modifier_super == 0 and event.modifiers & sapp.modifier_ctrl == 0) {
+                state.ui.handleChar(state.allocator, event.char_code) catch {};
+                table_dirty = true;
+            }
+        },
+        .CLIPBOARD_PASTED => {
+            const clipboard_text = sapp.getClipboardString();
+            if (clipboard_text.len > 0) {
+                state.ui.handlePaste(state.allocator, clipboard_text) catch {};
+                table_dirty = true;
+            }
         },
         .KEY_DOWN => {
-            state.ui.handleKeyDown(state.allocator, event.key_code);
+            state.ui.handleKeyDown(state.allocator, event.key_code, event.modifiers);
             table_dirty = true;
         },
         else => {},
     }
     if (table_dirty) {
-        if (state.ui.active_cursor) |cursor| {
-            const table: ?*ui.Table = switch (cursor) {
-                .empty => null,
-                .cell => |cell_pos| blk: {
-                    if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
-                        break :blk cell.column.table;
-                    } else {
-                        break :blk null;
-                    }
-                },
-                .text => |text_pos| blk: {
-                    if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
-                        break :blk cell.column.table;
-                    } else {
-                        break :blk null;
-                    }
-                },
-            };
-            if (table) |tbl| {
-                sendTableToDOM(tbl) catch |err| {
-                    std.log.err("Failed to send table to DOM: {}", .{err});
-                };
-            }
-        } else {
-            clearTableInDOM();
-        }
+        updateTableFromCursorState();
     }
     // otherwise, leave the current table rendered as-is
+}
+
+fn updateTableFromCursorState() void {
+    if (state.ui.active_cursor) |cursor| {
+        const table: ?*ui.Table = switch (cursor) {
+            .empty => null,
+            .cell => |cell_pos| blk: {
+                if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
+                    break :blk cell.column.table;
+                } else {
+                    break :blk null;
+                }
+            },
+            .text => |text_pos| blk: {
+                if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
+                    break :blk cell.column.table;
+                } else {
+                    break :blk null;
+                }
+            },
+        };
+        if (table) |tbl| {
+            sendTableToDOM(tbl) catch |err| {
+                std.log.err("Failed to send table to DOM: {}", .{err});
+            };
+        }
+    } else {
+        clearTableInDOM();
+    }
 }
 
 fn handlePan(delta_x: f32, delta_y: f32) void {
