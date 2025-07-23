@@ -206,8 +206,7 @@ pub const UI = struct {
         return .{ .table = adjacent_table, .direction = direction, .multiple = false };
     }
 
-    fn handleAdjacentTableChar(self: *UI, allocator: Allocator, table: *Table, direction: Direction, grid_pos: GridPos, char_code: u32) !void {
-        const char: u8 = @truncate(char_code);
+    fn insertIntoAdjacentTable(self: *UI, allocator: Allocator, table: *Table, direction: Direction, grid_pos: GridPos, s: []const u8) !void {
 
         // Find table index
         const table_idx = for (self.tables.items, 0..) |t, idx| {
@@ -226,7 +225,9 @@ pub const UI = struct {
                 const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
-                try cell.value.insert(allocator, 0, char);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 self.active_cursor = .{
                     .text = .{
                         .cell_index = CellIndex{
@@ -235,7 +236,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = 1,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -252,7 +253,9 @@ pub const UI = struct {
                 const new_x = cursor_x + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
-                try cell.value.insert(allocator, 0, char);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 self.active_cursor = .{
                     .text = .{
                         .cell_index = CellIndex{
@@ -261,7 +264,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = 1,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -278,7 +281,9 @@ pub const UI = struct {
                 const new_x = cursor_x + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
-                try cell.value.insert(allocator, 0, char);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 table.position.top -= 1;
                 self.active_cursor = .{
                     .text = .{
@@ -288,7 +293,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = 1,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -303,7 +308,9 @@ pub const UI = struct {
                 const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
-                try cell.value.insert(allocator, 0, char);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 table.position.left -= 1;
                 self.active_cursor = .{
                     .text = .{
@@ -313,7 +320,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = 1,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -333,7 +340,9 @@ pub const UI = struct {
                         return;
                     }
                     if (adjacent.table) |table| {
-                        try self.handleAdjacentTableChar(allocator, table, adjacent.direction, cursor.empty.grid_pos, char_code);
+                        const char: u8 = @truncate(char_code);
+                        const s = [_]u8{char};
+                        try self.insertIntoAdjacentTable(allocator, table, adjacent.direction, cursor.empty.grid_pos, &s);
                     } else {
                         // Create a new table at this position
                         const table = try self.addTable(allocator);
@@ -415,16 +424,51 @@ pub const UI = struct {
         }
     }
 
-    pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) void {
+    pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) !void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
-                .empty => {},
+                .empty => {
+                    const adjacent = self.findAdjacentTable(cursor.empty.grid_pos);
+                    if (adjacent.multiple) {
+                        return;
+                    }
+                    if (adjacent.table) |table| {
+                        try self.insertIntoAdjacentTable(allocator, table, adjacent.direction, cursor.empty.grid_pos, clipboard_text);
+                    } else {
+                        // Create a new table at this position
+                        const table = try self.addTable(allocator);
+                        table.position = cursor.empty.grid_pos;
+                        const col = try table.addColumn(allocator);
+                        try col.addCell(allocator, "");
+                        const cell = &col.data.items[0]; // First cell in the new column
+                        // Insert clipboard text at current cursor position
+                        for (clipboard_text) |char| {
+                            try cell.value.append(allocator, char);
+                        }
+
+                        // Set cursor to text position after the inserted character
+                        const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                        const cell_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+                        const table_idx = self.tables.items.len - 1; // Last table added
+                        self.active_cursor = .{
+                            .text = .{
+                                .cell_index = CellIndex{
+                                    .table_index = table_idx,
+                                    .column_index = 0,
+                                    .row_index = 0,
+                                },
+                                .pos = Vec2{ cell_x + self.units.text.width, cell_y },
+                                .char_offset = clipboard_text.len,
+                            },
+                        };
+                    }
+                },
                 .cell => |cell_pos| {
                     const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
                     // Replace entire cell content
                     cell.value.clearRetainingCapacity();
                     for (clipboard_text) |char| {
-                        cell.value.append(allocator, char) catch break;
+                        try cell.value.append(allocator, char);
                     }
                     // Move cursor to text mode at the end of pasted content
                     const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
@@ -442,7 +486,7 @@ pub const UI = struct {
                     // Insert clipboard text at current cursor position
                     var insert_pos = text_pos.char_offset;
                     for (clipboard_text) |char| {
-                        cell.value.insert(allocator, insert_pos, char) catch break;
+                        try cell.value.insert(allocator, insert_pos, char);
                         insert_pos += 1;
                     }
                     const new_table_width = cell.column.table.gridSize(self.units).width;

@@ -296,7 +296,8 @@ export fn input(ev: ?*const sapp.Event) void {
         .CLIPBOARD_PASTED => {
             const clipboard_text = sapp.getClipboardString();
             if (clipboard_text.len > 0) {
-                state.ui.handlePaste(state.allocator, clipboard_text);
+                state.ui.handlePaste(state.allocator, clipboard_text) catch {};
+                table_dirty = true;
             }
         },
         .KEY_DOWN => {
