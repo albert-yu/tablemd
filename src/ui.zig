@@ -403,7 +403,8 @@ pub const UI = struct {
         switch (key_code) {
             .BACKSPACE => self.handleBackspace(allocator),
             .ENTER => self.handleEnter(allocator),
-            // TODO: handle tab, enter
+            .ESCAPE => self.handleEscape(),
+            // TODO: handle tab
             // tab should move to next cell to the right
             // enter should create a new row or move to next cell down
             else => {},
@@ -483,6 +484,10 @@ pub const UI = struct {
                 },
             }
         }
+    }
+
+    fn handleEscape(self: *UI) void {
+        self.active_cursor = null;
     }
 
     fn handleBackspace(self: *UI, allocator: Allocator) void {
