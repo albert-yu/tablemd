@@ -31,7 +31,7 @@ const CellPosition = struct {
     col: usize,
 };
 
-const BG_COLOR: Color = .{ .r = 37.0 / 256.0, .g = 38.0 / 256.0, .b = 56.0 / 256.0, .a = 1 };
+const BG_COLOR: Color = .{ .r = 14.0 / 256.0, .g = 33.0 / 256.0, .b = 47.0 / 256.0, .a = 1 };
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
