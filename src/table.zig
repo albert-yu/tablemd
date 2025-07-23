@@ -6,11 +6,12 @@ const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
 const sokol = @import("sokol");
 const sg = sokol.gfx;
+const theme = @import("theme.zig");
 
 const Scene = scene_mod.Scene;
 const Size = grid.Size;
 
-const TABLE_BG_COLOR: sg.Color = .{ .r = 0.0, .g = 214.0 / 256.0, .b = 196.0 / 256.0, .a = 0.50 };
+const TABLE_BG_COLOR: sg.Color = theme.DARK_THEME.table_background_color;
 
 pub const Units = struct {
     cell: Size,

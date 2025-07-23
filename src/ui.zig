@@ -11,6 +11,7 @@ const sg = sokol.gfx;
 const Keycode = sapp.Keycode;
 const table_mod = @import("table.zig");
 const scene_mod = @import("render/scene.zig");
+const theme = @import("theme.zig");
 
 const RectElement = rect.RectElement;
 const TextElement = text.TextElement;
@@ -518,20 +519,10 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, .{
-                .r = 0.5,
-                .g = 0.8,
-                .b = 1.0,
-                .a = 0.8,
-            }));
+            try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.active_cursor_color));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, .{
-                .r = 0.7,
-                .g = 0.9,
-                .b = 1.0,
-                .a = 0.4,
-            }));
+            try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.hover_cursor_color));
         }
     }
 

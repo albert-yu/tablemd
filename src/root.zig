@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const sokol = @import("sokol");
 const ui = @import("ui.zig");
 const markdown = @import("markdown");
+const theme = @import("theme.zig");
 
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
@@ -31,7 +32,7 @@ const CellPosition = struct {
     col: usize,
 };
 
-const BG_COLOR: Color = .{ .r = 14.0 / 256.0, .g = 33.0 / 256.0, .b = 47.0 / 256.0, .a = 1 };
+const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
