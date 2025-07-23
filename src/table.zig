@@ -268,6 +268,29 @@ pub const Table = struct {
         _ = self.columns.orderedRemove(index);
     }
 
+    pub fn removeRow(self: *Table, allocator: Allocator, index: usize) !void {
+        if (index >= self.rows()) {
+            return error.IndexOutOfBounds;
+        }
+        for (self.columns.items) |column| {
+            var cell = column.data.orderedRemove(index);
+            cell.deinit(allocator);
+        }
+    }
+
+    pub fn rowIsEmpty(self: Table, row_index: usize) bool {
+        if (row_index >= self.rows()) {
+            return false;
+        }
+        for (self.columns.items) |column| {
+            const cell = column.data.items[row_index];
+            if (cell.value.items.len > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     pub fn gridSize(self: Table, units: Units) GridSize {
         var width: usize = 0;
         var height: usize = 0;

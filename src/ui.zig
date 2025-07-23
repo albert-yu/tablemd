@@ -499,6 +499,12 @@ pub const UI = struct {
                 .cell => |cell_pos| {
                     const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
                     cell.value.clearRetainingCapacity();
+                    const table_idx = cell_pos.cell_index.table_index;
+                    const table = self.tables.items[table_idx];
+                    if (table.rowIsEmpty(cell_pos.cell_index.row_index)) {
+                        table.removeRow(allocator, cell_pos.cell_index.row_index) catch return;
+                        self.active_cursor = null;
+                    }
                 },
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
@@ -508,15 +514,16 @@ pub const UI = struct {
                     const offset_to_remove = text_pos.char_offset - 1;
                     _ = cell.value.orderedRemove(offset_to_remove);
 
+                    const table_idx = text_pos.cell_index.table_index;
+                    const column_idx = text_pos.cell_index.column_index;
+                    const table = self.tables.items[table_idx];
                     // Check if column now has zero width
                     if (cell.column.gridSize(self.units).width == 0) {
                         // Delete the column and set cursor to null
-                        const table_idx = text_pos.cell_index.table_index;
-                        const column_idx = text_pos.cell_index.column_index;
-                        if (table_idx < self.tables.items.len) {
-                            const table = self.tables.items[table_idx];
-                            table.removeColumn(allocator, column_idx) catch return;
-                        }
+                        table.removeColumn(allocator, column_idx) catch return;
+                        self.active_cursor = null;
+                    } else if (table.rowIsEmpty(text_pos.cell_index.row_index)) {
+                        table.removeRow(allocator, text_pos.cell_index.row_index) catch return;
                         self.active_cursor = null;
                     } else {
                         self.active_cursor = .{
