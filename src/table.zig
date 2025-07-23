@@ -257,21 +257,13 @@ pub const Table = struct {
         }
     }
 
-    pub fn removeColumn(self: *Table, allocator: Allocator, index: usize) !void {
-        if (index >= self.columns.items.len) {
-            return error.IndexOutOfBounds;
-        }
-
-        const column = self.columns.items[index];
+    pub fn removeColumn(self: *Table, allocator: Allocator, index: usize) void {
+        var column = self.columns.orderedRemove(index);
         column.deinit(allocator);
         allocator.destroy(column);
-        _ = self.columns.orderedRemove(index);
     }
 
-    pub fn removeRow(self: *Table, allocator: Allocator, index: usize) !void {
-        if (index >= self.rows()) {
-            return error.IndexOutOfBounds;
-        }
+    pub fn removeRow(self: *Table, allocator: Allocator, index: usize) void {
         for (self.columns.items) |column| {
             var cell = column.data.orderedRemove(index);
             cell.deinit(allocator);

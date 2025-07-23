@@ -502,7 +502,7 @@ pub const UI = struct {
                     const table_idx = cell_pos.cell_index.table_index;
                     const table = self.tables.items[table_idx];
                     if (table.rowIsEmpty(cell_pos.cell_index.row_index)) {
-                        table.removeRow(allocator, cell_pos.cell_index.row_index) catch return;
+                        table.removeRow(allocator, cell_pos.cell_index.row_index);
                         self.active_cursor = null;
                     }
                 },
@@ -520,10 +520,10 @@ pub const UI = struct {
                     // Check if column now has zero width
                     if (cell.column.gridSize(self.units).width == 0) {
                         // Delete the column and set cursor to null
-                        table.removeColumn(allocator, column_idx) catch return;
+                        table.removeColumn(allocator, column_idx);
                         self.active_cursor = null;
                     } else if (table.rowIsEmpty(text_pos.cell_index.row_index)) {
-                        table.removeRow(allocator, text_pos.cell_index.row_index) catch return;
+                        table.removeRow(allocator, text_pos.cell_index.row_index);
                         self.active_cursor = null;
                     } else {
                         self.active_cursor = .{
