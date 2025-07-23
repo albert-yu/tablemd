@@ -401,7 +401,7 @@ pub const UI = struct {
 
     pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode) void {
         switch (key_code) {
-            .BACKSPACE => self.handleBackspace(),
+            .BACKSPACE => self.handleBackspace(allocator),
             .ENTER => self.handleEnter(allocator),
             // TODO: handle tab, enter
             // tab should move to next cell to the right
@@ -485,7 +485,7 @@ pub const UI = struct {
         }
     }
 
-    fn handleBackspace(self: *UI) void {
+    fn handleBackspace(self: *UI, allocator: Allocator) void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
@@ -502,13 +502,26 @@ pub const UI = struct {
                     }
                     const offset_to_remove = text_pos.char_offset - 1;
                     _ = cell.value.orderedRemove(offset_to_remove);
-                    self.active_cursor = .{
-                        .text = .{
-                            .cell_index = text_pos.cell_index,
-                            .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
-                            .char_offset = offset_to_remove,
-                        },
-                    };
+
+                    // Check if column now has zero width
+                    if (cell.column.gridSize(self.units).width == 0) {
+                        // Delete the column and set cursor to null
+                        const table_idx = text_pos.cell_index.table_index;
+                        const column_idx = text_pos.cell_index.column_index;
+                        if (table_idx < self.tables.items.len) {
+                            const table = self.tables.items[table_idx];
+                            table.removeColumn(allocator, column_idx) catch return;
+                        }
+                        self.active_cursor = null;
+                    } else {
+                        self.active_cursor = .{
+                            .text = .{
+                                .cell_index = text_pos.cell_index,
+                                .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
+                                .char_offset = offset_to_remove,
+                            },
+                        };
+                    }
                 },
             }
         }

@@ -257,6 +257,17 @@ pub const Table = struct {
         }
     }
 
+    pub fn removeColumn(self: *Table, allocator: Allocator, index: usize) !void {
+        if (index >= self.columns.items.len) {
+            return error.IndexOutOfBounds;
+        }
+
+        const column = self.columns.items[index];
+        column.deinit(allocator);
+        allocator.destroy(column);
+        _ = self.columns.orderedRemove(index);
+    }
+
     pub fn gridSize(self: Table, units: Units) GridSize {
         var width: usize = 0;
         var height: usize = 0;

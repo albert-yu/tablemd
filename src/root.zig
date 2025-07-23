@@ -320,6 +320,8 @@ export fn input(ev: ?*const sapp.Event) void {
                     std.log.err("Failed to send table to DOM: {}", .{err});
                 };
             }
+        } else {
+            clearTableInDOM();
         }
     }
     // otherwise, leave the current table rendered as-is
@@ -522,4 +524,9 @@ fn sendTableToDOM(table: *ui.Table) !void {
     const html_str = markdownToHtml(table_as_md) catch unreachable;
     defer state.allocator.free(html_str);
     setHtmlRender(html_str);
+}
+
+fn clearTableInDOM() void {
+    setMarkdownSource("");
+    setHtmlRender("");
 }
