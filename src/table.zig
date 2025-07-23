@@ -109,6 +109,7 @@ pub const Cell = struct {
                     .text = self.value.items[start..i],
                     .x = position[0],
                     .y = pos_y,
+                    .color = theme.DARK_THEME.text_color,
                 });
                 i += 1; // skip the newline
                 start = i;
@@ -121,6 +122,7 @@ pub const Cell = struct {
                 .text = self.value.items[start..self.value.items.len],
                 .x = position[0],
                 .y = pos_y,
+                .color = theme.DARK_THEME.text_color,
             });
         }
     }
