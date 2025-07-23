@@ -205,10 +205,6 @@ pub fn main() void {
     });
 }
 
-export fn add(a: i32, b: i32) i32 {
-    return a + b;
-}
-
 export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
     const text = std.mem.span(text_ptr);
     if (text.len > 0) {
