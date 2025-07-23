@@ -415,6 +415,54 @@ pub const UI = struct {
         }
     }
 
+    pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {},
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    // Replace entire cell content
+                    cell.value.clearRetainingCapacity();
+                    for (clipboard_text) |char| {
+                        cell.value.append(allocator, char) catch break;
+                    }
+                    // Move cursor to text mode at the end of pasted content
+                    const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = cell_pos.cell_index,
+                            .pos = Vec2{ cell_pos.pos[0] + text_width_offset, cell_pos.pos[1] },
+                            .char_offset = clipboard_text.len,
+                        },
+                    };
+                },
+                .text => |text_pos| {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    const curr_table_width = cell.column.table.gridSize(self.units).width;
+                    // Insert clipboard text at current cursor position
+                    var insert_pos = text_pos.char_offset;
+                    for (clipboard_text) |char| {
+                        cell.value.insert(allocator, insert_pos, char) catch break;
+                        insert_pos += 1;
+                    }
+                    const new_table_width = cell.column.table.gridSize(self.units).width;
+                    const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
+                    const new_x = text_pos.pos[0] + text_width_offset;
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = text_pos.cell_index,
+                            .pos = .{ new_x, text_pos.pos[1] },
+                            .char_offset = text_pos.char_offset + clipboard_text.len,
+                        },
+                    };
+                    if (new_table_width > curr_table_width) {
+                        self.shiftTablesRight(cell.column.table, new_table_width - curr_table_width);
+                    }
+                },
+            }
+        }
+    }
+
     fn handleArrowLeft(self: *UI) void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {

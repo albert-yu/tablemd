@@ -199,6 +199,7 @@ pub fn main() void {
         .height = 2 * HEIGHT_START,
         .window_title = "tablemd",
         .logger = .{ .func = slog.func },
+        .enable_clipboard = true,
         // .sample_count = 4,
         .high_dpi = true,
     });
@@ -287,8 +288,16 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchCancelled(event);
         },
         .CHAR => {
-            state.ui.handleChar(state.allocator, event.char_code) catch {};
-            table_dirty = true;
+            if (event.modifiers & sapp.modifier_super == 0 and event.modifiers & sapp.modifier_ctrl == 0) {
+                state.ui.handleChar(state.allocator, event.char_code) catch {};
+                table_dirty = true;
+            }
+        },
+        .CLIPBOARD_PASTED => {
+            const clipboard_text = sapp.getClipboardString();
+            if (clipboard_text.len > 0) {
+                state.ui.handlePaste(state.allocator, clipboard_text);
+            }
         },
         .KEY_DOWN => {
             state.ui.handleKeyDown(state.allocator, event.key_code);
