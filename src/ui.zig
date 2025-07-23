@@ -404,10 +404,144 @@ pub const UI = struct {
             .BACKSPACE => self.handleBackspace(allocator),
             .ENTER => self.handleEnter(allocator),
             .ESCAPE => self.handleEscape(),
+            .LEFT => self.handleArrowLeft(),
+            .RIGHT => self.handleArrowRight(),
             // TODO: handle tab
             // tab should move to next cell to the right
             // enter should create a new row or move to next cell down
             else => {},
+        }
+    }
+
+    fn handleArrowLeft(self: *UI) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // No-op for empty cursor
+                },
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    const table = cell.column.table;
+                    const current_col = cell_pos.cell_index.column_index;
+
+                    // Check if we're at the leftmost column
+                    if (current_col == 0) {
+                        return; // No-op - can't move further left
+                    }
+
+                    // Move to the previous column
+                    const prev_col_idx = current_col - 1;
+                    const prev_column = table.columns.items[prev_col_idx];
+
+                    // Calculate position of the previous cell
+                    const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                    const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+                    var column_x = table_start_x;
+                    for (0..prev_col_idx) |col_idx| {
+                        column_x += table.columns.items[col_idx].size(self.units).width;
+                    }
+
+                    // Calculate cell Y position
+                    var cell_y = table_start_y;
+                    for (0..cell_pos.cell_index.row_index) |row_i| {
+                        cell_y += prev_column.data.items[row_i].size(self.units).height;
+                    }
+
+                    self.active_cursor = .{
+                        .cell = .{
+                            .cell_index = CellIndex{
+                                .table_index = cell_pos.cell_index.table_index,
+                                .column_index = prev_col_idx,
+                                .row_index = cell_pos.cell_index.row_index,
+                            },
+                            .pos = Vec2{ column_x, cell_y },
+                        },
+                    };
+                },
+                .text => |text_pos| {
+                    // Check if we're at the beginning of the text
+                    if (text_pos.char_offset == 0) {
+                        return; // No-op - can't move further left
+                    }
+
+                    // Move cursor one character to the left
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = text_pos.cell_index,
+                            .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
+                            .char_offset = text_pos.char_offset - 1,
+                        },
+                    };
+                },
+            }
+        }
+    }
+
+    fn handleArrowRight(self: *UI) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // No-op for empty cursor
+                },
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    const table = cell.column.table;
+                    const current_col = cell_pos.cell_index.column_index;
+
+                    // Check if we're at the rightmost column
+                    if (current_col >= table.columns.items.len - 1) {
+                        return; // No-op - can't move further right
+                    }
+
+                    // Move to the next column
+                    const next_col_idx = current_col + 1;
+                    const next_column = table.columns.items[next_col_idx];
+
+                    // Calculate position of the next cell
+                    const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+                    const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+                    var column_x = table_start_x;
+                    for (0..next_col_idx) |col_idx| {
+                        column_x += table.columns.items[col_idx].size(self.units).width;
+                    }
+
+                    // Calculate cell Y position
+                    var cell_y = table_start_y;
+                    for (0..cell_pos.cell_index.row_index) |row_i| {
+                        cell_y += next_column.data.items[row_i].size(self.units).height;
+                    }
+
+                    self.active_cursor = .{
+                        .cell = .{
+                            .cell_index = CellIndex{
+                                .table_index = cell_pos.cell_index.table_index,
+                                .column_index = next_col_idx,
+                                .row_index = cell_pos.cell_index.row_index,
+                            },
+                            .pos = Vec2{ column_x, cell_y },
+                        },
+                    };
+                },
+                .text => |text_pos| {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+
+                    // Check if we're at the end of the text
+                    if (text_pos.char_offset >= cell.value.items.len) {
+                        return; // No-op - can't move further right
+                    }
+
+                    // Move cursor one character to the right
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = text_pos.cell_index,
+                            .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
+                            .char_offset = text_pos.char_offset + 1,
+                        },
+                    };
+                },
+            }
         }
     }
 
