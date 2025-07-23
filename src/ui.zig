@@ -420,10 +420,10 @@ pub const UI = struct {
         }
     }
 
-    pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode) void {
+    pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode, modifiers: u32) void {
         switch (key_code) {
             .BACKSPACE => self.handleBackspace(allocator),
-            .ENTER => self.handleEnter(allocator),
+            .ENTER => self.handleEnter(allocator, modifiers),
             .ESCAPE => self.handleEscape(),
             .LEFT => self.handleArrowLeft(),
             .RIGHT => self.handleArrowRight(),
@@ -883,8 +883,11 @@ pub const UI = struct {
         };
     }
 
-    // TODO: include modifiers
-    pub fn handleEnter(self: *UI, allocator: Allocator) void {
+    pub fn handleEnter(self: *UI, allocator: Allocator, modifiers: u32) void {
+        if (modifiers & sapp.modifier_shift != 0) {
+            // TODO: handle shift+enter to insert new line
+            return;
+        }
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {

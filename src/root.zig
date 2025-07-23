@@ -301,7 +301,7 @@ export fn input(ev: ?*const sapp.Event) void {
             }
         },
         .KEY_DOWN => {
-            state.ui.handleKeyDown(state.allocator, event.key_code);
+            state.ui.handleKeyDown(state.allocator, event.key_code, event.modifiers);
             table_dirty = true;
         },
         else => {},
