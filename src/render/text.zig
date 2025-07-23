@@ -38,7 +38,7 @@ const CharElement = struct {
     glyph_size: [2]f32,
     tex_offset: [2]f32,
     tex_size: [2]f32,
-    color: [4]f32,
+    color: sg.Color,
     pixel_scale: f32,
 };
 
@@ -220,7 +220,7 @@ pub const Renderer = struct {
                 // tex offset/size are normalized to [0, 1]
                 .tex_offset = .{ glyph.tex_x, glyph.tex_y },
                 .tex_size = .{ glyph.tex_width, glyph.tex_height },
-                .color = .{ 1.0, 1.0, 1.0, 1.0 },
+                .color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
                 .pixel_scale = PIXEL_SCALE,
             };
             self.elements.append(self.allocator, char_element) catch |err| {

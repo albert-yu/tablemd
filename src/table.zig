@@ -4,13 +4,13 @@ const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const scene_mod = @import("render/scene.zig");
 const Vec2 = @import("zm").Vec2f;
+const sokol = @import("sokol");
+const sg = sokol.gfx;
 
 const Scene = scene_mod.Scene;
 const Size = grid.Size;
 
-pub const Color = [4]f32;
-
-const TABLE_BG_COLOR: Color = .{ 0.0, 214.0 / 256.0, 196.0 / 256.0, 0.50 };
+const TABLE_BG_COLOR: sg.Color = .{ .r = 0.0, .g = 214.0 / 256.0, .b = 196.0 / 256.0, .a = 0.50 };
 
 pub const Units = struct {
     cell: Size,

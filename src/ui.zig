@@ -7,6 +7,7 @@ const rect = @import("render/rect.zig");
 const text = @import("render/text.zig");
 const Vec2 = @import("zm").Vec2f;
 const sapp = sokol.app;
+const sg = sokol.gfx;
 const Keycode = sapp.Keycode;
 const table_mod = @import("table.zig");
 const scene_mod = @import("render/scene.zig");
@@ -16,7 +17,7 @@ const TextElement = text.TextElement;
 const Size2D = grid.Size;
 
 const GRID_N = grid.GRID_N;
-const Color = table_mod.Color;
+const Color = sg.Color;
 
 // Re-export table types for backward compatibility
 pub const Table = table_mod.Table;
@@ -517,10 +518,20 @@ pub const UI = struct {
             try table.addSelfToScene(scene, allocator, self.units);
         }
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, .{ 0.5, 0.8, 1.0, 0.8 }));
+            try scene.rects.append(allocator, cursor.getRect(self, .{
+                .r = 0.5,
+                .g = 0.8,
+                .b = 1.0,
+                .a = 0.8,
+            }));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, .{ 0.7, 0.9, 1.0, 0.4 }));
+            try scene.rects.append(allocator, cursor.getRect(self, .{
+                .r = 0.7,
+                .g = 0.9,
+                .b = 1.0,
+                .a = 0.4,
+            }));
         }
     }
 
