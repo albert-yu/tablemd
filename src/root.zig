@@ -62,6 +62,7 @@ const state = struct {
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var mouse_press_pos: ?Vec2 = null;
+    var is_dragging: bool = false;
     var touch_state = TouchState{};
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
@@ -228,8 +229,18 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_MOVE => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
-            const point = getPointForUI(state.mouse[0]);
-            state.ui.handleMouseMove(point);
+            if (state.mouse_press_pos) |press_pos| {
+                const delta_x = state.mouse[0][0] - press_pos[0];
+                const delta_y = state.mouse[0][1] - press_pos[1];
+                if (delta_x != 0 or delta_y != 0) {
+                    state.is_dragging = true;
+                    handlePan(delta_x, delta_y);
+                    state.mouse_press_pos = state.mouse[0];
+                }
+            } else {
+                const point = getPointForUI(state.mouse[0]);
+                state.ui.handleMouseMove(point);
+            }
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
@@ -246,14 +257,14 @@ export fn input(ev: ?*const sapp.Event) void {
             state.mouse_press_pos = state.mouse[0];
         },
         .MOUSE_UP => {
-            if (state.mouse_press_pos) |press_pos| {
-                const tolerance = 1e-6;
-                if (vec2Equal(press_pos, state.mouse[0], tolerance)) {
+            if (state.mouse_press_pos) |_| {
+                if (!state.is_dragging) {
                     const normalized_p = getPointForUI(state.mouse[0]);
                     state.ui.handleMouseClick(normalized_p);
                     table_dirty = true;
                 }
                 state.mouse_press_pos = null;
+                state.is_dragging = false;
             }
         },
         .TOUCHES_BEGAN => {
