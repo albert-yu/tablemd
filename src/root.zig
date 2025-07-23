@@ -209,6 +209,7 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
     const text = std.mem.span(text_ptr);
     if (text.len > 0) {
         state.ui.handlePaste(state.allocator, text) catch {};
+        updateTableFromCursorState();
     }
 }
 
@@ -310,34 +311,38 @@ export fn input(ev: ?*const sapp.Event) void {
         else => {},
     }
     if (table_dirty) {
-        if (state.ui.active_cursor) |cursor| {
-            const table: ?*ui.Table = switch (cursor) {
-                .empty => null,
-                .cell => |cell_pos| blk: {
-                    if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
-                        break :blk cell.column.table;
-                    } else {
-                        break :blk null;
-                    }
-                },
-                .text => |text_pos| blk: {
-                    if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
-                        break :blk cell.column.table;
-                    } else {
-                        break :blk null;
-                    }
-                },
-            };
-            if (table) |tbl| {
-                sendTableToDOM(tbl) catch |err| {
-                    std.log.err("Failed to send table to DOM: {}", .{err});
-                };
-            }
-        } else {
-            clearTableInDOM();
-        }
+        updateTableFromCursorState();
     }
     // otherwise, leave the current table rendered as-is
+}
+
+fn updateTableFromCursorState() void {
+    if (state.ui.active_cursor) |cursor| {
+        const table: ?*ui.Table = switch (cursor) {
+            .empty => null,
+            .cell => |cell_pos| blk: {
+                if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
+                    break :blk cell.column.table;
+                } else {
+                    break :blk null;
+                }
+            },
+            .text => |text_pos| blk: {
+                if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
+                    break :blk cell.column.table;
+                } else {
+                    break :blk null;
+                }
+            },
+        };
+        if (table) |tbl| {
+            sendTableToDOM(tbl) catch |err| {
+                std.log.err("Failed to send table to DOM: {}", .{err});
+            };
+        }
+    } else {
+        clearTableInDOM();
+    }
 }
 
 fn handlePan(delta_x: f32, delta_y: f32) void {
