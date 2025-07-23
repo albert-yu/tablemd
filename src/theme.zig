@@ -7,6 +7,7 @@ pub const Theme = struct {
     active_cursor_color: sg.Color,
     hover_cursor_color: sg.Color,
     table_background_color: sg.Color,
+    dot_grid_color: sg.Color,
 };
 
 pub const DARK_THEME: Theme = .{
@@ -39,5 +40,11 @@ pub const DARK_THEME: Theme = .{
         .g = 214.0 / 256.0,
         .b = 196.0 / 256.0,
         .a = 0.50,
+    },
+    .dot_grid_color = .{
+        .r = 1.0,
+        .g = 1.0,
+        .b = 1.0,
+        .a = 0.25,
     },
 };
