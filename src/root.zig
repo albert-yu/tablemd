@@ -61,6 +61,7 @@ const state = struct {
     var gpa: ?std.heap.GeneralPurposeAllocator(.{}) = null;
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
+    var mouse_press_pos: ?Vec2 = null;
     var touch_state = TouchState{};
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
@@ -242,9 +243,18 @@ export fn input(ev: ?*const sapp.Event) void {
             }
         },
         .MOUSE_DOWN => {
-            const normalized_p = getPointForUI(state.mouse[0]);
-            state.ui.handleMouseDown(normalized_p);
-            table_dirty = true;
+            state.mouse_press_pos = state.mouse[0];
+        },
+        .MOUSE_UP => {
+            if (state.mouse_press_pos) |press_pos| {
+                const tolerance = 1e-6;
+                if (vec2Equal(press_pos, state.mouse[0], tolerance)) {
+                    const normalized_p = getPointForUI(state.mouse[0]);
+                    state.ui.handleMouseClick(normalized_p);
+                    table_dirty = true;
+                }
+                state.mouse_press_pos = null;
+            }
         },
         .TOUCHES_BEGAN => {
             handleTouchBegan(event);
@@ -341,6 +351,12 @@ fn zoomWheelDelta(event: *const sapp.Event) f32 {
 
 fn clamp(x: f32, low: f32, high: f32) f32 {
     return @min(@max(x, low), high);
+}
+
+fn vec2Equal(a: Vec2, b: Vec2, tolerance: f32) bool {
+    const dx = a[0] - b[0];
+    const dy = a[1] - b[1];
+    return @abs(dx) <= tolerance and @abs(dy) <= tolerance;
 }
 
 fn handleTouchBegan(event: *const sapp.Event) void {

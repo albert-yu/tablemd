@@ -173,7 +173,7 @@ pub const UI = struct {
         return table;
     }
 
-    pub fn handleMouseDown(self: *UI, p: Vec2) void {
+    pub fn handleMouseClick(self: *UI, p: Vec2) void {
         self.active_cursor = self.getCursor(p);
     }
 
