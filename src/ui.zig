@@ -51,6 +51,11 @@ const CellPos = struct {
 const TextPos = struct {
     cell_index: CellIndex,
     pos: Vec2,
+    /// Not guaranteed to be a valid index,
+    /// as it is possible to point past
+    /// the last character.
+    /// This is mainly used for positioning
+    /// the cursor, not indexing into the text.
     char_offset: usize,
 };
 
@@ -173,7 +178,7 @@ pub const UI = struct {
         return table;
     }
 
-    pub fn handleMouseDown(self: *UI, p: Vec2) void {
+    pub fn handleMouseClick(self: *UI, p: Vec2) void {
         self.active_cursor = self.getCursor(p);
     }
 
@@ -228,7 +233,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -254,7 +259,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -281,7 +286,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -306,7 +311,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -349,7 +354,7 @@ pub const UI = struct {
                                     .row_index = 0,
                                 },
                                 .pos = Vec2{ cell_x + self.units.text.width, cell_y },
-                                .char_offset = 0,
+                                .char_offset = 1,
                             },
                         };
                     }
@@ -364,7 +369,7 @@ pub const UI = struct {
                         .text = .{
                             .cell_index = cell_pos.cell_index,
                             .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
-                            .char_offset = 0,
+                            .char_offset = 1,
                         },
                     };
                 },
