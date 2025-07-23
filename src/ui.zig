@@ -228,7 +228,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -254,7 +254,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -281,7 +281,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -306,7 +306,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = 0,
+                        .char_offset = 1,
                     },
                 };
             },
@@ -349,7 +349,7 @@ pub const UI = struct {
                                     .row_index = 0,
                                 },
                                 .pos = Vec2{ cell_x + self.units.text.width, cell_y },
-                                .char_offset = 0,
+                                .char_offset = 1,
                             },
                         };
                     }
@@ -364,7 +364,7 @@ pub const UI = struct {
                         .text = .{
                             .cell_index = cell_pos.cell_index,
                             .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
-                            .char_offset = 0,
+                            .char_offset = 1,
                         },
                     };
                 },
