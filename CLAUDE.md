@@ -66,8 +66,13 @@ web (WebAssembly) platforms.
 
 ### Current State
 
-The application currently displays a grid with mouse hover highlighting.
-The table editing functionality appears to be in early development stages.
+The application supports basic table editing functionality:
+
+- Add/remove cells
+- Edit ASCII text
+- Extend tables by editing adjacent cells
+- Paste text from clipboard
+- Pan/zoom
 
 ## File Structure Notes
 
