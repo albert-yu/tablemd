@@ -240,9 +240,11 @@ fi
 
 echo "📁 Creating dist directory..."
 mkdir -p dist
+mkdir -p dist/assets
 
 echo "📋 Copying build artifacts to dist..."
 cp -r zig-out/web/* dist/
+cp -r src/web/assets/* dist/assets/
 
 echo "✅ Bundle process completed successfully!"
 echo "📦 Build artifacts copied to dist/"
