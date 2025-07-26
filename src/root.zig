@@ -456,6 +456,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         // Single touch - handle as pan/swipe
         const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
         const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
+        state.is_dragging = true;
         handlePan(dx, dy);
     } else if (state.touch_state.num_touches >= 2) {
         // Multi-touch - handle as pinch and pan
@@ -482,6 +483,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         const center_dx = current_center[0] - state.touch_state.prev_center[0];
         const center_dy = current_center[1] - state.touch_state.prev_center[1];
         if (@abs(center_dx) > TOUCH_THRESHOLD or @abs(center_dy) > TOUCH_THRESHOLD) {
+            state.is_dragging = true;
             handlePan(center_dx, center_dy);
         }
 
@@ -511,24 +513,17 @@ fn handleTouchEnded(event: *const sapp.Event) void {
     const prev_num_touches = state.touch_state.num_touches;
     state.touch_state.num_touches = @intCast(event.num_touches);
 
-    if (prev_num_touches == 1 and event.num_touches == 1) {
+    if (!state.is_dragging and prev_num_touches == 1 and state.touch_state.num_touches == 1) {
         // Check if this was a tap (not a drag) by comparing initial and final positions
         const final_pos = Vec2{ event.touches[0].pos_x, event.touches[0].pos_y };
-        const initial_pos = state.touch_state.touches[0];
-        const dx = final_pos[0] - initial_pos[0];
-        const dy = final_pos[1] - initial_pos[1];
-        const distance = @sqrt(dx * dx + dy * dy);
-
         // If the touch didn't move much, treat it as a tap
-        if (distance <= TOUCH_THRESHOLD) {
-            const normalized_p = getPointForUI(final_pos);
-            state.ui.handleMouseClick(normalized_p);
-            // Mark table as dirty so it gets updated
-            updateTableFromCursorState();
-            activateMobileKeyboard();
-        }
+        const normalized_p = getPointForUI(final_pos);
+        state.ui.handleMouseClick(normalized_p);
+        // Mark table as dirty so it gets updated
+        updateTableFromCursorState();
+        activateMobileKeyboard();
     }
-
+    state.is_dragging = false;
     if (state.touch_state.num_touches == 0) {
         state.touch_state.active = false;
         state.touch_state.initial_distance = 0;
