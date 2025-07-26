@@ -40,6 +40,11 @@ const WIDTH_START = 800;
 const HEIGHT_START = 600;
 const TOUCH_THRESHOLD = 10.0; // pixels
 
+// Momentum constants
+const MOMENTUM_MIN_SPEED = 5.0; // Minimum speed to trigger momentum
+const MOMENTUM_MAX_SPEED = 100.0; // Maximum momentum speed
+const MOMENTUM_DECELERATION = 0.92; // Deceleration factor per frame (0.0-1.0)
+
 const TouchState = struct {
     active: bool = false,
     num_touches: u32 = 0,
@@ -49,6 +54,11 @@ const TouchState = struct {
     prev_distance: f32 = 0,
     center: Vec2 = Vec2{ 0, 0 },
     prev_center: Vec2 = Vec2{ 0, 0 },
+    // Momentum tracking
+    velocity: Vec2 = Vec2{ 0, 0 },
+    has_momentum: bool = false,
+    momentum_samples: [5]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 5,
+    momentum_sample_index: u32 = 0,
 };
 
 const state = struct {
@@ -145,6 +155,25 @@ export fn init() void {
 }
 
 export fn frame() void {
+    // Process momentum
+    if (state.touch_state.has_momentum) {
+        const speed = @sqrt(state.touch_state.velocity[0] * state.touch_state.velocity[0] +
+            state.touch_state.velocity[1] * state.touch_state.velocity[1]);
+
+        if (speed > 1.0) {
+            // Apply momentum movement
+            handlePan(state.touch_state.velocity[0], state.touch_state.velocity[1]);
+
+            // Decelerate
+            state.touch_state.velocity[0] *= MOMENTUM_DECELERATION;
+            state.touch_state.velocity[1] *= MOMENTUM_DECELERATION;
+        } else {
+            // Stop momentum when speed is too low
+            state.touch_state.has_momentum = false;
+            state.touch_state.velocity = Vec2{ 0, 0 };
+        }
+    }
+
     clear();
     state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
         std.log.err("Failed to add UI to scene: {}", .{err});
@@ -300,6 +329,9 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_DOWN => {
             state.mouse_press_pos = state.mouse[0];
+            // Stop any existing momentum when user starts mouse interaction
+            state.touch_state.has_momentum = false;
+            state.touch_state.velocity = Vec2{ 0, 0 };
         },
         .MOUSE_UP => {
             if (state.mouse_press_pos) |_| {
@@ -436,6 +468,10 @@ fn handleTouchBegan(event: *const sapp.Event) void {
     state.touch_state.active = true;
     state.touch_state.num_touches = @intCast(event.num_touches);
 
+    // Stop any existing momentum when user starts new touch
+    state.touch_state.has_momentum = false;
+    state.touch_state.velocity = Vec2{ 0, 0 };
+
     var i: u32 = 0;
     while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
         state.touch_state.touches[i] = Vec2{ event.touches[i].pos_x, event.touches[i].pos_y };
@@ -472,6 +508,12 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         // Single touch - handle as pan/swipe
         const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
         const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
+
+        // Track velocity for momentum
+        const movement = Vec2{ dx, dy };
+        state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
+        state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
+
         state.is_dragging = true;
         handlePan(dx, dy);
     } else if (state.touch_state.num_touches >= 2) {
@@ -499,6 +541,11 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         const center_dx = current_center[0] - state.touch_state.prev_center[0];
         const center_dy = current_center[1] - state.touch_state.prev_center[1];
         if (@abs(center_dx) > TOUCH_THRESHOLD or @abs(center_dy) > TOUCH_THRESHOLD) {
+            // Track velocity for momentum on multi-touch pan too
+            const movement = Vec2{ center_dx, center_dy };
+            state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
+            state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
+
             state.is_dragging = true;
             handlePan(center_dx, center_dy);
         }
@@ -535,6 +582,39 @@ fn handleTouchEnded(event: *const sapp.Event) void {
         state.ui.handleMouseClick(normalized_p);
         activateMobileKeyboard();
     }
+
+    // Calculate momentum if we were dragging
+    if (state.is_dragging) {
+        // Average the last few movement samples for smooth momentum
+        var avg_velocity = Vec2{ 0, 0 };
+        var sample_count: f32 = 0;
+
+        for (state.touch_state.momentum_samples) |sample| {
+            if (sample[0] != 0 or sample[1] != 0) {
+                avg_velocity[0] += sample[0];
+                avg_velocity[1] += sample[1];
+                sample_count += 1;
+            }
+        }
+
+        if (sample_count > 0) {
+            avg_velocity[0] /= sample_count;
+            avg_velocity[1] /= sample_count;
+
+            // Scale and clamp momentum
+            const speed = @sqrt(avg_velocity[0] * avg_velocity[0] + avg_velocity[1] * avg_velocity[1]);
+            if (speed > MOMENTUM_MIN_SPEED) {
+                const scale = @min(MOMENTUM_MAX_SPEED / speed, 3.0); // Boost momentum but cap it
+                state.touch_state.velocity = Vec2{ avg_velocity[0] * scale, avg_velocity[1] * scale };
+                state.touch_state.has_momentum = true;
+            }
+        }
+
+        // Clear momentum samples
+        state.touch_state.momentum_samples = [_]Vec2{Vec2{ 0, 0 }} ** 5;
+        state.touch_state.momentum_sample_index = 0;
+    }
+
     state.is_dragging = false;
     if (state.touch_state.num_touches == 0) {
         state.touch_state.active = false;
