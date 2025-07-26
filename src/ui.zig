@@ -457,7 +457,7 @@ pub const UI = struct {
                 }
             },
 
-            .TAB => self.handleTab(allocator),
+            .TAB => self.handleTab(),
             else => {},
         }
     }
@@ -922,46 +922,29 @@ pub const UI = struct {
         };
     }
 
-    fn tabToNextColumn(self: *UI, allocator: Allocator, cell_index: CellIndex) void {
+    fn tabToNextColumn(self: *UI, cell_index: CellIndex) void {
         const cell = self.getCellFromIndex(cell_index) orelse return;
         const table = cell.column.table;
         const current_col = cell_index.column_index;
 
         // Check if we're at the rightmost column
         if (current_col == table.columns.items.len - 1) {
-            // Create a new column to the right
-            const new_col = table.addColumn(allocator) catch return;
-            const new_col_idx = table.columns.items.len - 1;
-
-            // Calculate position of the new cell
-            const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
-            const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
-
-            var column_x = table_start_x;
-            for (0..new_col_idx) |col_idx| {
-                column_x += table.columns.items[col_idx].size(self.units).width;
-            }
-
-            // Calculate cell Y position
-            var cell_y = table_start_y;
-            for (0..cell_index.row_index) |row_i| {
-                cell_y += new_col.data.items[row_i].size(self.units).height;
-            }
-
-            self.active_cursor = .{
-                .text = .{
-                    .cell_index = CellIndex{
-                        .table_index = cell_index.table_index,
-                        .column_index = new_col_idx,
-                        .row_index = cell_index.row_index,
-                    },
-                    .pos = Vec2{ column_x, cell_y },
-                    .char_offset = 0,
-                },
+            // Focus on empty cell to the right of the table
+            const table_size = table.gridSize(self.units);
+            const empty_grid_pos = GridPos{
+                .left = table.position.left + table_size.width,
+                .top = table.position.top + cell_index.row_index,
             };
 
-            // Shift tables to the right to accommodate new column
-            self.shiftTablesRight(table, 1);
+            self.active_cursor = .{
+                .empty = .{
+                    .grid_pos = empty_grid_pos,
+                    .grid_size = .{
+                        .width = 1,
+                        .height = 1,
+                    },
+                },
+            };
         } else {
             // Move to the next column to the right
             const next_col_idx = current_col + 1;
@@ -996,17 +979,17 @@ pub const UI = struct {
         }
     }
 
-    fn handleTab(self: *UI, allocator: Allocator) void {
+    fn handleTab(self: *UI) void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
                     // No-op for empty cursor
                 },
                 .cell => |cell_pos| {
-                    self.tabToNextColumn(allocator, cell_pos.cell_index);
+                    self.tabToNextColumn(cell_pos.cell_index);
                 },
                 .text => |text_pos| {
-                    self.tabToNextColumn(allocator, text_pos.cell_index);
+                    self.tabToNextColumn(text_pos.cell_index);
                 },
             }
         }
