@@ -486,4 +486,148 @@ pub const Table = struct {
         }
         return null;
     }
+
+    pub fn serialize(self: Table, allocator: Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+        var writer = buffer.writer();
+
+        // Write table position
+        try writer.writeInt(usize, self.position.left, .little);
+        try writer.writeInt(usize, self.position.top, .little);
+
+        // Write number of columns
+        try writer.writeInt(usize, self.columns.items.len, .little);
+
+        // Write each column
+        for (self.columns.items) |column| {
+            // Write number of cells in column
+            try writer.writeInt(usize, column.data.items.len, .little);
+
+            // Write each cell
+            for (column.data.items) |cell| {
+                // Write cell value length and data
+                try writer.writeInt(usize, cell.value.items.len, .little);
+                try writer.writeAll(cell.value.items);
+            }
+        }
+
+        return buffer.toOwnedSlice();
+    }
+
+    pub fn deserialize(allocator: Allocator, data: []const u8) !Table {
+        var stream = std.io.fixedBufferStream(data);
+        var reader = stream.reader();
+
+        // Read table position
+        const left = try reader.readInt(usize, .little);
+        const top = try reader.readInt(usize, .little);
+
+        var table = Table.init(allocator);
+        table.position = .{ .left = left, .top = top };
+
+        // Read number of columns
+        const num_columns = try reader.readInt(usize, .little);
+
+        // Read each column
+        for (0..num_columns) |_| {
+            const column = try allocator.create(Column);
+            column.* = Column.init(allocator, &table);
+
+            // Read number of cells
+            const num_cells = try reader.readInt(usize, .little);
+
+            // Read each cell
+            for (0..num_cells) |_| {
+                // Read cell value length
+                const value_len = try reader.readInt(usize, .little);
+
+                // Read cell value data
+                const value_data = try allocator.alloc(u8, value_len);
+                _ = try reader.readAll(value_data);
+
+                const cell = try Cell.init(allocator, value_data, column);
+                try column.data.append(allocator, cell);
+
+                allocator.free(value_data);
+            }
+
+            try table.columns.append(allocator, column);
+        }
+
+        return table;
+    }
 };
+
+test "table serialization and deserialization" {
+    const testing = std.testing;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Create a test table
+    var original_table = Table.init(allocator);
+    defer original_table.deinit(allocator);
+
+    original_table.position = .{ .left = 5, .top = 10 };
+
+    // Add some columns and cells
+    const col1 = try original_table.addColumn(allocator);
+    const col2 = try original_table.addColumn(allocator);
+
+    try original_table.addRow(allocator);
+    try original_table.addRow(allocator);
+
+    // Set some cell values
+    col1.data.items[0].value.clearAndFree(allocator);
+    try col1.data.items[0].value.appendSlice(allocator, "Hello");
+
+    col1.data.items[1].value.clearAndFree(allocator);
+    try col1.data.items[1].value.appendSlice(allocator, "World");
+
+    col2.data.items[0].value.clearAndFree(allocator);
+    try col2.data.items[0].value.appendSlice(allocator, "Test");
+
+    col2.data.items[1].value.clearAndFree(allocator);
+    try col2.data.items[1].value.appendSlice(allocator, "Data");
+
+    // Serialize the table
+    const serialized = try original_table.serialize(allocator);
+    defer allocator.free(serialized);
+
+    // Deserialize the table
+    var deserialized_table = try Table.deserialize(allocator, serialized);
+    defer deserialized_table.deinit(allocator);
+
+    // Verify the deserialized table matches the original
+    try testing.expectEqual(original_table.position.left, deserialized_table.position.left);
+    try testing.expectEqual(original_table.position.top, deserialized_table.position.top);
+    try testing.expectEqual(original_table.cols(), deserialized_table.cols());
+    try testing.expectEqual(original_table.rows(), deserialized_table.rows());
+
+    // Check cell values
+    try testing.expectEqualStrings("Hello", deserialized_table.columns.items[0].data.items[0].value.items);
+    try testing.expectEqualStrings("World", deserialized_table.columns.items[0].data.items[1].value.items);
+    try testing.expectEqualStrings("Test", deserialized_table.columns.items[1].data.items[0].value.items);
+    try testing.expectEqualStrings("Data", deserialized_table.columns.items[1].data.items[1].value.items);
+}
+
+test "empty table serialization" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Create an empty table
+    var original_table = Table.init(allocator);
+    defer original_table.deinit(allocator);
+
+    // Serialize and deserialize
+    const serialized = try original_table.serialize(allocator);
+    defer allocator.free(serialized);
+
+    var deserialized_table = try Table.deserialize(allocator, serialized);
+    defer deserialized_table.deinit(allocator);
+
+    // Verify empty table properties
+    try testing.expectEqual(@as(usize, 0), deserialized_table.cols());
+    try testing.expectEqual(@as(usize, 0), deserialized_table.rows());
+}
