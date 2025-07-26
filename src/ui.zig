@@ -342,9 +342,10 @@ pub const UI = struct {
                     }
                     if (adjacent.table) |table| {
                         const curr_table_width = table.gridSize(self.units).width;
-                        const char: u8 = @truncate(char_code);
-                        const s = [_]u8{char};
-                        try self.insertIntoAdjacentTable(allocator, table, adjacent.direction, cursor.empty.grid_pos, &s);
+                        var utf8_bytes: [4]u8 = undefined;
+                        const utf8_len = std.unicode.utf8Encode(@intCast(char_code), &utf8_bytes) catch return;
+                        const utf8_slice = utf8_bytes[0..utf8_len];
+                        try self.insertIntoAdjacentTable(allocator, table, adjacent.direction, cursor.empty.grid_pos, utf8_slice);
                         const new_table_width = table.gridSize(self.units).width;
                         if (new_table_width > curr_table_width) {
                             self.shiftTablesRight(table, new_table_width - curr_table_width);
@@ -355,9 +356,12 @@ pub const UI = struct {
                         table.position = cursor.empty.grid_pos;
                         const col = try table.addColumn(allocator);
                         try col.addCell(allocator, "");
-                        const char: u8 = @truncate(char_code);
+                        var utf8_bytes: [4]u8 = undefined;
+                        const utf8_len = try std.unicode.utf8Encode(@intCast(char_code), &utf8_bytes);
                         const cell = &col.data.items[0]; // First cell in the new column
-                        try cell.value.insert(allocator, 0, char);
+                        for (utf8_bytes[0..utf8_len]) |byte| {
+                            try cell.value.append(allocator, byte);
+                        }
 
                         // Set cursor to text position after the inserted character
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
@@ -371,7 +375,7 @@ pub const UI = struct {
                                     .row_index = 0,
                                 },
                                 .pos = Vec2{ cell_x + self.units.text.width, cell_y },
-                                .char_offset = 1,
+                                .char_offset = utf8_len,
                             },
                         };
                         const new_table_width = table.gridSize(self.units).width;
@@ -383,14 +387,17 @@ pub const UI = struct {
                     const curr_table_width = cell.column.table.gridSize(self.units).width;
                     // clear the current text
                     cell.value.clearRetainingCapacity();
-                    const char: u8 = @truncate(char_code);
-                    try cell.value.insert(allocator, 0, char);
+                    var utf8_bytes: [4]u8 = undefined;
+                    const utf8_len = std.unicode.utf8Encode(@intCast(char_code), &utf8_bytes) catch return;
+                    for (utf8_bytes[0..utf8_len]) |byte| {
+                        try cell.value.append(allocator, byte);
+                    }
                     const new_table_width = cell.column.table.gridSize(self.units).width;
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = cell_pos.cell_index,
                             .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
-                            .char_offset = 1,
+                            .char_offset = utf8_len,
                         },
                     };
                     if (new_table_width > curr_table_width) {
@@ -400,17 +407,19 @@ pub const UI = struct {
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
                     const curr_table_width = cell.column.table.gridSize(self.units).width;
-                    // Convert u32 to u8, handling potential overflow
-                    const char: u8 = @truncate(char_code);
+                    var utf8_bytes: [4]u8 = undefined;
+                    const utf8_len = std.unicode.utf8Encode(@intCast(char_code), &utf8_bytes) catch return;
                     const new_offset = text_pos.char_offset;
-                    try cell.value.insert(allocator, new_offset, char);
+                    for (utf8_bytes[0..utf8_len], 0..) |byte, i| {
+                        try cell.value.insert(allocator, new_offset + i, byte);
+                    }
                     const new_table_width = cell.column.table.gridSize(self.units).width;
                     const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = text_pos.cell_index,
                             .pos = .{ new_x, text_pos.pos[1] },
-                            .char_offset = new_offset + 1,
+                            .char_offset = new_offset + utf8_len,
                         },
                     };
                     if (new_table_width > curr_table_width) {
@@ -478,9 +487,11 @@ pub const UI = struct {
                         const cell = &col.data.items[0]; // First cell in the new column
                         try cell.value.appendSlice(allocator, clipboard_text);
 
-                        // Set cursor to text position after the inserted character
+                        // Set cursor to text position after the inserted text
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
                         const cell_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+                        const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
+                        const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
                         const table_idx = self.tables.items.len - 1; // Last table added
                         self.active_cursor = .{
                             .text = .{
@@ -489,7 +500,7 @@ pub const UI = struct {
                                     .column_index = 0,
                                     .row_index = 0,
                                 },
-                                .pos = Vec2{ cell_x + self.units.text.width, cell_y },
+                                .pos = Vec2{ cell_x + text_width_offset, cell_y },
                                 .char_offset = clipboard_text.len,
                             },
                         };
@@ -509,7 +520,8 @@ pub const UI = struct {
                         try cell.value.append(allocator, char);
                     }
                     // Move cursor to text mode at the end of pasted content
-                    const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
+                    const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
+                    const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
                     const new_table_size = cell.column.table.gridSize(self.units);
                     self.active_cursor = .{
                         .text = .{
@@ -535,7 +547,8 @@ pub const UI = struct {
                         insert_pos += 1;
                     }
                     const new_table_size = cell.column.table.gridSize(self.units);
-                    const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
+                    const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
+                    const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
                     const new_x = text_pos.pos[0] + text_width_offset;
                     self.active_cursor = .{
                         .text = .{
@@ -603,17 +616,20 @@ pub const UI = struct {
                     };
                 },
                 .text => |text_pos| {
-                    // Check if we're at the beginning of the text
-                    if (text_pos.char_offset == 0) {
-                        return; // No-op - can't move further left
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    if (cell.value.items.len == 0 or text_pos.char_offset == 0) {
+                        return;
                     }
+
+                    // Find the start of the previous UTF-8 character
+                    const prev_char_start = findPrevUtf8CharStart(cell.value.items, text_pos.char_offset);
 
                     // Move cursor one character to the left
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = text_pos.cell_index,
                             .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
-                            .char_offset = text_pos.char_offset - 1,
+                            .char_offset = prev_char_start,
                         },
                     };
                 },
@@ -675,12 +691,15 @@ pub const UI = struct {
                         return; // No-op - can't move further right
                     }
 
+                    // Find the start of the next UTF-8 character
+                    const next_char_start = findNextUtf8CharStart(cell.value.items, text_pos.char_offset);
+
                     // Move cursor one character to the right
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = text_pos.cell_index,
                             .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
-                            .char_offset = text_pos.char_offset + 1,
+                            .char_offset = next_char_start,
                         },
                     };
                 },
@@ -1023,8 +1042,15 @@ pub const UI = struct {
                     if (cell.value.items.len == 0 or text_pos.char_offset == 0) {
                         return;
                     }
-                    const offset_to_remove = text_pos.char_offset - 1;
-                    _ = cell.value.orderedRemove(offset_to_remove);
+
+                    // Find the start of the previous UTF-8 character
+                    const prev_char_start = findPrevUtf8CharStart(cell.value.items, text_pos.char_offset);
+
+                    // Remove all bytes of the previous character
+                    const bytes_to_remove = text_pos.char_offset - prev_char_start;
+                    for (0..bytes_to_remove) |_| {
+                        _ = cell.value.orderedRemove(prev_char_start);
+                    }
 
                     const table_idx = text_pos.cell_index.table_index;
                     const column_idx = text_pos.cell_index.column_index;
@@ -1042,7 +1068,7 @@ pub const UI = struct {
                             .text = .{
                                 .cell_index = text_pos.cell_index,
                                 .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
-                                .char_offset = offset_to_remove,
+                                .char_offset = prev_char_start,
                             },
                         };
                     }
@@ -1417,6 +1443,35 @@ fn countLines(cell: *const Cell) usize {
         if (char == '\n') lines += 1;
     }
     return lines;
+}
+
+fn findPrevUtf8CharStart(utf8_text: []const u8, current_offset: usize) usize {
+    if (current_offset == 0) return 0;
+
+    var prev_char_start = current_offset;
+    while (prev_char_start > 0) {
+        prev_char_start -= 1;
+        // Check if this is the start of a UTF-8 character (not a continuation byte)
+        if (prev_char_start >= utf8_text.len or (utf8_text[prev_char_start] & 0x80) == 0 or (utf8_text[prev_char_start] & 0xC0) == 0xC0) {
+            break;
+        }
+    }
+    return prev_char_start;
+}
+
+fn findNextUtf8CharStart(utf8_text: []const u8, current_offset: usize) usize {
+    if (current_offset >= utf8_text.len) return utf8_text.len;
+    
+    var next_char_start = current_offset;
+    if (next_char_start < utf8_text.len) {
+        // Move past the current character's bytes
+        next_char_start += 1;
+        // Skip continuation bytes to find the next character start
+        while (next_char_start < utf8_text.len and (utf8_text[next_char_start] & 0xC0) == 0x80) {
+            next_char_start += 1;
+        }
+    }
+    return next_char_start;
 }
 
 fn isPrintableChar(char_code: u32) bool {
