@@ -426,11 +426,8 @@ pub const UI = struct {
             // For web builds, request clipboard access from JavaScript
             self.requestWebClipboard(allocator);
         } else {
-            // For native builds, get clipboard directly
-            const clipboard_text = sapp.getClipboardString();
-            if (clipboard_text.len > 0) {
-                self.handlePaste(allocator, clipboard_text) catch {};
-            }
+            // For native builds, do nothing here - let the CLIPBOARD_PASTED event handle it
+            // This avoids double-pasting since both the key event and clipboard event fire
         }
     }
 
