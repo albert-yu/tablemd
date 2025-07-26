@@ -1447,5 +1447,42 @@ fn countLines(cell: *const Cell) usize {
 }
 
 fn isPrintableChar(char_code: u32) bool {
-    return char_code >= 32 and char_code <= 126;
+    // Control characters (0-31) and DEL (127) are not printable
+    if (char_code < 32 or char_code == 127) {
+        return false;
+    }
+
+    // Basic Latin (32-126) - printable ASCII
+    if (char_code <= 126) {
+        return true;
+    }
+
+    // C1 Control Characters (128-159) are not printable
+    if (char_code >= 128 and char_code <= 159) {
+        return false;
+    }
+
+    // Latin-1 Supplement and beyond (160+) - most Unicode characters are printable
+    // This includes accented characters, symbols, emoji, etc.
+    // We exclude some specific ranges that are known to be non-printable:
+
+    // Unicode line and paragraph separators
+    if (char_code == 0x2028 or char_code == 0x2029) {
+        return false;
+    }
+
+    // Unicode format characters (invisible)
+    if (char_code >= 0x200B and char_code <= 0x200F) { // Zero-width spaces and marks
+        return false;
+    }
+    if (char_code >= 0x202A and char_code <= 0x202E) { // Bidirectional format characters
+        return false;
+    }
+    if (char_code >= 0xFEFF and char_code <= 0xFEFF) { // Byte order mark
+        return false;
+    }
+
+    // For most other Unicode characters, assume they are printable
+    // This covers Latin extended, Cyrillic, Greek, Arabic, CJK, emoji, etc.
+    return true;
 }
