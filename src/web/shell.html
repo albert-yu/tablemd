@@ -203,6 +203,51 @@
             },
             onRuntimeInitialized: function () {
                 console.log("Initialized");
+
+                // Check IndexedDB for saved tables
+                const request = indexedDB.open('tablemd', 1);
+
+                request.onupgradeneeded = function (event) {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('tables')) {
+                        db.createObjectStore('tables');
+                    }
+                };
+
+                request.onsuccess = function (event) {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['tables'], 'readonly');
+                    const store = transaction.objectStore('tables');
+
+                    store.get('current_tables').onsuccess = function (event) {
+                        const savedData = event.target.result;
+                        if (savedData && savedData instanceof Uint8Array && savedData.length > 0) {
+                            console.log('Found saved tables, loading...');
+
+                            // Allocate memory in WebAssembly heap
+                            const dataPtr = Module._malloc(savedData.length);
+                            Module.HEAPU8.set(savedData, dataPtr);
+
+                            // Call the deserialize function
+                            Module._handle_deserialize(dataPtr, savedData.length);
+
+                            // Clean up allocated memory
+                            Module._free(dataPtr);
+
+                            console.log('Saved tables loaded successfully');
+                        } else {
+                            console.log('No saved tables found');
+                        }
+                    };
+
+                    transaction.onerror = function () {
+                        console.error('Failed to read tables from IndexedDB');
+                    };
+                };
+
+                request.onerror = function () {
+                    console.error('Failed to open IndexedDB for reading');
+                };
             }
         };
         window.onerror = function () {
