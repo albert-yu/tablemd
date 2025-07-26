@@ -1376,6 +1376,60 @@ pub const UI = struct {
         }
         return max_i;
     }
+
+    pub fn serializeTables(self: *UI, allocator: Allocator) ![]u8 {
+        var buffer = std.ArrayList(u8).init(allocator);
+        defer buffer.deinit();
+        var writer = buffer.writer();
+
+        // Write number of tables
+        try writer.writeInt(usize, self.tables.items.len, .little);
+
+        // Serialize each table
+        for (self.tables.items) |table| {
+            const table_data = try table.serialize(allocator);
+            defer allocator.free(table_data);
+
+            // Write table data length and then the data
+            try writer.writeInt(usize, table_data.len, .little);
+            try writer.writeAll(table_data);
+        }
+
+        return buffer.toOwnedSlice();
+    }
+
+    /// This will clear existing tables and deserialize the provided data
+    pub fn deserializeTables(self: *UI, allocator: Allocator, data: []const u8) !void {
+        // Clear existing tables
+        for (self.tables.items) |table| {
+            table.deinit(allocator);
+            allocator.destroy(table);
+        }
+        self.tables.clearRetainingCapacity();
+
+        var stream = std.io.fixedBufferStream(data);
+        var reader = stream.reader();
+
+        // Read number of tables
+        const num_tables = try reader.readInt(usize, .little);
+
+        // Deserialize each table
+        for (0..num_tables) |_| {
+            // Read table data length
+            const table_data_len = try reader.readInt(usize, .little);
+
+            // Read table data
+            const table_data = try allocator.alloc(u8, table_data_len);
+            defer allocator.free(table_data);
+            _ = try reader.readAll(table_data);
+
+            // Deserialize table and add to UI
+            const table = try Table.deserialize(allocator, table_data);
+            const table_ptr = try allocator.create(Table);
+            table_ptr.* = table;
+            try self.tables.append(allocator, table_ptr);
+        }
+    }
 };
 
 fn clientRectContains(r: ClientRect, p: Vec2) bool {
