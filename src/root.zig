@@ -351,7 +351,13 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchMoved(event);
         },
         .TOUCHES_ENDED => {
-            handleTouchEnded(event);
+            const tbl_dirty = handleTouchEnded(event);
+            if (tbl_dirty) {
+                // Avoid modifiying this flag
+                // if another event already set it
+                // to true (TODO: is this possible?)
+                table_dirty = true;
+            }
         },
         .TOUCHES_CANCELLED => {
             handleTouchCancelled(event);
@@ -558,7 +564,8 @@ fn markdownToHtml(md: []const u8) ![]const u8 {
     return html_str.toOwnedSlice();
 }
 
-fn handleTouchEnded(event: *const sapp.Event) void {
+fn handleTouchEnded(event: *const sapp.Event) bool {
+    var table_dirty = false;
     const prev_num_touches = state.touch_state.num_touches;
     state.touch_state.num_touches = @intCast(event.num_touches);
 
@@ -566,6 +573,7 @@ fn handleTouchEnded(event: *const sapp.Event) void {
         const final_pos = Vec2{ event.touches[0].pos_x, event.touches[0].pos_y };
         const normalized_p = getPointForUI(final_pos);
         state.ui.handleMouseClick(normalized_p);
+        table_dirty = true;
         activateMobileKeyboard();
     }
 
@@ -611,6 +619,7 @@ fn handleTouchEnded(event: *const sapp.Event) void {
         state.touch_state.initial_distance = 0;
         state.touch_state.prev_distance = 0;
     }
+    return table_dirty;
 }
 
 fn handleTouchCancelled(event: *const sapp.Event) void {
