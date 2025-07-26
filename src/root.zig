@@ -527,7 +527,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 fn clear() void {
     state.rect_renderer.clear();
     state.text_renderer.clear();
-    state.scene.clear();
+    state.scene.clear(state.allocator);
 }
 
 fn normalizePt(p: Vec2) Vec2 {
