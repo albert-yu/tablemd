@@ -220,9 +220,9 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
 }
 
 /// JS world sends serialized tables to us
-export fn handle_deserialize(serialized_tables: [*:0]const u8) void {
-    const spanned = std.mem.span(serialized_tables);
-    state.ui.deserializeTables(state.allocator, spanned) catch |err| {
+export fn handle_deserialize(data_ptr: [*]const u8, data_len: usize) void {
+    const data_slice = data_ptr[0..data_len];
+    state.ui.deserializeTables(state.allocator, data_slice) catch |err| {
         std.log.err("Failed to deserialize tables: {}", .{err});
         return;
     };
