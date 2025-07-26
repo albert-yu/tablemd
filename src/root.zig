@@ -240,18 +240,18 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_MOVE => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
+            const point = getPointForUI(state.mouse[0]);
             if (state.mouse_press_pos) |press_pos| {
                 const delta_x = state.mouse[0][0] - press_pos[0];
                 const delta_y = state.mouse[0][1] - press_pos[1];
-                const tolerance = 1e-1;
-                if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance)) {
+                const tolerance_px = 2;
+                if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance_px)) {
                     state.is_dragging = true;
                     handlePan(delta_x, delta_y);
                     state.mouse_press_pos = state.mouse[0];
                 }
             } else {
-                const point = getPointForUI(state.mouse[0]);
-                state.ui.handleMouseMove(point);
+                state.ui.handleMouseHover(point);
             }
         },
         .MOUSE_SCROLL => {
@@ -292,7 +292,21 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchCancelled(event);
         },
         .CHAR => {
-            if (event.modifiers & sapp.modifier_super == 0 and event.modifiers & sapp.modifier_ctrl == 0) {
+            const ctrl_or_cmd = event.modifiers & sapp.modifier_super != 0 or event.modifiers & sapp.modifier_ctrl != 0;
+            if (ctrl_or_cmd) {
+                if (event.char_code == 'c') {
+                    const s = state.ui.handleCopy(state.allocator) catch {
+                        std.log.err("Failed to copy text", .{});
+                        return;
+                    };
+                    defer state.allocator.free(s);
+                    const null_terminated = std.fmt.allocPrintZ(state.allocator, "{s}", .{s}) catch {
+                        return;
+                    };
+                    defer state.allocator.free(null_terminated);
+                    sapp.setClipboardString(null_terminated);
+                }
+            } else {
                 state.ui.handleChar(state.allocator, event.char_code) catch {};
                 table_dirty = true;
             }

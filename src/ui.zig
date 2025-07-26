@@ -185,7 +185,7 @@ pub const UI = struct {
         self.active_cursor = self.getCursor(p);
     }
 
-    pub fn handleMouseMove(self: *UI, p: Vec2) void {
+    pub fn handleMouseHover(self: *UI, p: Vec2) void {
         self.hover_cursor = self.getCursor(p);
     }
 
@@ -463,6 +463,22 @@ pub const UI = struct {
         }
     }
 
+    pub fn handleCopy(self: *UI, allocator: Allocator) ![]const u8 {
+        var str_builder = std.ArrayList(u8).init(allocator);
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {},
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return error.CellNotFound;
+                    const cell_content = cell.value.items;
+                    try str_builder.appendSlice(cell_content);
+                },
+                .text => {},
+            }
+        }
+        return str_builder.toOwnedSlice();
+    }
+
     pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) !void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
@@ -488,10 +504,7 @@ pub const UI = struct {
                         const col = try table.addColumn(allocator);
                         try col.addCell(allocator, "");
                         const cell = &col.data.items[0]; // First cell in the new column
-                        // Insert clipboard text at current cursor position
-                        for (clipboard_text) |char| {
-                            try cell.value.append(allocator, char);
-                        }
+                        try cell.value.appendSlice(allocator, clipboard_text);
 
                         // Set cursor to text position after the inserted character
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
