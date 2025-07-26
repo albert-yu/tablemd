@@ -8,6 +8,7 @@ const theme = @import("theme.zig");
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
+extern fn activate_mobile_keyboard() void;
 
 const Scene = ui.Scene;
 const UI = ui.UI;
@@ -36,6 +37,7 @@ const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
+const TOUCH_THRESHOLD = 10.0; // pixels
 
 const TouchState = struct {
     active: bool = false,
@@ -479,7 +481,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         // Handle pan (center movement)
         const center_dx = current_center[0] - state.touch_state.prev_center[0];
         const center_dy = current_center[1] - state.touch_state.prev_center[1];
-        if (@abs(center_dx) > 1.0 or @abs(center_dy) > 1.0) { // Threshold to avoid jitter
+        if (@abs(center_dx) > TOUCH_THRESHOLD or @abs(center_dy) > TOUCH_THRESHOLD) {
             handlePan(center_dx, center_dy);
         }
 
@@ -506,7 +508,26 @@ fn markdownToHtml(md: []const u8) ![]const u8 {
 }
 
 fn handleTouchEnded(event: *const sapp.Event) void {
+    const prev_num_touches = state.touch_state.num_touches;
     state.touch_state.num_touches = @intCast(event.num_touches);
+
+    if (prev_num_touches == 1 and event.num_touches == 1) {
+        // Check if this was a tap (not a drag) by comparing initial and final positions
+        const final_pos = Vec2{ event.touches[0].pos_x, event.touches[0].pos_y };
+        const initial_pos = state.touch_state.touches[0];
+        const dx = final_pos[0] - initial_pos[0];
+        const dy = final_pos[1] - initial_pos[1];
+        const distance = @sqrt(dx * dx + dy * dy);
+
+        // If the touch didn't move much, treat it as a tap
+        if (distance <= TOUCH_THRESHOLD) {
+            const normalized_p = getPointForUI(final_pos);
+            state.ui.handleMouseClick(normalized_p);
+            // Mark table as dirty so it gets updated
+            updateTableFromCursorState();
+            activateMobileKeyboard();
+        }
+    }
 
     if (state.touch_state.num_touches == 0) {
         state.touch_state.active = false;
@@ -564,4 +585,10 @@ fn sendTableToDOM(table: *ui.Table) !void {
 fn clearTableInDOM() void {
     setMarkdownSource("");
     setHtmlRender("");
+}
+
+fn activateMobileKeyboard() void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        activate_mobile_keyboard();
+    }
 }
