@@ -13,4 +13,9 @@ mergeInto(LibraryManager.library, {
             markdownElement.innerHTML = markdown;
         }
     },
+    activate_mobile_keyboard: function() {
+        const input = document.querySelector('#mobile-keyboard-focus');
+        // Focus the input to show the keyboard
+        input?.focus();
+    },
 });

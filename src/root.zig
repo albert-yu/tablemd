@@ -8,6 +8,7 @@ const theme = @import("theme.zig");
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
+extern fn activate_mobile_keyboard() void;
 
 const Scene = ui.Scene;
 const UI = ui.UI;
@@ -524,6 +525,7 @@ fn handleTouchEnded(event: *const sapp.Event) void {
             state.ui.handleMouseClick(normalized_p);
             // Mark table as dirty so it gets updated
             updateTableFromCursorState();
+            activateMobileKeyboard();
         }
     }
 
@@ -583,4 +585,10 @@ fn sendTableToDOM(table: *ui.Table) !void {
 fn clearTableInDOM() void {
     setMarkdownSource("");
     setHtmlRender("");
+}
+
+fn activateMobileKeyboard() void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        activate_mobile_keyboard();
+    }
 }
