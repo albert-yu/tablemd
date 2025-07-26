@@ -67,7 +67,7 @@ pub const Renderer = struct {
     pip: sg.Pipeline,
     texture: sg.Image,
     elements: ArrayList(CharElement),
-    glyphs: [128]GlyphInfo,
+    glyphs: ArrayList(GlyphInfo),
     font: ?TrueType,
     allocator: std.mem.Allocator,
 
@@ -77,7 +77,7 @@ pub const Renderer = struct {
             .pip = .{},
             .texture = .{},
             .elements = ArrayList(CharElement).initCapacity(allocator, 0) catch unreachable,
-            .glyphs = undefined,
+            .glyphs = ArrayList(GlyphInfo).initCapacity(allocator, 0) catch unreachable,
             .font = null,
             .allocator = allocator,
         };
@@ -88,8 +88,9 @@ pub const Renderer = struct {
         // Load font
         const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
         self.font = try TrueType.load(font_data);
+        try self.glyphs.resize(self.allocator, 128);
         self.texture = try self.createAtlas();
-        const advance_width = self.glyphs[32].advance * PIXEL_SCALE;
+        const advance_width = self.glyphs.items[32].advance * PIXEL_SCALE;
 
         // Setup vertex buffer for quad (position and tex_coords interleaved)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
@@ -201,7 +202,7 @@ pub const Renderer = struct {
         for (text) |char| {
             if (char >= 32 and char <= 127) {
                 self.addChar(char, current_x, scaled_y, color);
-                const glyph = self.glyphs[char];
+                const glyph = self.glyphs.items[char];
                 current_x += glyph.advance;
             }
         }
@@ -211,7 +212,7 @@ pub const Renderer = struct {
         if (char < 32 or char > 127) {
             return;
         }
-        const glyph = self.glyphs[char];
+        const glyph = self.glyphs.items[char];
         if (glyph.width > 0 and glyph.height > 0) {
             const char_element = CharElement{
                 .instance_position = .{
@@ -254,7 +255,7 @@ pub const Renderer = struct {
         if (space_glyph_index) |glyph_idx| {
             const hmetrics = font.glyphHMetrics(glyph_idx);
             const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
-            self.glyphs[32] = GlyphInfo{
+            self.glyphs.items[32] = GlyphInfo{
                 .advance = advance,
                 .bearing_x = 0,
                 .bearing_y = 0,
@@ -267,7 +268,7 @@ pub const Renderer = struct {
             };
         } else {
             // Fallback for missing space character
-            self.glyphs[32] = GlyphInfo{
+            self.glyphs.items[32] = GlyphInfo{
                 .advance = @as(f32, FONT_SIZE) * 0.25, // Quarter of font size as fallback
                 .bearing_x = 0,
                 .bearing_y = 0,
@@ -285,7 +286,7 @@ pub const Renderer = struct {
             const char = @as(u21, @intCast(i));
             const glyph_index = font.codepointGlyphIndex(char) orelse {
                 // Set empty glyph info for missing characters
-                self.glyphs[i] = GlyphInfo.empty();
+                self.glyphs.items[i] = GlyphInfo.empty();
                 continue;
             };
 
@@ -297,7 +298,7 @@ pub const Renderer = struct {
                 const as_char = @as(u8, @intCast(char));
                 std.log.err("Failed to rasterize glyph \"{c}\": {}", .{ as_char, err });
                 // Set empty glyph info for failed glyphs
-                self.glyphs[i] = GlyphInfo.empty();
+                self.glyphs.items[i] = GlyphInfo.empty();
                 continue;
             };
 
@@ -334,7 +335,7 @@ pub const Renderer = struct {
             const bearing_y = @as(f32, @floatFromInt(off_y));
 
             // Store glyph info
-            self.glyphs[i] = GlyphInfo{
+            self.glyphs.items[i] = GlyphInfo{
                 .advance = advance,
                 .bearing_x = bearing_x,
                 .bearing_y = bearing_y,
@@ -382,5 +383,6 @@ pub const Renderer = struct {
 
     pub fn cleanup(self: *Renderer) void {
         self.elements.deinit(self.allocator);
+        self.glyphs.deinit(self.allocator);
     }
 };
