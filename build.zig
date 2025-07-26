@@ -134,8 +134,8 @@ fn buildWeb(b: *Build, opts: Options) !void {
             "-sALLOW_MEMORY_GROWTH=1",
             // Need to include Sokol's original entry point (main),
             // because specifying this flag overrides the original
-            "-sEXPORTED_FUNCTIONS=_main,_handle_paste_from_web,_malloc,_free",
-            "-sEXPORTED_RUNTIME_METHODS=UTF8ToString,stringToUTF8",
+            "-sEXPORTED_FUNCTIONS=_main,_handle_paste_from_web,_malloc,_free,_handle_deserialize,_request_serialize",
+            "-sEXPORTED_RUNTIME_METHODS=UTF8ToString,stringToUTF8,HEAPU8",
             "--js-library=src/web/library.js",
         },
     });

@@ -18,4 +18,8 @@ mergeInto(LibraryManager.library, {
         // Focus the input to show the keyboard
         input?.focus();
     },
+    set_serialized_tables: function(ptr, len) {
+        const buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, len);
+        console.log('got buffer', buffer);
+    },
 });

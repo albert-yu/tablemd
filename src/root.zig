@@ -8,6 +8,7 @@ const theme = @import("theme.zig");
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
+extern fn set_serialized_tables(ptr: [*]const u8, len: usize) void;
 extern fn activate_mobile_keyboard() void;
 
 const Scene = ui.Scene;
@@ -218,6 +219,25 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
     }
 }
 
+/// JS world sends serialized tables to us
+export fn handle_deserialize(serialized_tables: [*:0]const u8) void {
+    const spanned = std.mem.span(serialized_tables);
+    state.ui.deserializeTables(state.allocator, spanned) catch |err| {
+        std.log.err("Failed to deserialize tables: {}", .{err});
+        return;
+    };
+    updateTableFromCursorState();
+}
+
+/// JS world requests a serialized version of the current UI
+export fn request_serialize() void {
+    const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
+        std.log.err("Failed to serialize tables: {}", .{err});
+        return;
+    };
+    sendSerializedTables(serialized_tables);
+}
+
 const PRINT_DOM_STUFF = false;
 
 fn setHtmlRender(html: []const u8) void {
@@ -233,6 +253,14 @@ fn setMarkdownSource(md_src: []const u8) void {
         set_markdown_source(md_src.ptr, md_src.len);
     } else if (PRINT_DOM_STUFF) {
         std.log.info("markdown:\n{s}", .{md_src});
+    }
+}
+
+fn sendSerializedTables(serialized_tables: []const u8) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        set_serialized_tables(serialized_tables.ptr, serialized_tables.len);
+    } else if (PRINT_DOM_STUFF) {
+        std.log.info("serialized tables:\n{s}", .{serialized_tables});
     }
 }
 
