@@ -591,12 +591,12 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
 }
 
 fn sendTableToDOM(table: *ui.Table) !void {
-    const table_as_md = table.md(state.allocator) catch unreachable;
+    const table_as_md = try table.md(state.allocator);
     defer state.allocator.free(table_as_md);
     setMarkdownSource(table_as_md);
 
     // convert markdown to html
-    const html_str = markdownToHtml(table_as_md) catch unreachable;
+    const html_str = try markdownToHtml(table_as_md);
     defer state.allocator.free(html_str);
     setHtmlRender(html_str);
 }
