@@ -514,13 +514,9 @@ fn handleTouchEnded(event: *const sapp.Event) void {
     state.touch_state.num_touches = @intCast(event.num_touches);
 
     if (!state.is_dragging and prev_num_touches == 1 and state.touch_state.num_touches == 1) {
-        // Check if this was a tap (not a drag) by comparing initial and final positions
         const final_pos = Vec2{ event.touches[0].pos_x, event.touches[0].pos_y };
-        // If the touch didn't move much, treat it as a tap
         const normalized_p = getPointForUI(final_pos);
         state.ui.handleMouseClick(normalized_p);
-        // Mark table as dirty so it gets updated
-        updateTableFromCursorState();
         activateMobileKeyboard();
     }
     state.is_dragging = false;
