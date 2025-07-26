@@ -8,6 +8,7 @@ const theme = @import("theme.zig");
 // External JavaScript functions
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
+extern fn set_serialized_tables(ptr: [*]const u8, len: usize) void;
 extern fn activate_mobile_keyboard() void;
 
 const Scene = ui.Scene;
@@ -218,6 +219,25 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
     }
 }
 
+/// JS world sends serialized tables to us
+export fn handle_deserialize(data_ptr: [*]const u8, data_len: usize) void {
+    const data_slice = data_ptr[0..data_len];
+    state.ui.deserializeTables(state.allocator, data_slice) catch |err| {
+        std.log.err("Failed to deserialize tables: {}", .{err});
+        return;
+    };
+    updateTableFromCursorState();
+}
+
+/// JS world requests a serialized version of the current UI
+export fn request_serialize() void {
+    const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
+        std.log.err("Failed to serialize tables: {}", .{err});
+        return;
+    };
+    sendSerializedTables(serialized_tables);
+}
+
 const PRINT_DOM_STUFF = false;
 
 fn setHtmlRender(html: []const u8) void {
@@ -233,6 +253,14 @@ fn setMarkdownSource(md_src: []const u8) void {
         set_markdown_source(md_src.ptr, md_src.len);
     } else if (PRINT_DOM_STUFF) {
         std.log.info("markdown:\n{s}", .{md_src});
+    }
+}
+
+fn sendSerializedTables(serialized_tables: []const u8) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        set_serialized_tables(serialized_tables.ptr, serialized_tables.len);
+    } else if (PRINT_DOM_STUFF) {
+        std.log.info("serialized tables:\n{s}", .{serialized_tables});
     }
 }
 
@@ -339,20 +367,8 @@ fn updateTableFromCursorState() void {
     if (state.ui.active_cursor) |cursor| {
         const table: ?*ui.Table = switch (cursor) {
             .empty => null,
-            .cell => |cell_pos| blk: {
-                if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
-                    break :blk cell.column.table;
-                } else {
-                    break :blk null;
-                }
-            },
-            .text => |text_pos| blk: {
-                if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
-                    break :blk cell.column.table;
-                } else {
-                    break :blk null;
-                }
-            },
+            .cell => |cell_pos| state.ui.tables.items[cell_pos.cell_index.table_index],
+            .text => |text_pos| state.ui.tables.items[text_pos.cell_index.table_index],
         };
         if (table) |tbl| {
             sendTableToDOM(tbl) catch |err| {
@@ -563,12 +579,12 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
 }
 
 fn sendTableToDOM(table: *ui.Table) !void {
-    const table_as_md = table.md(state.allocator) catch unreachable;
+    const table_as_md = try table.md(state.allocator);
     defer state.allocator.free(table_as_md);
     setMarkdownSource(table_as_md);
 
     // convert markdown to html
-    const html_str = markdownToHtml(table_as_md) catch unreachable;
+    const html_str = try markdownToHtml(table_as_md);
     defer state.allocator.free(html_str);
     setHtmlRender(html_str);
 }

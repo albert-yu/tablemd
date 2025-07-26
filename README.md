@@ -19,6 +19,16 @@ zig build -Dtarget=wasm32-emscripten --release=safe run
 
 Will automatically open a browser window with the app running.
 
+### Mobile
+
+To view the app on mobile, you'll need to get your IP address:
+
+```sh
+ifconfig en0 | awk '$1 == "inet" {print $2}'
+```
+
+Then, open `http://<IP_ADDRESS>::6931/root.html` in your mobile browser.
+
 ## Deploy
 
 Run `./bundle.sh`. It'll output the static files to the `dist`

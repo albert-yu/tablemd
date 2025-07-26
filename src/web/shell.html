@@ -203,6 +203,51 @@
             },
             onRuntimeInitialized: function () {
                 console.log("Initialized");
+
+                // Check IndexedDB for saved tables
+                const request = indexedDB.open('tablemd', 1);
+
+                request.onupgradeneeded = function (event) {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('tables')) {
+                        db.createObjectStore('tables');
+                    }
+                };
+
+                request.onsuccess = function (event) {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['tables'], 'readonly');
+                    const store = transaction.objectStore('tables');
+
+                    store.get('current_tables').onsuccess = function (event) {
+                        const savedData = event.target.result;
+                        if (savedData && savedData instanceof Uint8Array && savedData.length > 0) {
+                            console.log('Found saved tables, loading...');
+
+                            // Allocate memory in WebAssembly heap
+                            const dataPtr = Module._malloc(savedData.length);
+                            Module.HEAPU8.set(savedData, dataPtr);
+
+                            // Call the deserialize function
+                            Module._handle_deserialize(dataPtr, savedData.length);
+
+                            // Clean up allocated memory
+                            Module._free(dataPtr);
+
+                            console.log('Saved tables loaded successfully');
+                        } else {
+                            console.log('No saved tables found');
+                        }
+                    };
+
+                    transaction.onerror = function () {
+                        console.error('Failed to read tables from IndexedDB');
+                    };
+                };
+
+                request.onerror = function () {
+                    console.error('Failed to open IndexedDB for reading');
+                };
             }
         };
         window.onerror = function () {
@@ -233,6 +278,20 @@
             sidePanel.classList.toggle('collapsed');
         }
 
+        // Debounced auto-save functionality
+        let saveTimeout;
+        const SAVE_DELAY = 1000; // 1 second delay
+
+        function debouncedAutoSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                if (Module._request_serialize) {
+                    Module._request_serialize();
+                    console.log('Auto-saved tables');
+                }
+            }, SAVE_DELAY);
+        }
+
         function handleWebPaste(text) {
             if (Module._handle_paste_from_web) {
                 const encoder = new TextEncoder();
@@ -254,6 +313,21 @@
                 }).catch(function (err) {
                     console.error('Failed to read clipboard: ', err);
                 });
+            }
+        });
+
+        // Add keyboard event listeners for auto-save on typing
+        document.addEventListener('keydown', function (event) {
+            // Skip modifier-only keys and function keys
+            if (event.ctrlKey || event.metaKey || event.altKey ||
+                event.key.startsWith('F') ||
+                ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape'].includes(event.key)) {
+                return;
+            }
+
+            // Trigger debounced auto-save for text input keys
+            if (event.key.length === 1 || ['Backspace', 'Delete', 'Enter'].includes(event.key)) {
+                debouncedAutoSave();
             }
         });
     </script>
