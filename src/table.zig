@@ -305,6 +305,7 @@ pub const Table = struct {
     /// Convert table data to Markdown table format
     pub fn md(self: Table, allocator: Allocator) ![]u8 {
         if (self.columns.items.len == 0) {
+            std.log.warn("No columns in table", .{});
             return allocator.dupe(u8, "");
         }
 
@@ -318,11 +319,12 @@ pub const Table = struct {
         }
 
         if (max_rows == 0) {
+            std.log.warn("No rows in table", .{});
             return allocator.dupe(u8, "");
         }
 
         // Calculate maximum width for each column
-        var column_widths = allocator.alloc(usize, self.columns.items.len) catch return error.OutOfMemory;
+        var column_widths = try allocator.alloc(usize, self.columns.items.len);
         defer allocator.free(column_widths);
 
         for (self.columns.items, 0..) |column, col_idx| {
@@ -336,43 +338,43 @@ pub const Table = struct {
         // Generate each row
         for (0..max_rows) |row_idx| {
             // Add pipe at start of row
-            result.append(allocator, '|') catch return error.OutOfMemory;
+            try result.append(allocator, '|');
 
             // Add cells for this row
             for (self.columns.items, 0..) |column, col_idx| {
-                result.append(allocator, ' ') catch return error.OutOfMemory;
+                try result.append(allocator, ' ');
 
                 const cell_value = if (row_idx < column.data.items.len)
                     column.data.items[row_idx].value.items
                 else
                     "";
 
-                result.appendSlice(allocator, cell_value) catch return error.OutOfMemory;
+                try result.appendSlice(allocator, cell_value);
 
                 // Add padding to align columns
                 const padding_needed = column_widths[col_idx] - cell_value.len;
                 for (0..padding_needed) |_| {
-                    result.append(allocator, ' ') catch return error.OutOfMemory;
+                    try result.append(allocator, ' ');
                 }
 
-                result.append(allocator, ' ') catch return error.OutOfMemory;
-                result.append(allocator, '|') catch return error.OutOfMemory;
+                try result.append(allocator, ' ');
+                try result.append(allocator, '|');
             }
 
-            result.append(allocator, '\n') catch return error.OutOfMemory;
+            try result.append(allocator, '\n');
 
             // Add header separator after first row
             if (row_idx == 0) {
-                result.append(allocator, '|') catch return error.OutOfMemory;
+                try result.append(allocator, '|');
                 for (column_widths) |width| {
-                    result.append(allocator, ' ') catch return error.OutOfMemory;
+                    try result.append(allocator, ' ');
                     for (0..width) |_| {
-                        result.append(allocator, '-') catch return error.OutOfMemory;
+                        try result.append(allocator, '-');
                     }
-                    result.append(allocator, ' ') catch return error.OutOfMemory;
-                    result.append(allocator, '|') catch return error.OutOfMemory;
+                    try result.append(allocator, ' ');
+                    try result.append(allocator, '|');
                 }
-                result.append(allocator, '\n') catch return error.OutOfMemory;
+                try result.append(allocator, '\n');
             }
         }
 
