@@ -244,8 +244,8 @@ export fn input(ev: ?*const sapp.Event) void {
             if (state.mouse_press_pos) |press_pos| {
                 const delta_x = state.mouse[0][0] - press_pos[0];
                 const delta_y = state.mouse[0][1] - press_pos[1];
-                const tolerance = 1e-1;
-                if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance)) {
+                const tolerance_px = 2;
+                if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance_px)) {
                     state.is_dragging = true;
                     handlePan(delta_x, delta_y);
                     state.mouse_press_pos = state.mouse[0];
