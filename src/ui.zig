@@ -504,10 +504,7 @@ pub const UI = struct {
                         const col = try table.addColumn(allocator);
                         try col.addCell(allocator, "");
                         const cell = &col.data.items[0]; // First cell in the new column
-                        // Insert clipboard text at current cursor position
-                        for (clipboard_text) |char| {
-                            try cell.value.append(allocator, char);
-                        }
+                        try cell.value.appendSlice(allocator, clipboard_text);
 
                         // Set cursor to text position after the inserted character
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
