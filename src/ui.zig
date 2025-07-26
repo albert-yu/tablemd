@@ -421,23 +421,6 @@ pub const UI = struct {
         }
     }
 
-    fn requestClipboardPaste(self: *UI, allocator: Allocator) void {
-        if (builtin.target.cpu.arch.isWasm()) {
-            // For web builds, request clipboard access from JavaScript
-            self.requestWebClipboard(allocator);
-        } else {
-            // For native builds, do nothing here - let the CLIPBOARD_PASTED event handle it
-            // This avoids double-pasting since both the key event and clipboard event fire
-        }
-    }
-
-    fn requestWebClipboard(self: *UI, allocator: Allocator) void {
-        // For web, this will be handled by JavaScript event listeners
-        // The paste will happen asynchronously via the keyboard event
-        _ = self;
-        _ = allocator;
-    }
-
     pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode, modifiers: u32) void {
         switch (key_code) {
             .BACKSPACE => self.handleBackspace(allocator),
@@ -447,13 +430,6 @@ pub const UI = struct {
             .RIGHT => self.handleArrowRight(),
             .UP => self.handleArrowUp(),
             .DOWN => self.handleArrowDown(),
-            .V => {
-                // Handle Ctrl+V (Windows/Linux) or Cmd+V (Mac) for paste
-                if ((modifiers & sapp.modifier_ctrl) != 0 or (modifiers & sapp.modifier_super) != 0) {
-                    self.requestClipboardPaste(allocator);
-                }
-            },
-
             .TAB => self.handleTab(),
             else => {},
         }
