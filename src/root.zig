@@ -506,7 +506,27 @@ fn markdownToHtml(md: []const u8) ![]const u8 {
 }
 
 fn handleTouchEnded(event: *const sapp.Event) void {
+    const prev_num_touches = state.touch_state.num_touches;
     state.touch_state.num_touches = @intCast(event.num_touches);
+
+    // Detect single tap: was 1 touch, now 0 touches, and we weren't dragging/zooming
+    if (prev_num_touches == 1 and state.touch_state.num_touches == 0) {
+        // Check if this was a tap (not a drag) by comparing initial and final positions
+        const final_pos = Vec2{ event.touches[0].pos_x, event.touches[0].pos_y };
+        const initial_pos = state.touch_state.touches[0];
+        const dx = final_pos[0] - initial_pos[0];
+        const dy = final_pos[1] - initial_pos[1];
+        const distance = @sqrt(dx * dx + dy * dy);
+
+        // If the touch didn't move much, treat it as a tap
+        const tap_threshold = 10.0; // pixels
+        if (distance <= tap_threshold) {
+            const normalized_p = getPointForUI(final_pos);
+            state.ui.handleMouseClick(normalized_p);
+            // Mark table as dirty so it gets updated
+            updateTableFromCursorState();
+        }
+    }
 
     if (state.touch_state.num_touches == 0) {
         state.touch_state.active = false;
