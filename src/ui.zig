@@ -463,6 +463,22 @@ pub const UI = struct {
         }
     }
 
+    pub fn handleCopy(self: *UI, allocator: Allocator) ![]const u8 {
+        var str_builder = std.ArrayList(u8).init(allocator);
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {},
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return error.CellNotFound;
+                    const cell_content = cell.value.items;
+                    try str_builder.appendSlice(cell_content);
+                },
+                .text => {},
+            }
+        }
+        return str_builder.toOwnedSlice();
+    }
+
     pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) !void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {

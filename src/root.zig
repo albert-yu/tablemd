@@ -292,7 +292,21 @@ export fn input(ev: ?*const sapp.Event) void {
             handleTouchCancelled(event);
         },
         .CHAR => {
-            if (event.modifiers & sapp.modifier_super == 0 and event.modifiers & sapp.modifier_ctrl == 0) {
+            const ctrl_or_cmd = event.modifiers & sapp.modifier_super != 0 or event.modifiers & sapp.modifier_ctrl != 0;
+            if (ctrl_or_cmd) {
+                if (event.char_code == 'c') {
+                    const s = state.ui.handleCopy(state.allocator) catch {
+                        std.log.err("Failed to copy text", .{});
+                        return;
+                    };
+                    defer state.allocator.free(s);
+                    const null_terminated = std.fmt.allocPrintZ(state.allocator, "{s}", .{s}) catch {
+                        return;
+                    };
+                    defer state.allocator.free(null_terminated);
+                    sapp.setClipboardString(null_terminated);
+                }
+            } else {
                 state.ui.handleChar(state.allocator, event.char_code) catch {};
                 table_dirty = true;
             }
