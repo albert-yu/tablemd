@@ -1272,11 +1272,12 @@ pub const UI = struct {
         for (0..lines) |target_line| {
             var line_x = x;
             const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
-            while (offset < cell.value.items.len) : (offset += 1) {
+            while (offset < cell.value.items.len) {
                 const char = cell.value.items[offset];
                 if (char == '\n') {
                     // reset x to start
                     x = containing_cell.pos[0];
+                    offset += 1;
                     break;
                 }
                 const char_pos = Vec2{ line_x, line_y };
@@ -1287,7 +1288,9 @@ pub const UI = struct {
                         .char_offset = offset,
                     };
                 }
+                // Move to next UTF-8 character (advance visually by one character width)
                 line_x += self.units.text.width;
+                offset = findNextUtf8CharStart(cell.value.items, offset);
             }
             // allow positioning to the right of the last character
             // so that the user can backspace (delete) the last character
