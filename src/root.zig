@@ -530,12 +530,10 @@ fn handleTouchMoved(event: *const sapp.Event) void {
 
         // Handle pinch zoom
         if (state.touch_state.prev_distance > TOUCH_THRESHOLD) {
-            const distance_ratio = current_distance / state.touch_state.prev_distance;
-            if (@abs(distance_ratio - 1.0) > 0.01) { // Threshold to avoid jitter
-                const factor: f32 = if (distance_ratio > 1.0) 0.08 else -0.08;
-                const zoom_delta = distance_ratio * factor;
-                handleZoom(zoom_delta, current_center);
-            }
+            const zoom_distance = current_distance - state.touch_state.prev_distance;
+            const factor = 0.002; // from trial and error on what felt "right"
+            const zoom_speed = zoom_distance * factor;
+            handleZoom(zoom_speed, current_center);
         } else {
             // Handle pan (center movement)
             const center_dx = current_center[0] - state.touch_state.prev_center[0];
