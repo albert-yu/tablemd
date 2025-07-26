@@ -227,8 +227,11 @@
 
         function handleWebPaste(text) {
             if (Module._handle_paste_from_web) {
-                const textPtr = Module._malloc(text.length + 1);
-                Module.stringToUTF8(text, textPtr, text.length + 1);
+                const encoder = new TextEncoder();
+                const len = encoder.encode(text).length;
+                const bufLen = len + 1; // +1 for null terminator
+                const textPtr = Module._malloc(bufLen);
+                Module.stringToUTF8(text, textPtr, bufLen);
                 Module._handle_paste_from_web(textPtr);
                 Module._free(textPtr);
             }
