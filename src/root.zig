@@ -529,25 +529,26 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         };
 
         // Handle pinch zoom
-        if (state.touch_state.prev_distance > 0) {
+        if (state.touch_state.prev_distance > TOUCH_THRESHOLD) {
             const distance_ratio = current_distance / state.touch_state.prev_distance;
             if (@abs(distance_ratio - 1.0) > 0.01) { // Threshold to avoid jitter
-                const zoom_delta = std.math.log2(distance_ratio);
+                const factor: f32 = if (distance_ratio > 1.0) 0.08 else -0.08;
+                const zoom_delta = distance_ratio * factor;
                 handleZoom(zoom_delta, current_center);
             }
-        }
+        } else {
+            // Handle pan (center movement)
+            const center_dx = current_center[0] - state.touch_state.prev_center[0];
+            const center_dy = current_center[1] - state.touch_state.prev_center[1];
+            if (@abs(center_dx) > TOUCH_THRESHOLD or @abs(center_dy) > TOUCH_THRESHOLD) {
+                // Track velocity for momentum on multi-touch pan too
+                const movement = Vec2{ center_dx, center_dy };
+                state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
+                state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
 
-        // Handle pan (center movement)
-        const center_dx = current_center[0] - state.touch_state.prev_center[0];
-        const center_dy = current_center[1] - state.touch_state.prev_center[1];
-        if (@abs(center_dx) > TOUCH_THRESHOLD or @abs(center_dy) > TOUCH_THRESHOLD) {
-            // Track velocity for momentum on multi-touch pan too
-            const movement = Vec2{ center_dx, center_dy };
-            state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
-            state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
-
-            state.is_dragging = true;
-            handlePan(center_dx, center_dy);
+                state.is_dragging = true;
+                handlePan(center_dx, center_dy);
+            }
         }
 
         state.touch_state.prev_distance = current_distance;
