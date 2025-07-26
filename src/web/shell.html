@@ -224,17 +224,44 @@
                         if (savedData && savedData instanceof Uint8Array && savedData.length > 0) {
                             console.log('Found saved tables, loading...');
 
-                            // Allocate memory in WebAssembly heap
-                            const dataPtr = Module._malloc(savedData.length);
-                            Module.HEAPU8.set(savedData, dataPtr);
+                            let dataPtr = null;
+                            let retryCount = 0;
+                            const maxRetries = 3;
 
-                            // Call the deserialize function
-                            Module._handle_deserialize(dataPtr, savedData.length);
+                            function attemptDeserialize() {
+                                try {
+                                    // Allocate memory in WebAssembly heap
+                                    dataPtr = Module._malloc(savedData.length);
+                                    Module.HEAPU8.set(savedData, dataPtr);
 
-                            // Clean up allocated memory
-                            Module._free(dataPtr);
+                                    // Call the deserialize function
+                                    Module._handle_deserialize(dataPtr, savedData.length);
 
-                            console.log('Saved tables loaded successfully');
+                                    // Clean up allocated memory
+                                    Module._free(dataPtr);
+                                    dataPtr = null;
+
+                                    console.log('Saved tables loaded successfully');
+                                } catch (error) {
+                                    console.error('Failed to deserialize tables (attempt ' + (retryCount + 1) + '):', error);
+
+                                    // Clean up allocated memory if it exists
+                                    if (dataPtr !== null) {
+                                        Module._free(dataPtr);
+                                        dataPtr = null;
+                                    }
+
+                                    retryCount++;
+                                    if (retryCount < maxRetries) {
+                                        console.log('Retrying deserialization in 100ms...');
+                                        setTimeout(attemptDeserialize, 100);
+                                    } else {
+                                        console.error('Failed to deserialize tables after ' + maxRetries + ' attempts');
+                                    }
+                                }
+                            }
+
+                            attemptDeserialize();
                         } else {
                             console.log('No saved tables found');
                         }
