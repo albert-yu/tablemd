@@ -51,26 +51,12 @@ pub const MatchingRow = struct {
 };
 
 pub const Cell = struct {
-    value: ArrayList(u21),
+    value: ArrayList(u8),
     column: *Column,
 
     pub fn init(allocator: Allocator, content: []const u8, column: *Column) !Cell {
-        var value = ArrayList(u21).initCapacity(allocator, 0) catch ArrayList(u21){};
-
-        // Convert UTF-8 string to Unicode codepoints
-        var utf8_view = std.unicode.Utf8View.init(content) catch {
-            // If invalid UTF-8, treat as ASCII bytes
-            for (content) |byte| {
-                try value.append(allocator, @as(u21, byte));
-            }
-            return Cell{ .value = value, .column = column };
-        };
-
-        var iterator = utf8_view.iterator();
-        while (iterator.nextCodepoint()) |codepoint| {
-            try value.append(allocator, codepoint);
-        }
-
+        var value = try ArrayList(u8).initCapacity(allocator, content.len);
+        value.appendSlice(allocator, content) catch unreachable;
         return Cell{ .value = value, .column = column };
     }
 
@@ -85,8 +71,8 @@ pub const Cell = struct {
         var grid_height: usize = 1;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
-        for (self.value.items) |codepoint| {
-            if (codepoint == '\n') {
+        for (self.value.items) |char| {
+            if (char == '\n') {
                 width = @max(width, curr_line_width);
                 curr_line_width = 0.0;
                 grid_height += 1;
@@ -115,32 +101,16 @@ pub const Cell = struct {
         var pos_y = position[1] + units.cell.height;
         var i: usize = 0;
         var start: usize = i;
-
-        // Helper function to convert u21 slice to UTF-8 string
-        const codepointsToUtf8 = struct {
-            fn convert(alloc: Allocator, codepoints: []const u21) ![]u8 {
-                var utf8_bytes = ArrayList(u8).initCapacity(alloc, 0) catch ArrayList(u8){};
-                for (codepoints) |codepoint| {
-                    var buf: [4]u8 = undefined;
-                    const len = std.unicode.utf8Encode(codepoint, &buf) catch {
-                        // If encoding fails, use replacement character
-                        try utf8_bytes.append(alloc, '?');
-                        continue;
-                    };
-                    try utf8_bytes.appendSlice(alloc, buf[0..len]);
-                }
-                return utf8_bytes.toOwnedSlice(alloc);
-            }
-        }.convert;
-
         while (i < self.value.items.len) : (i += 1) {
-            const codepoint = self.value.items[i];
-            if (codepoint == '\n') {
-                // Convert current line to UTF-8 and send to scene
-                if (start < i) {
-                    const utf8_text = try codepointsToUtf8(allocator, self.value.items[start..i]);
-                    try scene.addText(allocator, utf8_text, position[0], pos_y, theme.DARK_THEME.text_color);
-                }
+            const char = self.value.items[i];
+            if (char == '\n') {
+                // send the current line to the scene
+                try scene.texts.append(allocator, .{
+                    .text = self.value.items[start..i],
+                    .x = position[0],
+                    .y = pos_y,
+                    .color = theme.DARK_THEME.text_color,
+                });
                 i += 1; // skip the newline
                 start = i;
                 pos_y += units.text.height;
@@ -148,8 +118,12 @@ pub const Cell = struct {
             }
         }
         if (start < self.value.items.len) {
-            const utf8_text = try codepointsToUtf8(allocator, self.value.items[start..self.value.items.len]);
-            try scene.addText(allocator, utf8_text, position[0], pos_y, theme.DARK_THEME.text_color);
+            try scene.texts.append(allocator, .{
+                .text = self.value.items[start..self.value.items.len],
+                .x = position[0],
+                .y = pos_y,
+                .color = theme.DARK_THEME.text_color,
+            });
         }
     }
 };
@@ -347,31 +321,13 @@ pub const Table = struct {
             return allocator.dupe(u8, "");
         }
 
-        // Helper function to convert u21 codepoints to UTF-8
-        const codepointsToUtf8 = struct {
-            fn convert(alloc: Allocator, codepoints: []const u21) ![]u8 {
-                var utf8_bytes = ArrayList(u8).initCapacity(alloc, 0) catch ArrayList(u8){};
-                for (codepoints) |codepoint| {
-                    var buf: [4]u8 = undefined;
-                    const len = std.unicode.utf8Encode(codepoint, &buf) catch {
-                        // If encoding fails, use replacement character
-                        try utf8_bytes.append(alloc, '?');
-                        continue;
-                    };
-                    try utf8_bytes.appendSlice(alloc, buf[0..len]);
-                }
-                return utf8_bytes.toOwnedSlice(alloc);
-            }
-        }.convert;
-
-        // Calculate maximum width for each column (in characters, not bytes)
+        // Calculate maximum width for each column
         var column_widths = allocator.alloc(usize, self.columns.items.len) catch return error.OutOfMemory;
         defer allocator.free(column_widths);
 
         for (self.columns.items, 0..) |column, col_idx| {
             var max_width: usize = 0;
             for (column.data.items) |cell| {
-                // Count characters, not bytes - for display purposes, we use codepoint count
                 max_width = @max(max_width, cell.value.items.len);
             }
             column_widths[col_idx] = max_width;
@@ -386,23 +342,17 @@ pub const Table = struct {
             for (self.columns.items, 0..) |column, col_idx| {
                 result.append(allocator, ' ') catch return error.OutOfMemory;
 
-                if (row_idx < column.data.items.len) {
-                    const cell = column.data.items[row_idx];
-                    const cell_utf8 = try codepointsToUtf8(allocator, cell.value.items);
-                    defer allocator.free(cell_utf8);
+                const cell_value = if (row_idx < column.data.items.len)
+                    column.data.items[row_idx].value.items
+                else
+                    "";
 
-                    result.appendSlice(allocator, cell_utf8) catch return error.OutOfMemory;
+                result.appendSlice(allocator, cell_value) catch return error.OutOfMemory;
 
-                    // Add padding to align columns (using character count)
-                    const padding_needed = column_widths[col_idx] - cell.value.items.len;
-                    for (0..padding_needed) |_| {
-                        result.append(allocator, ' ') catch return error.OutOfMemory;
-                    }
-                } else {
-                    // Empty cell, add full padding
-                    for (0..column_widths[col_idx]) |_| {
-                        result.append(allocator, ' ') catch return error.OutOfMemory;
-                    }
+                // Add padding to align columns
+                const padding_needed = column_widths[col_idx] - cell_value.len;
+                for (0..padding_needed) |_| {
+                    result.append(allocator, ' ') catch return error.OutOfMemory;
                 }
 
                 result.append(allocator, ' ') catch return error.OutOfMemory;

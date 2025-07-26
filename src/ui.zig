@@ -207,26 +207,7 @@ pub const UI = struct {
         return .{ .table = adjacent_table, .direction = direction, .multiple = false };
     }
 
-    fn insertIntoAdjacentTable(self: *UI, allocator: Allocator, table: *Table, direction: Direction, grid_pos: GridPos, content: []const u8) !void {
-
-        // Helper function to append UTF-8 content to cell
-        const appendUtf8ToCellLocal = struct {
-            fn append(alloc: Allocator, cell: *Cell, utf8_content: []const u8) !void {
-                // Convert UTF-8 string to Unicode codepoints
-                var utf8_view = std.unicode.Utf8View.init(utf8_content) catch {
-                    // If invalid UTF-8, treat as ASCII bytes
-                    for (utf8_content) |byte| {
-                        try cell.value.append(alloc, @as(u21, byte));
-                    }
-                    return;
-                };
-
-                var iterator = utf8_view.iterator();
-                while (iterator.nextCodepoint()) |codepoint| {
-                    try cell.value.append(alloc, codepoint);
-                }
-            }
-        }.append;
+    fn insertIntoAdjacentTable(self: *UI, allocator: Allocator, table: *Table, direction: Direction, grid_pos: GridPos, s: []const u8) !void {
 
         // Find table index
         const table_idx = for (self.tables.items, 0..) |t, idx| {
@@ -245,7 +226,9 @@ pub const UI = struct {
                 const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
-                try appendUtf8ToCellLocal(allocator, cell, content);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 self.active_cursor = .{
                     .text = .{
                         .cell_index = CellIndex{
@@ -254,7 +237,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = content.len,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -271,7 +254,9 @@ pub const UI = struct {
                 const new_x = cursor_x + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
-                try appendUtf8ToCellLocal(allocator, cell, content);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 self.active_cursor = .{
                     .text = .{
                         .cell_index = CellIndex{
@@ -280,7 +265,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = content.len,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -297,7 +282,9 @@ pub const UI = struct {
                 const new_x = cursor_x + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
-                try appendUtf8ToCellLocal(allocator, cell, content);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 table.position.top -= 1;
                 self.active_cursor = .{
                     .text = .{
@@ -307,7 +294,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, y },
-                        .char_offset = content.len,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -322,7 +309,9 @@ pub const UI = struct {
                 const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
-                try appendUtf8ToCellLocal(allocator, cell, content);
+                for (s) |char| {
+                    try cell.value.append(allocator, char);
+                }
                 table.position.left -= 1;
                 self.active_cursor = .{
                     .text = .{
@@ -332,7 +321,7 @@ pub const UI = struct {
                             .row_index = row_i,
                         },
                         .pos = Vec2{ new_x, new_y },
-                        .char_offset = content.len,
+                        .char_offset = s.len,
                     },
                 };
             },
@@ -353,11 +342,9 @@ pub const UI = struct {
                     }
                     if (adjacent.table) |table| {
                         const curr_table_width = table.gridSize(self.units).width;
-                        const codepoint: u21 = @truncate(char_code);
-                        var buf: [4]u8 = undefined;
-                        const len = std.unicode.utf8Encode(codepoint, &buf) catch 1;
-                        if (len == 0) buf[0] = '?'; // Fallback for invalid codepoints
-                        try self.insertIntoAdjacentTable(allocator, table, adjacent.direction, cursor.empty.grid_pos, buf[0..if (len == 0) 1 else len]);
+                        const char: u8 = @truncate(char_code);
+                        const s = [_]u8{char};
+                        try self.insertIntoAdjacentTable(allocator, table, adjacent.direction, cursor.empty.grid_pos, &s);
                         const new_table_width = table.gridSize(self.units).width;
                         if (new_table_width > curr_table_width) {
                             self.shiftTablesRight(table, new_table_width - curr_table_width);
@@ -368,9 +355,9 @@ pub const UI = struct {
                         table.position = cursor.empty.grid_pos;
                         const col = try table.addColumn(allocator);
                         try col.addCell(allocator, "");
-                        const codepoint: u21 = @truncate(char_code);
+                        const char: u8 = @truncate(char_code);
                         const cell = &col.data.items[0]; // First cell in the new column
-                        try cell.value.insert(allocator, 0, codepoint);
+                        try cell.value.insert(allocator, 0, char);
 
                         // Set cursor to text position after the inserted character
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
@@ -396,8 +383,8 @@ pub const UI = struct {
                     const curr_table_width = cell.column.table.gridSize(self.units).width;
                     // clear the current text
                     cell.value.clearRetainingCapacity();
-                    const codepoint: u21 = @truncate(char_code);
-                    try cell.value.insert(allocator, 0, codepoint);
+                    const char: u8 = @truncate(char_code);
+                    try cell.value.insert(allocator, 0, char);
                     const new_table_width = cell.column.table.gridSize(self.units).width;
                     self.active_cursor = .{
                         .text = .{
@@ -413,10 +400,10 @@ pub const UI = struct {
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
                     const curr_table_width = cell.column.table.gridSize(self.units).width;
-                    // Convert u32 to u21 codepoint
-                    const codepoint: u21 = @truncate(char_code);
+                    // Convert u32 to u8, handling potential overflow
+                    const char: u8 = @truncate(char_code);
                     const new_offset = text_pos.char_offset;
-                    try cell.value.insert(allocator, new_offset, codepoint);
+                    try cell.value.insert(allocator, new_offset, char);
                     const new_table_width = cell.column.table.gridSize(self.units).width;
                     const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
@@ -431,22 +418,6 @@ pub const UI = struct {
                     }
                 },
             }
-        }
-    }
-
-    fn appendUtf8ToCell(allocator: Allocator, cell: *Cell, utf8_content: []const u8) !void {
-        // Convert UTF-8 string to Unicode codepoints
-        var utf8_view = std.unicode.Utf8View.init(utf8_content) catch {
-            // If invalid UTF-8, treat as ASCII bytes
-            for (utf8_content) |byte| {
-                try cell.value.append(allocator, @as(u21, byte));
-            }
-            return;
-        };
-
-        var iterator = utf8_view.iterator();
-        while (iterator.nextCodepoint()) |codepoint| {
-            try cell.value.append(allocator, codepoint);
         }
     }
 
@@ -498,15 +469,8 @@ pub const UI = struct {
                 .empty => {},
                 .cell => |cell_pos| {
                     const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return error.CellNotFound;
-                    // Convert u21 codepoints to UTF-8
-                    for (cell.value.items) |codepoint| {
-                        var buf: [4]u8 = undefined;
-                        const len = std.unicode.utf8Encode(codepoint, &buf) catch {
-                            try str_builder.append('?');
-                            continue;
-                        };
-                        try str_builder.appendSlice(buf[0..len]);
-                    }
+                    const cell_content = cell.value.items;
+                    try str_builder.appendSlice(cell_content);
                 },
                 .text => {},
             }
@@ -539,7 +503,7 @@ pub const UI = struct {
                         const col = try table.addColumn(allocator);
                         try col.addCell(allocator, "");
                         const cell = &col.data.items[0]; // First cell in the new column
-                        try appendUtf8ToCell(allocator, cell, clipboard_text);
+                        try cell.value.appendSlice(allocator, clipboard_text);
 
                         // Set cursor to text position after the inserted character
                         const cell_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
@@ -553,7 +517,7 @@ pub const UI = struct {
                                     .row_index = 0,
                                 },
                                 .pos = Vec2{ cell_x + self.units.text.width, cell_y },
-                                .char_offset = cell.value.items.len, // Use actual codepoint count
+                                .char_offset = clipboard_text.len,
                             },
                         };
                         const new_table_size = table.gridSize(self.units);
@@ -568,15 +532,17 @@ pub const UI = struct {
                     const curr_table_size = cell.column.table.gridSize(self.units);
                     // Replace entire cell content
                     cell.value.clearRetainingCapacity();
-                    try appendUtf8ToCell(allocator, cell, clipboard_text);
+                    for (clipboard_text) |char| {
+                        try cell.value.append(allocator, char);
+                    }
                     // Move cursor to text mode at the end of pasted content
-                    const text_width_offset = @as(f32, @floatFromInt(cell.value.items.len)) * self.units.text.width;
+                    const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
                     const new_table_size = cell.column.table.gridSize(self.units);
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = cell_pos.cell_index,
                             .pos = Vec2{ cell_pos.pos[0] + text_width_offset, cell_pos.pos[1] },
-                            .char_offset = cell.value.items.len,
+                            .char_offset = clipboard_text.len,
                         },
                     };
                     if (new_table_size.width > curr_table_size.width) {
@@ -591,42 +557,18 @@ pub const UI = struct {
                     const curr_table_size = cell.column.table.gridSize(self.units);
                     // Insert clipboard text at current cursor position
                     var insert_pos = text_pos.char_offset;
-
-                    // Convert UTF-8 string to Unicode codepoints and insert them
-                    var utf8_view = std.unicode.Utf8View.init(clipboard_text) catch {
-                        // If invalid UTF-8, treat as ASCII bytes
-                        for (clipboard_text) |byte| {
-                            try cell.value.insert(allocator, insert_pos, @as(u21, byte));
-                            insert_pos += 1;
-                        }
-                        const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
-                        const new_x = text_pos.pos[0] + text_width_offset;
-                        self.active_cursor = .{
-                            .text = .{
-                                .cell_index = text_pos.cell_index,
-                                .pos = .{ new_x, text_pos.pos[1] },
-                                .char_offset = text_pos.char_offset + clipboard_text.len,
-                            },
-                        };
-                        return;
-                    };
-
-                    var codepoint_count: usize = 0;
-                    var iterator = utf8_view.iterator();
-                    while (iterator.nextCodepoint()) |codepoint| {
-                        try cell.value.insert(allocator, insert_pos, codepoint);
+                    for (clipboard_text) |char| {
+                        try cell.value.insert(allocator, insert_pos, char);
                         insert_pos += 1;
-                        codepoint_count += 1;
                     }
-
                     const new_table_size = cell.column.table.gridSize(self.units);
-                    const text_width_offset = @as(f32, @floatFromInt(codepoint_count)) * self.units.text.width;
+                    const text_width_offset = @as(f32, @floatFromInt(clipboard_text.len)) * self.units.text.width;
                     const new_x = text_pos.pos[0] + text_width_offset;
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = text_pos.cell_index,
                             .pos = .{ new_x, text_pos.pos[1] },
-                            .char_offset = text_pos.char_offset + codepoint_count,
+                            .char_offset = text_pos.char_offset + clipboard_text.len,
                         },
                     };
                     if (new_table_size.width > curr_table_size.width) {
