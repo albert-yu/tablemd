@@ -1,3 +1,5 @@
+// Note: emscripten functions (e.g. UTF8ToString) here
+// do not need the Module. prefix
 mergeInto(LibraryManager.library, {
     set_html_render: function(ptr, len) {
         const html = UTF8ToString(ptr, len);
@@ -19,7 +21,7 @@ mergeInto(LibraryManager.library, {
         input?.focus();
     },
     set_serialized_tables: function(ptr, len) {
-        const buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, len);
+        const buffer = new Uint8Array(HEAPU8.buffer, ptr, len);
         // Copy the buffer since it might be invalidated
         const data = new Uint8Array(buffer);
 

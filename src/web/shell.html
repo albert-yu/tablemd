@@ -121,10 +121,10 @@
             white-space: pre;
         }
 
-        .copy-button {
+        .copy-button,
+        .save-button {
             position: absolute;
             bottom: 10px;
-            right: 10px;
             background-color: rgba(80, 80, 80, 0.9);
             border: 1px solid rgba(120, 120, 120, 0.7);
             border-radius: 4px;
@@ -138,11 +138,21 @@
             transition: background-color 0.2s;
         }
 
-        .copy-button:hover {
+        .copy-button {
+            right: 10px;
+        }
+
+        .save-button {
+            right: 70px;
+        }
+
+        .copy-button:hover,
+        .save-button:hover {
             background-color: rgba(100, 100, 100, 0.9);
         }
 
-        .copy-button:active {
+        .copy-button:active,
+        .save-button:active {
             background-color: rgba(60, 60, 60, 0.9);
         }
 
@@ -177,6 +187,13 @@
                 <div id="markdown-source">
                 </div>
             </div>
+            <button class="save-button" onclick="saveTables()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+                </svg>
+                Save
+            </button>
             <button class="copy-button" onclick="copyCodeSection()">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path
@@ -276,6 +293,25 @@
         function toggleSidePanel() {
             const sidePanel = document.getElementById('side-panel');
             sidePanel.classList.toggle('collapsed');
+        }
+
+        function saveTables() {
+            if (Module._request_serialize) {
+                Module._request_serialize();
+
+                // Provide visual feedback
+                const button = document.querySelector('.save-button');
+                if (!button) {
+                    return;
+                }
+                const originalText = button.innerHTML;
+                button.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Saved!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+            } else {
+                console.error('Module._request_serialize is not available');
+            }
         }
 
         function handleWebPaste(text) {
