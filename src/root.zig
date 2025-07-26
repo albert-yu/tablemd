@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
-const ui = @import("ui.zig");
+const ui_lib = @import("ui.zig");
 const markdown = @import("markdown");
 const theme = @import("theme.zig");
 
@@ -9,8 +9,8 @@ const theme = @import("theme.zig");
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 
-const Scene = ui.Scene;
-const UI = ui.UI;
+const Scene = ui_lib.Scene;
+const UI = ui_lib.UI;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
@@ -247,8 +247,12 @@ export fn input(ev: ?*const sapp.Event) void {
                 const tolerance = 1e-1;
                 if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance)) {
                     state.is_dragging = true;
-                    handlePan(delta_x, delta_y);
-                    state.mouse_press_pos = state.mouse[0];
+                    const handled = state.ui.handleMouseDrag(point);
+                    if (!handled) {
+                        // Handle panning
+                        handlePan(delta_x, delta_y);
+                        state.mouse_press_pos = state.mouse[0];
+                    }
                 }
             } else {
                 state.ui.handleMouseHover(point);
@@ -267,6 +271,7 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_DOWN => {
             state.mouse_press_pos = state.mouse[0];
+            state.ui.handleMouseDown();
         },
         .MOUSE_UP => {
             if (state.mouse_press_pos) |_| {
@@ -274,9 +279,13 @@ export fn input(ev: ?*const sapp.Event) void {
                     const normalized_p = getPointForUI(state.mouse[0]);
                     state.ui.handleMouseClick(normalized_p);
                     table_dirty = true;
+                } else {
+                    // What to do here?
                 }
                 state.mouse_press_pos = null;
                 state.is_dragging = false;
+                // Note: we keep is_text_selecting and selection state active
+                // until the next mouse operation to allow for copy operations
             }
         },
         .TOUCHES_BEGAN => {
@@ -318,7 +327,7 @@ export fn input(ev: ?*const sapp.Event) void {
 
 fn updateTableFromCursorState() void {
     if (state.ui.active_cursor) |cursor| {
-        const table: ?*ui.Table = switch (cursor) {
+        const table: ?*ui_lib.Table = switch (cursor) {
             .empty => null,
             .cell => |cell_pos| blk: {
                 if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
@@ -533,7 +542,15 @@ fn getPointForUI(mouse_p: Vec2) Vec2 {
     return normalized_p;
 }
 
-fn sendTableToDOM(table: *ui.Table) !void {
+fn isOverText(point: Vec2) bool {
+    const cursor = state.ui.getCursor(point);
+    return switch (cursor) {
+        .text => true,
+        else => false,
+    };
+}
+
+fn sendTableToDOM(table: *ui_lib.Table) !void {
     const table_as_md = table.md(state.allocator) catch unreachable;
     defer state.allocator.free(table_as_md);
     setMarkdownSource(table_as_md);

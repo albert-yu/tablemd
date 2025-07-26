@@ -62,6 +62,31 @@ const TextPos = struct {
     char_offset: usize,
 };
 
+const TextSelection = struct {
+    start: TextPos,
+    end: TextPos,
+
+    pub fn getRect(self: TextSelection, ui: *UI, color: Color) RectElement {
+        const corner = 1.0 / 512.0;
+        const corners = .{ corner, corner, corner, corner };
+        // assume the selection is always in the same cell
+        const upper_left_x = @min(self.start.pos[0], self.end.pos[0]);
+        const upper_left_y = @min(self.start.pos[1], self.end.pos[1]);
+        const lower_right_x = @max(self.start.pos[0], self.end.pos[0]);
+        const lower_right_y = @max(self.start.pos[1], self.end.pos[1]);
+        const units = ui.units;
+        return .{
+            .color = color,
+            .x = upper_left_x,
+            .y = upper_left_y,
+            .width = lower_right_x - upper_left_x,
+            .height = lower_right_y - upper_left_y + units.text.height,
+            .corners = corners,
+            .sigma = 1e-6,
+        };
+    }
+};
+
 const CursorType = enum {
     empty,
     cell,
@@ -127,6 +152,7 @@ pub const UI = struct {
     tables: ArrayList(*Table),
     active_cursor: ?Cursor,
     hover_cursor: ?Cursor,
+    selection: ?TextSelection,
     units: Units,
 
     pub fn init(allocator: Allocator, units: Units) UI {
@@ -134,6 +160,7 @@ pub const UI = struct {
             .tables = ArrayList(*Table).initCapacity(allocator, 0) catch unreachable,
             .active_cursor = null,
             .hover_cursor = null,
+            .selection = null,
             .units = units,
         };
     }
@@ -181,7 +208,48 @@ pub const UI = struct {
         return table;
     }
 
+    pub fn handleMouseDown(self: *UI) void {
+        self.clearSelection();
+    }
+
+    /// Returns true if the drag operation was handled
+    pub fn handleMouseDrag(self: *UI, p: Vec2) bool {
+        const cursor_current = self.getCursor(p);
+        if (self.selection) |selection| {
+            switch (cursor_current) {
+                .empty => {},
+                .cell => {},
+                .text => |text_pos| {
+                    const new_selection = TextSelection{
+                        .start = selection.start,
+                        .end = text_pos,
+                    };
+                    self.selection = new_selection;
+                },
+            }
+            return true;
+        }
+        switch (cursor_current) {
+            .empty => {},
+            .cell => {},
+            .text => |text_pos| {
+                const new_selection = TextSelection{
+                    .start = text_pos,
+                    .end = text_pos,
+                };
+                self.selection = new_selection;
+                return true;
+            },
+        }
+        return false;
+    }
+
+    fn clearSelection(self: *UI) void {
+        self.selection = null;
+    }
+
     pub fn handleMouseClick(self: *UI, p: Vec2) void {
+        self.clearSelection();
         self.active_cursor = self.getCursor(p);
     }
 
@@ -942,6 +1010,7 @@ pub const UI = struct {
 
     fn handleEscape(self: *UI) void {
         self.active_cursor = null;
+        self.clearSelection();
     }
 
     fn handleBackspace(self: *UI, allocator: Allocator) void {
@@ -1002,6 +1071,9 @@ pub const UI = struct {
         }
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.hover_cursor_color));
+        }
+        if (self.selection) |selection| {
+            try scene.rects.append(allocator, selection.getRect(self, theme.DARK_THEME.active_cursor_color));
         }
     }
 
