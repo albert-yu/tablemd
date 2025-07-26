@@ -534,19 +534,6 @@ fn handleTouchMoved(event: *const sapp.Event) void {
             const factor = 0.002; // from trial and error on what felt "right"
             const zoom_speed = zoom_distance * factor;
             handleZoom(zoom_speed, current_center);
-        } else {
-            // Handle pan (center movement)
-            const center_dx = current_center[0] - state.touch_state.prev_center[0];
-            const center_dy = current_center[1] - state.touch_state.prev_center[1];
-            if (@abs(center_dx) > TOUCH_THRESHOLD or @abs(center_dy) > TOUCH_THRESHOLD) {
-                // Track velocity for momentum on multi-touch pan too
-                const movement = Vec2{ center_dx, center_dy };
-                state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
-                state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
-
-                state.is_dragging = true;
-                handlePan(center_dx, center_dy);
-            }
         }
 
         state.touch_state.prev_distance = current_distance;
