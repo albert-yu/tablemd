@@ -355,7 +355,11 @@ pub const Renderer = struct {
         defer buffer.deinit(self.allocator);
 
         const dims = font.glyphBitmap(self.allocator, &buffer, glyph_index, scale, scale) catch |err| {
-            std.log.warn("Failed to rasterize glyph U+{X}: {}", .{ codepoint, err });
+            const non_breaking_space = 0x00A0;
+            if (codepoint != non_breaking_space) {
+                // we know this one is missing, so don't log it
+                std.log.warn("Failed to rasterize glyph U+{X}: {}", .{ codepoint, err });
+            }
             // Set empty glyph info for failed glyphs
             try self.glyph_map.put(codepoint, GlyphInfo.empty());
             return;
