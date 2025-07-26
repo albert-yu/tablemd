@@ -208,7 +208,10 @@ pub fn main() void {
 export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
     const text = std.mem.span(text_ptr);
     if (text.len > 0) {
-        state.ui.handlePaste(state.allocator, text) catch {};
+        state.ui.handlePaste(state.allocator, text) catch |err| {
+            std.log.err("Failed to handle paste: {}", .{err});
+            return;
+        };
         updateTableFromCursorState();
     }
 }
