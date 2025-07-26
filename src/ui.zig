@@ -54,11 +54,15 @@ const CellPos = struct {
 const TextPos = struct {
     cell_index: CellIndex,
     pos: Vec2,
+    /// This is the u8 offset into the cell's value slice.
+    /// You cannot assume that incrementing this by 1
+    /// will advance to the next character, since some
+    /// characters are encoded as multiple bytes.
+    ///
     /// Not guaranteed to be a valid index,
     /// as it is possible to point past
-    /// the last character.
-    /// This is mainly used for positioning
-    /// the cursor, not indexing into the text.
+    /// the last character. This is so that we
+    /// can backspace (delete) the last character.
     char_offset: usize,
 };
 
@@ -1464,7 +1468,7 @@ fn findPrevUtf8CharStart(utf8_text: []const u8, current_offset: usize) usize {
 
 fn findNextUtf8CharStart(utf8_text: []const u8, current_offset: usize) usize {
     if (current_offset >= utf8_text.len) return utf8_text.len;
-    
+
     var next_char_start = current_offset;
     if (next_char_start < utf8_text.len) {
         // Move past the current character's bytes
