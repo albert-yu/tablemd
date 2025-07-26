@@ -223,33 +223,18 @@
                         const savedData = event.target.result;
                         if (savedData && savedData instanceof Uint8Array && savedData.length > 0) {
                             console.log('Found saved tables, loading...');
-                            // Ensure the function is available before calling
-                            const loadSavedData = () => {
-                                if (Module._handle_deserialize && Module._malloc && Module._free && Module.HEAPU8) {
-                                    try {
-                                        // Allocate memory in WebAssembly heap
-                                        const dataPtr = Module._malloc(savedData.length);
-                                        Module.HEAPU8.set(savedData, dataPtr);
 
-                                        // Call the deserialize function
-                                        Module._handle_deserialize(dataPtr, savedData.length);
+                            // Allocate memory in WebAssembly heap
+                            const dataPtr = Module._malloc(savedData.length);
+                            Module.HEAPU8.set(savedData, dataPtr);
 
-                                        // Clean up allocated memory
-                                        Module._free(dataPtr);
+                            // Call the deserialize function
+                            Module._handle_deserialize(dataPtr, savedData.length);
 
-                                        console.log('Saved tables loaded successfully');
-                                    } catch (err) {
-                                        console.error('Failed to load saved tables:', err);
-                                    }
-                                } else {
-                                    // Retry after a short delay if functions aren't ready
-                                    console.log('WebAssembly functions not ready, retrying...');
-                                    setTimeout(loadSavedData, 100);
-                                }
-                            };
+                            // Clean up allocated memory
+                            Module._free(dataPtr);
 
-                            // Start the loading process
-                            loadSavedData();
+                            console.log('Saved tables loaded successfully');
                         } else {
                             console.log('No saved tables found');
                         }
@@ -300,15 +285,9 @@
         function debouncedAutoSave() {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
-                if (Module._request_serialize && typeof Module._request_serialize === 'function') {
-                    try {
-                        Module._request_serialize();
-                        console.log('Auto-saved tables');
-                    } catch (err) {
-                        console.error('Failed to auto-save tables:', err);
-                    }
-                } else {
-                    console.warn('Module._request_serialize not available for auto-save');
+                if (Module._request_serialize) {
+                    Module._request_serialize();
+                    console.log('Auto-saved tables');
                 }
             }, SAVE_DELAY);
         }
