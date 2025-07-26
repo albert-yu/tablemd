@@ -20,6 +20,35 @@ mergeInto(LibraryManager.library, {
     },
     set_serialized_tables: function(ptr, len) {
         const buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, len);
-        console.log('got buffer', buffer);
+        // Copy the buffer since it might be invalidated
+        const data = new Uint8Array(buffer);
+
+        // Write to IndexedDB
+        const request = indexedDB.open('tablemd', 1);
+
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('tables')) {
+                db.createObjectStore('tables');
+            }
+        };
+
+        request.onsuccess = function(event) {
+            const db = event.target.result;
+            const transaction = db.transaction(['tables'], 'readwrite');
+            const store = transaction.objectStore('tables');
+
+            store.put(data, 'current_tables').onsuccess = function() {
+                console.log('Tables saved to IndexedDB');
+            };
+
+            transaction.onerror = function() {
+                console.error('Failed to save tables to IndexedDB');
+            };
+        };
+
+        request.onerror = function() {
+            console.error('Failed to open IndexedDB');
+        };
     },
 });
