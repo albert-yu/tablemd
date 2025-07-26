@@ -185,7 +185,7 @@ pub const UI = struct {
         self.active_cursor = self.getCursor(p);
     }
 
-    pub fn handleMouseMove(self: *UI, p: Vec2) void {
+    pub fn handleMouseHover(self: *UI, p: Vec2) void {
         self.hover_cursor = self.getCursor(p);
     }
 

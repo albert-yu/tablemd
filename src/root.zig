@@ -240,6 +240,7 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_MOVE => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
+            const point = getPointForUI(state.mouse[0]);
             if (state.mouse_press_pos) |press_pos| {
                 const delta_x = state.mouse[0][0] - press_pos[0];
                 const delta_y = state.mouse[0][1] - press_pos[1];
@@ -250,8 +251,7 @@ export fn input(ev: ?*const sapp.Event) void {
                     state.mouse_press_pos = state.mouse[0];
                 }
             } else {
-                const point = getPointForUI(state.mouse[0]);
-                state.ui.handleMouseMove(point);
+                state.ui.handleMouseHover(point);
             }
         },
         .MOUSE_SCROLL => {
