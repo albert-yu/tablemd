@@ -367,20 +367,8 @@ fn updateTableFromCursorState() void {
     if (state.ui.active_cursor) |cursor| {
         const table: ?*ui.Table = switch (cursor) {
             .empty => null,
-            .cell => |cell_pos| blk: {
-                if (state.ui.getCellFromIndex(cell_pos.cell_index)) |cell| {
-                    break :blk cell.column.table;
-                } else {
-                    break :blk null;
-                }
-            },
-            .text => |text_pos| blk: {
-                if (state.ui.getCellFromIndex(text_pos.cell_index)) |cell| {
-                    break :blk cell.column.table;
-                } else {
-                    break :blk null;
-                }
-            },
+            .cell => |cell_pos| state.ui.tables.items[cell_pos.cell_index.table_index],
+            .text => |text_pos| state.ui.tables.items[text_pos.cell_index.table_index],
         };
         if (table) |tbl| {
             sendTableToDOM(tbl) catch |err| {
