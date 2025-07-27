@@ -666,6 +666,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
     state.touch_state.num_touches = 0;
     state.touch_state.initial_distance = 0;
     state.touch_state.prev_distance = 0;
+    clearMomentum();
 }
 
 fn clear() void {
