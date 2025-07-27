@@ -27,7 +27,7 @@ To view the app on mobile, you'll need to get your IP address:
 ifconfig en0 | awk '$1 == "inet" {print $2}'
 ```
 
-Then, open `http://<IP_ADDRESS>::6931/root.html` in your mobile browser.
+Then, open `http://<IP_ADDRESS>:6931/root.html` in your mobile browser.
 
 ## Deploy
 
