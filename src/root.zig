@@ -527,11 +527,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
     if (prev_num_touches >= 2 and current_num_touches == 1) {
         // Switch from zoom mode to pan mode
         state.is_dragging = true;
-        // Reset momentum tracking for smooth transition
-        state.touch_state.momentum_sample_index = 0;
-        for (&state.touch_state.momentum_samples) |*sample| {
-            sample.* = Vec2{ 0, 0 };
-        }
+        clearMomentum();
     }
 
     // Update the stored touch count
@@ -560,6 +556,21 @@ fn handleTouchMoved(event: *const sapp.Event) void {
             (state.touch_state.touches[0][0] + state.touch_state.touches[1][0]) * 0.5,
             (state.touch_state.touches[0][1] + state.touch_state.touches[1][1]) * 0.5,
         };
+
+        // Handle two-finger panning
+        if (state.touch_state.prev_center[0] != 0 or state.touch_state.prev_center[1] != 0) {
+            const pan_dx = current_center[0] - state.touch_state.prev_center[0];
+            const pan_dy = current_center[1] - state.touch_state.prev_center[1];
+
+            // Track velocity for momentum (using center movement)
+            const movement = Vec2{ pan_dx, pan_dy };
+            if (!vec2Equal(movement, Vec2{ 0, 0 }, TOUCH_THRESHOLD)) {
+                state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
+                state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
+                state.is_dragging = true;
+                handlePan(pan_dx, pan_dy);
+            }
+        }
 
         // Handle pinch zoom
         if (state.touch_state.prev_distance > TOUCH_THRESHOLD) {
@@ -609,14 +620,13 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
         const current_time = std.time.milliTimestamp();
         const time_since_last_touch = current_time - state.touch_state.last_touch_time;
 
-        // Check if too much time has passed since last touch - if so, ignore momentum
         if (state.touch_state.last_touch_time > 0 and time_since_last_touch <= MOMENTUM_TIMEOUT_MS) {
             // Average the last few movement samples for smooth momentum
             var avg_velocity = Vec2{ 0, 0 };
             var sample_count: f32 = 0;
 
             for (state.touch_state.momentum_samples) |sample| {
-                if (sample[0] != 0 or sample[1] != 0) {
+                if (!vec2Equal(sample, Vec2{ 0, 0 }, TOUCH_THRESHOLD)) {
                     avg_velocity[0] += sample[0];
                     avg_velocity[1] += sample[1];
                     sample_count += 1;
@@ -706,5 +716,15 @@ fn clearTableInDOM() void {
 fn activateMobileKeyboard() void {
     if (builtin.target.cpu.arch.isWasm()) {
         activate_mobile_keyboard();
+    }
+}
+
+fn clearMomentum() void {
+    state.touch_state.has_momentum = false;
+    state.touch_state.velocity = Vec2{ 0, 0 };
+    // Reset momentum tracking for smooth transition
+    state.touch_state.momentum_sample_index = 0;
+    for (&state.touch_state.momentum_samples) |*sample| {
+        sample.* = Vec2{ 0, 0 };
     }
 }
