@@ -545,7 +545,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
 
         state.is_dragging = true;
         handlePan(dx, dy);
-    } else if (current_num_touches >= 2) {
+    } else if (current_num_touches == 2) {
         // Multi-touch - handle as pinch and pan
         const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
         const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
@@ -558,18 +558,16 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         };
 
         // Handle two-finger panning
-        if (state.touch_state.prev_center[0] != 0 or state.touch_state.prev_center[1] != 0) {
-            const pan_dx = current_center[0] - state.touch_state.prev_center[0];
-            const pan_dy = current_center[1] - state.touch_state.prev_center[1];
+        const pan_dx = current_center[0] - state.touch_state.prev_center[0];
+        const pan_dy = current_center[1] - state.touch_state.prev_center[1];
 
-            // Track velocity for momentum (using center movement)
-            const movement = Vec2{ pan_dx, pan_dy };
-            if (!vec2Equal(movement, Vec2{ 0, 0 }, TOUCH_THRESHOLD)) {
-                state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
-                state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
-                state.is_dragging = true;
-                handlePan(pan_dx, pan_dy);
-            }
+        // Track velocity for momentum (using center movement)
+        const movement = Vec2{ pan_dx, pan_dy };
+        if (!vec2Equal(movement, Vec2{ 0, 0 }, TOUCH_THRESHOLD)) {
+            state.touch_state.momentum_samples[state.touch_state.momentum_sample_index] = movement;
+            state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
+            state.is_dragging = true;
+            handlePan(pan_dx, pan_dy);
         }
 
         // Handle pinch zoom
@@ -724,6 +722,7 @@ fn clearMomentum() void {
     state.touch_state.velocity = Vec2{ 0, 0 };
     // Reset momentum tracking for smooth transition
     state.touch_state.momentum_sample_index = 0;
+    state.touch_state.last_touch_time = 0;
     for (&state.touch_state.momentum_samples) |*sample| {
         sample.* = Vec2{ 0, 0 };
     }
