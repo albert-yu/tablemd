@@ -503,14 +503,31 @@ fn handleTouchBegan(event: *const sapp.Event) void {
 fn handleTouchMoved(event: *const sapp.Event) void {
     if (!state.touch_state.active) return;
 
+    const current_num_touches = @as(u32, @intCast(event.num_touches));
+    const prev_num_touches = state.touch_state.num_touches;
+
     // Update touch positions
     var i: u32 = 0;
-    while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
+    while (i < current_num_touches and i < 10) : (i += 1) {
         state.touch_state.prev_touches[i] = state.touch_state.touches[i];
         state.touch_state.touches[i] = Vec2{ event.touches[i].pos_x, event.touches[i].pos_y };
     }
 
-    if (state.touch_state.num_touches == 1) {
+    // Handle transition from 2 touches to 1 touch (zoom to pan)
+    if (prev_num_touches >= 2 and current_num_touches == 1) {
+        // Switch from zoom mode to pan mode
+        state.is_dragging = true;
+        // Reset momentum tracking for smooth transition
+        state.touch_state.momentum_sample_index = 0;
+        for (&state.touch_state.momentum_samples) |*sample| {
+            sample.* = Vec2{ 0, 0 };
+        }
+    }
+
+    // Update the stored touch count
+    state.touch_state.num_touches = current_num_touches;
+
+    if (current_num_touches == 1) {
         // Single touch - handle as pan/swipe
         const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
         const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
@@ -522,7 +539,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
 
         state.is_dragging = true;
         handlePan(dx, dy);
-    } else if (state.touch_state.num_touches >= 2) {
+    } else if (current_num_touches >= 2) {
         // Multi-touch - handle as pinch and pan
         const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
         const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
