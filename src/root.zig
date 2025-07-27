@@ -62,7 +62,7 @@ const TouchState = struct {
     has_momentum: bool = false,
     momentum_samples: [5]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 5,
     momentum_sample_index: u32 = 0,
-    last_touch_time: i64 = 0,
+    last_move_at: i64 = 0,
 };
 
 const state = struct {
@@ -479,11 +479,7 @@ fn handleTouchBegan(event: *const sapp.Event) void {
     state.touch_state.num_touches = @intCast(event.num_touches);
 
     // Stop any existing momentum when user starts new touch
-    state.touch_state.has_momentum = false;
-    state.touch_state.velocity = Vec2{ 0, 0 };
-
-    // Initialize touch time tracking
-    state.touch_state.last_touch_time = std.time.milliTimestamp();
+    clearMomentum();
 
     var i: u32 = 0;
     while (i < @as(u32, @intCast(event.num_touches)) and i < 10) : (i += 1) {
@@ -491,7 +487,7 @@ fn handleTouchBegan(event: *const sapp.Event) void {
         state.touch_state.prev_touches[i] = state.touch_state.touches[i];
     }
 
-    if (state.touch_state.num_touches >= 2) {
+    if (state.touch_state.num_touches == 2) {
         // Initialize pinch gesture
         const dx = state.touch_state.touches[1][0] - state.touch_state.touches[0][0];
         const dy = state.touch_state.touches[1][1] - state.touch_state.touches[0][1];
@@ -511,7 +507,11 @@ fn handleTouchMoved(event: *const sapp.Event) void {
     if (!state.touch_state.active) return;
 
     // Update last touch time
-    state.touch_state.last_touch_time = std.time.milliTimestamp();
+    if (state.is_dragging) {
+        state.touch_state.last_move_at = std.time.milliTimestamp();
+    } else {
+        state.touch_state.last_move_at = 0;
+    }
 
     const current_num_touches = @as(u32, @intCast(event.num_touches));
     const prev_num_touches = state.touch_state.num_touches;
@@ -524,7 +524,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
     }
 
     // Handle transition from 2 touches to 1 touch (zoom to pan)
-    if (prev_num_touches >= 2 and current_num_touches == 1) {
+    if (prev_num_touches == 2 and current_num_touches == 1) {
         // Switch from zoom mode to pan mode
         state.is_dragging = true;
         clearMomentum();
@@ -533,7 +533,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
     // Update the stored touch count
     state.touch_state.num_touches = current_num_touches;
 
-    if (current_num_touches == 1) {
+    if (current_num_touches == 1 and prev_num_touches < 2) {
         // Single touch - handle as pan/swipe
         const dx = state.touch_state.touches[0][0] - state.touch_state.prev_touches[0][0];
         const dy = state.touch_state.touches[0][1] - state.touch_state.prev_touches[0][1];
@@ -616,9 +616,9 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
     // Calculate momentum if we were dragging
     if (state.is_dragging) {
         const current_time = std.time.milliTimestamp();
-        const time_since_last_touch = current_time - state.touch_state.last_touch_time;
+        const time_since_last_touch = current_time - state.touch_state.last_move_at;
 
-        if (state.touch_state.last_touch_time > 0 and time_since_last_touch <= MOMENTUM_TIMEOUT_MS) {
+        if (state.touch_state.last_move_at > 0 and time_since_last_touch <= MOMENTUM_TIMEOUT_MS) {
             // Average the last few movement samples for smooth momentum
             var avg_velocity = Vec2{ 0, 0 };
             var sample_count: f32 = 0;
@@ -655,7 +655,7 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
         state.touch_state.active = false;
         state.touch_state.initial_distance = 0;
         state.touch_state.prev_distance = 0;
-        state.touch_state.last_touch_time = 0;
+        state.touch_state.last_move_at = 0;
     } else if (state.touch_state.num_touches == 1) {
         // Reset pinch state when going from multi-touch to single touch
         state.touch_state.initial_distance = 0;
@@ -722,7 +722,7 @@ fn clearMomentum() void {
     state.touch_state.velocity = Vec2{ 0, 0 };
     // Reset momentum tracking for smooth transition
     state.touch_state.momentum_sample_index = 0;
-    state.touch_state.last_touch_time = 0;
+    state.touch_state.last_move_at = 0;
     for (&state.touch_state.momentum_samples) |*sample| {
         sample.* = Vec2{ 0, 0 };
     }
