@@ -62,7 +62,7 @@ const TouchState = struct {
     has_momentum: bool = false,
     momentum_samples: [5]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 5,
     momentum_sample_index: u32 = 0,
-    last_move_at: i64 = 0,
+    last_dragged_at: i64 = 0,
 };
 
 const state = struct {
@@ -508,9 +508,9 @@ fn handleTouchMoved(event: *const sapp.Event) void {
 
     // Update last touch time
     if (state.is_dragging) {
-        state.touch_state.last_move_at = std.time.milliTimestamp();
+        state.touch_state.last_dragged_at = std.time.milliTimestamp();
     } else {
-        state.touch_state.last_move_at = 0;
+        state.touch_state.last_dragged_at = 0;
     }
 
     const current_num_touches = @as(u32, @intCast(event.num_touches));
@@ -616,9 +616,9 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
     // Calculate momentum if we were dragging
     if (state.is_dragging) {
         const current_time = std.time.milliTimestamp();
-        const time_since_last_touch = current_time - state.touch_state.last_move_at;
+        const time_since_last_touch = current_time - state.touch_state.last_dragged_at;
 
-        if (state.touch_state.last_move_at > 0 and time_since_last_touch <= MOMENTUM_TIMEOUT_MS) {
+        if (state.touch_state.last_dragged_at > 0 and time_since_last_touch <= MOMENTUM_TIMEOUT_MS) {
             // Average the last few movement samples for smooth momentum
             var avg_velocity = Vec2{ 0, 0 };
             var sample_count: f32 = 0;
@@ -655,7 +655,7 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
         state.touch_state.active = false;
         state.touch_state.initial_distance = 0;
         state.touch_state.prev_distance = 0;
-        state.touch_state.last_move_at = 0;
+        state.touch_state.last_dragged_at = 0;
     } else if (state.touch_state.num_touches == 1) {
         // Reset pinch state when going from multi-touch to single touch
         state.touch_state.initial_distance = 0;
@@ -722,7 +722,7 @@ fn clearMomentum() void {
     state.touch_state.velocity = Vec2{ 0, 0 };
     // Reset momentum tracking for smooth transition
     state.touch_state.momentum_sample_index = 0;
-    state.touch_state.last_move_at = 0;
+    state.touch_state.last_dragged_at = 0;
     for (&state.touch_state.momentum_samples) |*sample| {
         sample.* = Vec2{ 0, 0 };
     }
