@@ -596,35 +596,27 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
 
     // Calculate momentum if we were dragging
     if (state.is_dragging) {
-        // Weighted average with recent samples weighted more heavily
-        var weighted_velocity = Vec2{ 0, 0 };
-        var total_weight: f32 = 0;
+        // Average the last few movement samples for smooth momentum
+        var avg_velocity = Vec2{ 0, 0 };
+        var sample_count: f32 = 0;
 
-        // Weights for each sample (most recent to oldest): 0.4, 0.3, 0.2, 0.1, 0.05
-        const weights = [_]f32{ 0.4, 0.3, 0.2, 0.1, 0.05 };
-
-        for (state.touch_state.momentum_samples, 0..) |sample, i| {
+        for (state.touch_state.momentum_samples) |sample| {
             if (sample[0] != 0 or sample[1] != 0) {
-                // Calculate index relative to most recent sample
-                const relative_index = (state.touch_state.momentum_sample_index + 5 - 1 - @as(u32, @intCast(i))) % 5;
-                const weight = weights[relative_index];
-
-                weighted_velocity[0] += sample[0] * weight;
-                weighted_velocity[1] += sample[1] * weight;
-                total_weight += weight;
+                avg_velocity[0] += sample[0];
+                avg_velocity[1] += sample[1];
+                sample_count += 1;
             }
         }
 
-        if (total_weight > 0) {
-            // Normalize by total weight
-            weighted_velocity[0] /= total_weight;
-            weighted_velocity[1] /= total_weight;
+        if (sample_count > 0) {
+            avg_velocity[0] /= sample_count;
+            avg_velocity[1] /= sample_count;
 
             // Scale and clamp momentum
-            const speed = @sqrt(weighted_velocity[0] * weighted_velocity[0] + weighted_velocity[1] * weighted_velocity[1]);
+            const speed = @sqrt(avg_velocity[0] * avg_velocity[0] + avg_velocity[1] * avg_velocity[1]);
             if (speed > MOMENTUM_MIN_SPEED) {
                 const scale = @min(MOMENTUM_MAX_SPEED / speed, 3.0); // Boost momentum but cap it
-                state.touch_state.velocity = Vec2{ weighted_velocity[0] * scale, weighted_velocity[1] * scale };
+                state.touch_state.velocity = Vec2{ avg_velocity[0] * scale, avg_velocity[1] * scale };
                 state.touch_state.has_momentum = true;
             }
         }
