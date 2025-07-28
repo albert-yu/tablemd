@@ -186,9 +186,9 @@ pub const Column = struct {
                 try scene.rects.append(allocator, .{
                     .color = theme.DARK_THEME.text_color,
                     .x = position[0],
-                    .y = pos_y - cell_dims.height / 50.0,
+                    .y = pos_y - lineWidth(units),
                     .width = self_size.width,
-                    .height = cell_dims.height / 50.0,
+                    .height = lineWidth(units),
                     .corners = .{ 0, 0, 0, 0 },
                     .sigma = 1e-6,
                 });
@@ -419,9 +419,9 @@ pub const Table = struct {
             if (i < self.columns.items.len - 1) {
                 try scene.rects.append(allocator, .{
                     .color = theme.DARK_THEME.text_color,
-                    .x = pos_x - cell_units.width / 50.0,
+                    .x = pos_x - lineWidth(units),
                     .y = actual_position_y,
-                    .width = cell_units.width / 50.0,
+                    .width = lineWidth(units),
                     .height = rect_size.height,
                     .corners = .{ 0, 0, 0, 0 },
                     .sigma = 1e-6,
@@ -585,6 +585,10 @@ pub const Table = struct {
         return table;
     }
 };
+
+fn lineWidth(units: Units) f32 {
+    return units.cell.width / 50.0;
+}
 
 test "table serialization and deserialization" {
     const testing = std.testing;
