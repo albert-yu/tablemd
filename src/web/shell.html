@@ -98,12 +98,11 @@
             }
 
             .toggle-button svg {
-                transform: rotate(-180deg);
                 transition: transform 0.3s ease-in-out;
             }
 
             .side-panel.collapsed ~ .toggle-button svg {
-                transform: rotate(0deg);
+                transform: rotate(-180deg);
             }
 
             @media (max-width: 768px) {
