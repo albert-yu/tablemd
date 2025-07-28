@@ -1,238 +1,259 @@
 <!doctype html>
 <html lang="en-us">
+    <head>
+        <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+        <meta charset="utf-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+        />
+        <title>tablemd</title>
+        <style>
+            body {
+                margin: 0;
+                background-color: black;
+            }
 
-<head>
-    <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
-    <meta charset="utf-8" />
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
-    <title>tablemd</title>
-    <style>
-        body {
-            margin: 0;
-            background-color: black;
-        }
+            .game {
+                position: absolute;
+                top: 0px;
+                left: 0px;
+                margin: 0px;
+                border: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                display: block;
+                image-rendering: optimizeSpeed;
+                image-rendering: -moz-crisp-edges;
+                image-rendering: -o-crisp-edges;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: optimize-contrast;
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+                -ms-interpolation-mode: nearest-neighbor;
+            }
 
-        .game {
-            position: absolute;
-            top: 0px;
-            left: 0px;
-            margin: 0px;
-            border: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            display: block;
-            image-rendering: optimizeSpeed;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: -o-crisp-edges;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: optimize-contrast;
-            image-rendering: crisp-edges;
-            image-rendering: pixelated;
-            -ms-interpolation-mode: nearest-neighbor;
-        }
+            table,
+            th,
+            td {
+                border: 1px solid white;
+                border-collapse: collapse;
+            }
 
-        table,
-        th,
-        td {
-            border: 1px solid white;
-            border-collapse: collapse;
-        }
+            th,
+            td {
+                padding: 5px;
+            }
 
-        th,
-        td {
-            padding: 5px;
-        }
+            .side-panel {
+                position: fixed;
+                bottom: 85px;
+                right: 15px;
+                width: min(400px, 80vw);
+                height: calc(100vh - 100px);
+                background-color: rgba(14, 33, 47, 0.9);
+                border: rgba(120, 120, 120, 0.9) solid 1px;
+                border-radius: 18px;
+                backdrop-filter: blur(10px);
+                z-index: 1000;
+                padding: 10px;
+                box-sizing: border-box;
+                color: white;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                transition: opacity 0.3s ease-in-out;
+            }
 
-        .side-panel {
-            position: fixed;
-            bottom: 85px;
-            right: 15px;
-            width: min(400px, 80vw);
-            height: calc(100vh - 100px);
-            background-color: rgba(14, 33, 47, 0.9);
-            border: rgba(120, 120, 120, 0.9) solid 1px;
-            border-radius: 18px;
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            padding: 10px;
-            box-sizing: border-box;
-            color: white;
-            font-family:
-                -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                sans-serif;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            transition: opacity 0.3s ease-in-out;
-        }
+            .side-panel.collapsed {
+                opacity: 0;
+                pointer-events: none;
+            }
 
-        .side-panel.collapsed {
-            opacity: 0;
-            pointer-events: none;
-        }
+            .toggle-button {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                background-color: rgba(14, 33, 47, 0.9);
+                border: rgba(120, 120, 120, 0.9) solid 1px;
+                border-radius: 50%;
+                backdrop-filter: blur(10px);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                transition: background-color 0.2s;
+                z-index: 1001;
+            }
 
-        .toggle-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            background-color: rgba(14, 33, 47, 0.9);
-            border: rgba(120, 120, 120, 0.9) solid 1px;
-            border-radius: 50%;
-            backdrop-filter: blur(10px);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            transition: background-color 0.2s;
-            z-index: 1001;
-        }
+            .toggle-button:hover {
+                background-color: rgba(21, 50, 71, 0.9);
+            }
 
-        .toggle-button:hover {
-            background-color: rgba(21, 50, 71, 0.9);
-        }
+            .toggle-button svg {
+                transform: rotate(-180deg);
+                transition: transform 0.3s ease-in-out;
+            }
 
-        .toggle-button svg {
-            transform: rotate(-180deg);
-            transition: transform 0.3s ease-in-out;
-        }
+            .side-panel.collapsed ~ .toggle-button svg {
+                transform: rotate(0deg);
+            }
 
-        .side-panel.collapsed~.toggle-button svg {
-            transform: rotate(0deg);
-        }
+            .code-section {
+                flex: 1;
+                background-color: rgba(21, 50, 71, 0.8);
+                border-radius: 8px;
+                position: relative;
+            }
 
-        .code-section {
-            flex: 1;
-            background-color: rgba(21, 50, 71, 0.8);
-            border-radius: 8px;
-            position: relative;
-        }
+            .overflow-container {
+                overflow: auto;
+                width: 100%;
+                height: 100%;
+            }
 
-        .overflow-container {
-            overflow: auto;
-            width: 100%;
-            height: 100%;
-        }
+            #markdown-source {
+                padding: 12px 10px;
+                font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+                font-size: 12px;
+                line-height: 1.4;
+                white-space: pre;
+            }
 
-        #markdown-source {
-            padding: 12px 10px;
-            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            white-space: pre;
-        }
+            .copy-button {
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                background-color: rgba(28, 67, 95, 0.9);
+                border: 1px solid rgba(120, 120, 120, 0.7);
+                border-radius: 4px;
+                color: white;
+                padding: 6px 8px;
+                cursor: pointer;
+                font-size: 11px;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                transition: background-color 0.2s;
+            }
 
-        .copy-button {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background-color: rgba(28, 67, 95, 0.9);
-            border: 1px solid rgba(120, 120, 120, 0.7);
-            border-radius: 4px;
-            color: white;
-            padding: 6px 8px;
-            cursor: pointer;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: background-color 0.2s;
-        }
+            .copy-button:hover {
+                background-color: rgba(35, 84, 119, 0.9);
+            }
 
-        .copy-button:hover {
-            background-color: rgba(35, 84, 119, 0.9);
-        }
+            .copy-button:active {
+                background-color: rgba(21, 50, 71, 0.9);
+            }
 
-        .copy-button:active {
-            background-color: rgba(21, 50, 71, 0.9);
-        }
+            #html-render {
+                padding: 12px 10px;
+                overflow: auto;
+            }
 
-        #html-render {
-            padding: 12px 10px;
-            overflow: auto;
-        }
+            input.invisible {
+                position: absolute;
+                left: -9999px;
+                opacity: 0;
+                pointer-events: none;
+            }
 
-        input.invisible {
-            position: absolute;
-            left: -9999px;
-            opacity: 0;
-            pointer-events: none;
-        }
+            .menu-item {
+                width: 100%;
+                margin: 10px 0 0 0;
+                padding: 12px;
+                border: 1px solid rgba(120, 120, 120, 0.7);
+                border-radius: 6px;
+                background-color: rgba(21, 50, 71, 0.6);
+                color: white;
+                cursor: pointer;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                font-size: 14px;
+                transition: background-color 0.2s;
+            }
 
-        .menu-item {
-            width: 100%;
-            margin: 10px 0 0 0;
-            padding: 12px;
-            border: 1px solid rgba(120, 120, 120, 0.7);
-            border-radius: 6px;
-            background-color: rgba(21, 50, 71, 0.6);
-            color: white;
-            cursor: pointer;
-            font-family:
-                -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                sans-serif;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
+            .menu-item:hover {
+                background-color: rgba(21, 50, 71, 0.8);
+            }
 
-        .menu-item:hover {
-            background-color: rgba(21, 50, 71, 0.8);
-        }
+            .menu-item.danger {
+                background-color: rgba(139, 69, 19, 0.6);
+            }
 
-        .menu-item.danger {
-            background-color: rgba(139, 69, 19, 0.6);
-        }
+            .menu-item.danger:hover {
+                background-color: rgba(139, 69, 19, 0.8);
+                color: #ffcccb;
+            }
+        </style>
+    </head>
 
-        .menu-item.danger:hover {
-            background-color: rgba(139, 69, 19, 0.8);
-            color: #ffcccb;
-        }
-    </style>
-</head>
-
-<body>
-    <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div class="side-panel" id="side-panel">
-        <input id="mobile-keyboard-focus" class="invisible" />
-        <div class="code-section">
-            <div class="overflow-container">
-                <div id="markdown-source"></div>
+    <body>
+        <canvas
+            class="game"
+            id="canvas"
+            oncontextmenu="event.preventDefault()"
+        ></canvas>
+        <div class="side-panel" id="side-panel">
+            <input id="mobile-keyboard-focus" class="invisible" />
+            <div class="code-section">
+                <div class="overflow-container">
+                    <div id="markdown-source"></div>
+                </div>
+                <button class="copy-button" onclick="copyCodeSection()">
+                    <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                        />
+                    </svg>
+                    Copy
+                </button>
             </div>
-            <button class="copy-button" onclick="copyCodeSection()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-                </svg>
-                Copy
+            <div class="code-section">
+                <div class="overflow-container">
+                    <div id="html-render"></div>
+                </div>
+                <button class="copy-button" onclick="copyHtmlSection()">
+                    <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                        />
+                    </svg>
+                    Copy HTML
+                </button>
+            </div>
+            <button class="menu-item danger" onclick="clearAllTables()">
+                Clear all tables
             </button>
         </div>
-        <div class="code-section">
-            <div class="overflow-container">
-                <div id="html-render"></div>
-            </div>
-            <button class="copy-button" onclick="copyHtmlSection()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-                </svg>
-                Copy HTML
-            </button>
-        </div>
-        <button class="menu-item danger" onclick="clearAllTables()">
-            Clear all tables
+        <button class="toggle-button" onclick="toggleSidePanel()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7 14l5-5 5 5z" />
+            </svg>
         </button>
         <script type="text/javascript">
             var Module = {
                 preRun: [],
                 print: (function () {
                     return function (text) {
-                        text = Array.prototype.slice
-                            .call(arguments)
-                            .join(" ");
+                        text = Array.prototype.slice.call(arguments).join(" ");
                         console.log(text);
                     };
                 })(),
@@ -270,9 +291,7 @@
                                 savedData instanceof Uint8Array &&
                                 savedData.length > 0
                             ) {
-                                console.log(
-                                    "Found saved tables, loading...",
-                                );
+                                console.log("Found saved tables, loading...");
 
                                 let dataPtr = null;
                                 let retryCount = 0;
@@ -284,10 +303,7 @@
                                         dataPtr = Module._malloc(
                                             savedData.length,
                                         );
-                                        Module.HEAPU8.set(
-                                            savedData,
-                                            dataPtr,
-                                        );
+                                        Module.HEAPU8.set(savedData, dataPtr);
 
                                         // Call the deserialize function
                                         Module._handle_deserialize(
@@ -305,8 +321,8 @@
                                     } catch (error) {
                                         console.error(
                                             "Failed to deserialize tables (attempt " +
-                                            (retryCount + 1) +
-                                            "):",
+                                                (retryCount + 1) +
+                                                "):",
                                             error,
                                         );
 
@@ -321,15 +337,12 @@
                                             console.log(
                                                 "Retrying deserialization in 100ms...",
                                             );
-                                            setTimeout(
-                                                attemptDeserialize,
-                                                100,
-                                            );
+                                            setTimeout(attemptDeserialize, 100);
                                         } else {
                                             console.error(
                                                 "Failed to deserialize tables after " +
-                                                maxRetries +
-                                                " attempts",
+                                                    maxRetries +
+                                                    " attempts",
                                             );
                                         }
                                     }
@@ -349,9 +362,7 @@
                     };
 
                     request.onerror = function () {
-                        console.error(
-                            "Failed to open IndexedDB for reading",
-                        );
+                        console.error("Failed to open IndexedDB for reading");
                     };
                 },
             };
@@ -360,15 +371,13 @@
             };
 
             function copyCodeSection() {
-                const codeSection =
-                    document.getElementById("markdown-source");
+                const codeSection = document.getElementById("markdown-source");
                 const text = codeSection.innerText;
                 navigator.clipboard
                     .writeText(text)
                     .then(function () {
                         // Provide visual feedback
-                        const button =
-                            document.querySelector(".copy-button");
+                        const button = document.querySelector(".copy-button");
                         if (!button) {
                             return;
                         }
@@ -452,10 +461,7 @@
             }
 
             // Initialize side panel state when DOM is loaded
-            document.addEventListener(
-                "DOMContentLoaded",
-                initializeSidePanel,
-            );
+            document.addEventListener("DOMContentLoaded", initializeSidePanel);
 
             // Debounced auto-save functionality
             let saveTimeout;
@@ -493,10 +499,7 @@
                             handleWebPaste(text);
                         })
                         .catch(function (err) {
-                            console.error(
-                                "Failed to read clipboard: ",
-                                err,
-                            );
+                            console.error("Failed to read clipboard: ", err);
                         });
                 }
             });
@@ -532,12 +535,5 @@
             });
         </script>
         {{{ SCRIPT }}}
-    </div>
-    <button class="toggle-button" onclick="toggleSidePanel()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7 14l5-5 5 5z" />
-        </svg>
-    </button>
-</body>
-
+    </body>
 </html>
