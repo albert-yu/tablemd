@@ -2,7 +2,7 @@
 <html lang="en-us">
 
 <head>
-    <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
@@ -47,7 +47,7 @@
 
         .side-panel {
             position: fixed;
-            top: 15px;
+            bottom: 85px;
             right: 15px;
             width: min(400px, 80vw);
             height: calc(100vh - 100px);
@@ -59,7 +59,9 @@
             padding: 10px;
             box-sizing: border-box;
             color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family:
+                -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                sans-serif;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -95,11 +97,12 @@
         }
 
         .toggle-button svg {
+            transform: rotate(-180deg);
             transition: transform 0.3s ease-in-out;
         }
 
-        .side-panel.collapsed .toggle-button svg {
-            transform: rotate(180deg);
+        .side-panel.collapsed~.toggle-button svg {
+            transform: rotate(0deg);
         }
 
         .code-section {
@@ -117,7 +120,7 @@
 
         #markdown-source {
             padding: 12px 10px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
             font-size: 12px;
             line-height: 1.4;
             white-space: pre;
@@ -169,7 +172,9 @@
             background-color: rgba(21, 50, 71, 0.6);
             color: white;
             cursor: pointer;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family:
+                -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                sans-serif;
             font-size: 14px;
             transition: background-color 0.2s;
         }
@@ -191,17 +196,11 @@
 
 <body>
     <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <button class="toggle-button" onclick="toggleSidePanel()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
-        </svg>
-    </button>
     <div class="side-panel" id="side-panel">
         <input id="mobile-keyboard-focus" class="invisible" />
         <div class="code-section">
             <div class="overflow-container">
-                <div id="markdown-source">
-                </div>
+                <div id="markdown-source"></div>
             </div>
             <button class="copy-button" onclick="copyCodeSection()">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -213,8 +212,7 @@
         </div>
         <div class="code-section">
             <div class="overflow-container">
-                <div id="html-render">
-                </div>
+                <div id="html-render"></div>
             </div>
             <button class="copy-button" onclick="copyHtmlSection()">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -224,13 +222,17 @@
                 Copy HTML
             </button>
         </div>
-        <button class="menu-item danger" onclick="clearAllTables()">Clear all tables</button>
+        <button class="menu-item danger" onclick="clearAllTables()">
+            Clear all tables
+        </button>
         <script type="text/javascript">
             var Module = {
                 preRun: [],
                 print: (function () {
                     return function (text) {
-                        text = Array.prototype.slice.call(arguments).join(" ");
+                        text = Array.prototype.slice
+                            .call(arguments)
+                            .join(" ");
                         console.log(text);
                     };
                 })(),
@@ -242,24 +244,35 @@
                     console.log("Initialized");
 
                     // Check IndexedDB for saved tables
-                    const request = indexedDB.open('tablemd', 1);
+                    const request = indexedDB.open("tablemd", 1);
 
                     request.onupgradeneeded = function (event) {
                         const db = event.target.result;
-                        if (!db.objectStoreNames.contains('tables')) {
-                            db.createObjectStore('tables');
+                        if (!db.objectStoreNames.contains("tables")) {
+                            db.createObjectStore("tables");
                         }
                     };
 
                     request.onsuccess = function (event) {
                         const db = event.target.result;
-                        const transaction = db.transaction(['tables'], 'readonly');
-                        const store = transaction.objectStore('tables');
+                        const transaction = db.transaction(
+                            ["tables"],
+                            "readonly",
+                        );
+                        const store = transaction.objectStore("tables");
 
-                        store.get('current_tables').onsuccess = function (event) {
+                        store.get("current_tables").onsuccess = function (
+                            event,
+                        ) {
                             const savedData = event.target.result;
-                            if (savedData && savedData instanceof Uint8Array && savedData.length > 0) {
-                                console.log('Found saved tables, loading...');
+                            if (
+                                savedData &&
+                                savedData instanceof Uint8Array &&
+                                savedData.length > 0
+                            ) {
+                                console.log(
+                                    "Found saved tables, loading...",
+                                );
 
                                 let dataPtr = null;
                                 let retryCount = 0;
@@ -268,19 +281,34 @@
                                 function attemptDeserialize() {
                                     try {
                                         // Allocate memory in WebAssembly heap
-                                        dataPtr = Module._malloc(savedData.length);
-                                        Module.HEAPU8.set(savedData, dataPtr);
+                                        dataPtr = Module._malloc(
+                                            savedData.length,
+                                        );
+                                        Module.HEAPU8.set(
+                                            savedData,
+                                            dataPtr,
+                                        );
 
                                         // Call the deserialize function
-                                        Module._handle_deserialize(dataPtr, savedData.length);
+                                        Module._handle_deserialize(
+                                            dataPtr,
+                                            savedData.length,
+                                        );
 
                                         // Clean up allocated memory
                                         Module._free(dataPtr);
                                         dataPtr = null;
 
-                                        console.log('Saved tables loaded successfully');
+                                        console.log(
+                                            "Saved tables loaded successfully",
+                                        );
                                     } catch (error) {
-                                        console.error('Failed to deserialize tables (attempt ' + (retryCount + 1) + '):', error);
+                                        console.error(
+                                            "Failed to deserialize tables (attempt " +
+                                            (retryCount + 1) +
+                                            "):",
+                                            error,
+                                        );
 
                                         // Clean up allocated memory if it exists
                                         if (dataPtr !== null) {
@@ -290,91 +318,120 @@
 
                                         retryCount++;
                                         if (retryCount < maxRetries) {
-                                            console.log('Retrying deserialization in 100ms...');
-                                            setTimeout(attemptDeserialize, 100);
+                                            console.log(
+                                                "Retrying deserialization in 100ms...",
+                                            );
+                                            setTimeout(
+                                                attemptDeserialize,
+                                                100,
+                                            );
                                         } else {
-                                            console.error('Failed to deserialize tables after ' + maxRetries + ' attempts');
+                                            console.error(
+                                                "Failed to deserialize tables after " +
+                                                maxRetries +
+                                                " attempts",
+                                            );
                                         }
                                     }
                                 }
 
                                 attemptDeserialize();
                             } else {
-                                console.log('No saved tables found');
+                                console.log("No saved tables found");
                             }
                         };
 
                         transaction.onerror = function () {
-                            console.error('Failed to read tables from IndexedDB');
+                            console.error(
+                                "Failed to read tables from IndexedDB",
+                            );
                         };
                     };
 
                     request.onerror = function () {
-                        console.error('Failed to open IndexedDB for reading');
+                        console.error(
+                            "Failed to open IndexedDB for reading",
+                        );
                     };
-                }
+                },
             };
             window.onerror = function () {
                 console.log("onerror: " + event.message);
             };
 
             function copyCodeSection() {
-                const codeSection = document.getElementById('markdown-source');
+                const codeSection =
+                    document.getElementById("markdown-source");
                 const text = codeSection.innerText;
-                navigator.clipboard.writeText(text).then(function () {
-                    // Provide visual feedback
-                    const button = document.querySelector('.copy-button');
-                    if (!button) {
-                        return;
-                    }
-                    const originalText = button.innerHTML;
-                    button.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
-                    setTimeout(() => {
-                        button.innerHTML = originalText;
-                    }, 2000);
-                }).catch(function (err) {
-                    console.error('Failed to copy text: ', err);
-                });
+                navigator.clipboard
+                    .writeText(text)
+                    .then(function () {
+                        // Provide visual feedback
+                        const button =
+                            document.querySelector(".copy-button");
+                        if (!button) {
+                            return;
+                        }
+                        const originalText = button.innerHTML;
+                        button.innerHTML =
+                            '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
+                        setTimeout(() => {
+                            button.innerHTML = originalText;
+                        }, 2000);
+                    })
+                    .catch(function (err) {
+                        console.error("Failed to copy text: ", err);
+                    });
             }
 
             function copyHtmlSection() {
-                const htmlSection = document.getElementById('html-render');
+                const htmlSection = document.getElementById("html-render");
                 const html = htmlSection.innerHTML;
-                navigator.clipboard.writeText(html).then(function () {
-                    // Provide visual feedback
-                    const button = event.target.closest('.copy-button');
-                    if (!button) {
-                        return;
-                    }
-                    const originalText = button.innerHTML;
-                    button.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
-                    setTimeout(() => {
-                        button.innerHTML = originalText;
-                    }, 2000);
-                }).catch(function (err) {
-                    console.error('Failed to copy HTML: ', err);
-                });
+                navigator.clipboard
+                    .writeText(html)
+                    .then(function () {
+                        // Provide visual feedback
+                        const button = event.target.closest(".copy-button");
+                        if (!button) {
+                            return;
+                        }
+                        const originalText = button.innerHTML;
+                        button.innerHTML =
+                            '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
+                        setTimeout(() => {
+                            button.innerHTML = originalText;
+                        }, 2000);
+                    })
+                    .catch(function (err) {
+                        console.error("Failed to copy HTML: ", err);
+                    });
             }
 
             function toggleSidePanel() {
-                const sidePanel = document.getElementById('side-panel');
-                sidePanel.classList.toggle('collapsed');
+                const sidePanel = document.getElementById("side-panel");
+                sidePanel.classList.toggle("collapsed");
             }
 
-
             function clearAllTables() {
-                if (confirm('Are you sure you want to clear all tables? This action cannot be undone.')) {
+                if (
+                    confirm(
+                        "Are you sure you want to clear all tables? This action cannot be undone.",
+                    )
+                ) {
                     if (Module._clear_tables) {
                         Module._clear_tables();
-                        console.log('Cleared all tables');
+                        console.log("Cleared all tables");
 
                         // Also clear from IndexedDB
-                        const request = indexedDB.open('tablemd', 1);
+                        const request = indexedDB.open("tablemd", 1);
                         request.onsuccess = function (event) {
                             const db = event.target.result;
-                            const transaction = db.transaction(['tables'], 'readwrite');
-                            const store = transaction.objectStore('tables');
-                            store.delete('current_tables');
+                            const transaction = db.transaction(
+                                ["tables"],
+                                "readwrite",
+                            );
+                            const store = transaction.objectStore("tables");
+                            store.delete("current_tables");
                         };
                     }
                 }
@@ -382,16 +439,23 @@
 
             // Check if on mobile and collapse side panel on startup
             function initializeSidePanel() {
-                const sidePanel = document.getElementById('side-panel');
-                const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const sidePanel = document.getElementById("side-panel");
+                const isMobile =
+                    window.innerWidth <= 768 ||
+                    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                        navigator.userAgent,
+                    );
 
                 if (isMobile) {
-                    sidePanel.classList.add('collapsed');
+                    sidePanel.classList.add("collapsed");
                 }
             }
 
             // Initialize side panel state when DOM is loaded
-            document.addEventListener('DOMContentLoaded', initializeSidePanel);
+            document.addEventListener(
+                "DOMContentLoaded",
+                initializeSidePanel,
+            );
 
             // Debounced auto-save functionality
             let saveTimeout;
@@ -402,7 +466,7 @@
                 saveTimeout = setTimeout(() => {
                     if (Module._request_serialize) {
                         Module._request_serialize();
-                        console.log('Auto-saved tables');
+                        console.log("Auto-saved tables");
                     }
                 }, SAVE_DELAY);
             }
@@ -420,33 +484,60 @@
             }
 
             // Add keyboard event listener for paste
-            document.addEventListener('keydown', function (event) {
-                if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+            document.addEventListener("keydown", function (event) {
+                if ((event.ctrlKey || event.metaKey) && event.key === "v") {
                     event.preventDefault();
-                    navigator.clipboard.readText().then(function (text) {
-                        handleWebPaste(text);
-                    }).catch(function (err) {
-                        console.error('Failed to read clipboard: ', err);
-                    });
+                    navigator.clipboard
+                        .readText()
+                        .then(function (text) {
+                            handleWebPaste(text);
+                        })
+                        .catch(function (err) {
+                            console.error(
+                                "Failed to read clipboard: ",
+                                err,
+                            );
+                        });
                 }
             });
 
             // Add keyboard event listeners for auto-save on typing
-            document.addEventListener('keydown', function (event) {
+            document.addEventListener("keydown", function (event) {
                 // Skip modifier-only keys and function keys
-                if (event.ctrlKey || event.metaKey || event.altKey ||
-                    event.key.startsWith('F') ||
-                    ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab', 'Escape'].includes(event.key)) {
+                if (
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.altKey ||
+                    event.key.startsWith("F") ||
+                    [
+                        "Shift",
+                        "Control",
+                        "Alt",
+                        "Meta",
+                        "CapsLock",
+                        "Tab",
+                        "Escape",
+                    ].includes(event.key)
+                ) {
                     return;
                 }
 
                 // Trigger debounced auto-save for text input keys
-                if (event.key.length === 1 || ['Backspace', 'Delete', 'Enter'].includes(event.key)) {
+                if (
+                    event.key.length === 1 ||
+                    ["Backspace", "Delete", "Enter"].includes(event.key)
+                ) {
                     debouncedAutoSave();
                 }
             });
         </script>
         {{{ SCRIPT }}}
+    </div>
+    <button class="toggle-button" onclick="toggleSidePanel()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 14l5-5 5 5z" />
+        </svg>
+    </button>
 </body>
 
 </html>
