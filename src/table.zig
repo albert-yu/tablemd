@@ -177,10 +177,22 @@ pub const Column = struct {
 
     pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
         var pos_y = position[1];
-        for (self.data.items) |cell| {
+        const self_size = self.size(units);
+        for (self.data.items, 0..) |cell, i| {
             const cell_dims = cell.size(units);
             try cell.addSelfToScene(scene, allocator, units, Vec2{ position[0], pos_y });
             pos_y += cell_dims.height;
+            if (i < self.data.items.len - 1) {
+                try scene.rects.append(allocator, .{
+                    .color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+                    .x = position[0],
+                    .y = pos_y - cell_dims.height / 50.0,
+                    .width = self_size.width,
+                    .height = cell_dims.height / 50.0,
+                    .corners = .{ 0, 0, 0, 0 },
+                    .sigma = 1e-6,
+                });
+            }
         }
     }
 };
