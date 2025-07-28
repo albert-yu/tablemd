@@ -106,6 +106,13 @@
                 transform: rotate(0deg);
             }
 
+            @media (max-width: 768px) {
+                .side-panel {
+                    /* Adjust height for mobile */
+                    height: calc(90vh - 100px);
+                }
+            }
+
             .code-section {
                 flex: 1;
                 background-color: rgba(21, 50, 71, 0.8);
