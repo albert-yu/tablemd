@@ -268,6 +268,11 @@ export fn request_serialize() void {
     sendSerializedTables(serialized_tables);
 }
 
+export fn clear_tables() void {
+    state.ui.clearTables(state.allocator);
+    updateTableFromCursorState();
+}
+
 const PRINT_DOM_STUFF = false;
 
 fn setHtmlRender(html: []const u8) void {

@@ -150,6 +150,14 @@ pub const UI = struct {
         self.tables.deinit(allocator);
     }
 
+    pub fn clearTables(self: *UI, allocator: Allocator) void {
+        for (self.tables.items) |table| {
+            table.deinit(allocator);
+            allocator.destroy(table);
+        }
+        self.tables.clearRetainingCapacity();
+    }
+
     pub fn getCellFromIndex(self: *UI, cell_index: CellIndex) ?*Cell {
         if (cell_index.table_index >= self.tables.items.len) return null;
         const table = self.tables.items[cell_index.table_index];
