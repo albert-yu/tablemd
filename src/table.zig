@@ -184,7 +184,7 @@ pub const Column = struct {
             pos_y += cell_dims.height;
             if (i < self.data.items.len - 1) {
                 try scene.rects.append(allocator, .{
-                    .color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+                    .color = theme.DARK_THEME.text_color,
                     .x = position[0],
                     .y = pos_y - cell_dims.height / 50.0,
                     .width = self_size.width,
@@ -418,7 +418,7 @@ pub const Table = struct {
             // Add white column separator line
             if (i < self.columns.items.len - 1) {
                 try scene.rects.append(allocator, .{
-                    .color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+                    .color = theme.DARK_THEME.text_color,
                     .x = pos_x - cell_units.width / 50.0,
                     .y = actual_position_y,
                     .width = cell_units.width / 50.0,
