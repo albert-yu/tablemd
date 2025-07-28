@@ -398,10 +398,23 @@ pub const Table = struct {
         });
 
         var pos_x = actual_position_x;
-        for (self.columns.items) |column| {
+        for (self.columns.items, 0..) |column, i| {
             const col_size = column.size(units);
             try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
+
+            // Add white column separator line (except after the last column)
+            if (i < self.columns.items.len - 1) {
+                try scene.rects.append(allocator, .{
+                    .color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+                    .x = pos_x,
+                    .y = actual_position_y,
+                    .width = cell_units.width / 50.0,
+                    .height = rect_size.height,
+                    .corners = .{ 0, 0, 0, 0 },
+                    .sigma = 1e-6,
+                });
+            }
         }
     }
 
