@@ -401,13 +401,12 @@ pub const Table = struct {
         for (self.columns.items, 0..) |column, i| {
             const col_size = column.size(units);
             try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
-            pos_x += col_size.width;
 
-            // Add white column separator line (except after the last column)
-            if (i < self.columns.items.len - 1) {
+            // Add white column separator line (except before the first column)
+            if (i > 0) {
                 try scene.rects.append(allocator, .{
                     .color = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
-                    .x = pos_x,
+                    .x = pos_x - cell_units.width / 50.0,
                     .y = actual_position_y,
                     .width = cell_units.width / 50.0,
                     .height = rect_size.height,
@@ -415,6 +414,7 @@ pub const Table = struct {
                     .sigma = 1e-6,
                 });
             }
+            pos_x += col_size.width;
         }
     }
 
