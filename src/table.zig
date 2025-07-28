@@ -177,10 +177,22 @@ pub const Column = struct {
 
     pub fn addSelfToScene(self: Column, scene: *Scene, allocator: Allocator, units: Units, position: Vec2) !void {
         var pos_y = position[1];
-        for (self.data.items) |cell| {
+        const self_size = self.size(units);
+        for (self.data.items, 0..) |cell, i| {
             const cell_dims = cell.size(units);
             try cell.addSelfToScene(scene, allocator, units, Vec2{ position[0], pos_y });
             pos_y += cell_dims.height;
+            if (i < self.data.items.len - 1) {
+                try scene.rects.append(allocator, .{
+                    .color = theme.DARK_THEME.text_color,
+                    .x = position[0],
+                    .y = pos_y - lineWidth(units),
+                    .width = self_size.width,
+                    .height = lineWidth(units),
+                    .corners = .{ 0, 0, 0, 0 },
+                    .sigma = 1e-6,
+                });
+            }
         }
     }
 };
@@ -398,10 +410,23 @@ pub const Table = struct {
         });
 
         var pos_x = actual_position_x;
-        for (self.columns.items) |column| {
+        for (self.columns.items, 0..) |column, i| {
             const col_size = column.size(units);
             try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
+
+            // Add white column separator line
+            if (i < self.columns.items.len - 1) {
+                try scene.rects.append(allocator, .{
+                    .color = theme.DARK_THEME.text_color,
+                    .x = pos_x - lineWidth(units),
+                    .y = actual_position_y,
+                    .width = lineWidth(units),
+                    .height = rect_size.height,
+                    .corners = .{ 0, 0, 0, 0 },
+                    .sigma = 1e-6,
+                });
+            }
         }
     }
 
@@ -560,6 +585,10 @@ pub const Table = struct {
         return table;
     }
 };
+
+fn lineWidth(units: Units) f32 {
+    return units.cell.width / 50.0;
+}
 
 test "table serialization and deserialization" {
     const testing = std.testing;
