@@ -63,11 +63,12 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            transition: transform 0.3s ease-in-out;
+            transition: opacity 0.3s ease-in-out;
         }
 
         .side-panel.collapsed {
-            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
         }
 
         .toggle-button {
