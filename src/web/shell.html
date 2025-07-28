@@ -50,7 +50,7 @@
             top: 15px;
             right: 15px;
             width: min(400px, 80vw);
-            height: 85vh;
+            height: calc(100vh - 100px);
             background-color: rgba(14, 33, 47, 0.9);
             border: rgba(120, 120, 120, 0.9) solid 1px;
             border-radius: 18px;
@@ -71,14 +71,14 @@
         }
 
         .toggle-button {
-            position: absolute;
-            top: 20px;
-            left: -40px;
-            width: 40px;
-            height: 40px;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
             background-color: rgba(14, 33, 47, 0.9);
             border: rgba(120, 120, 120, 0.9) solid 1px;
-            border-radius: 12px 0 0 12px;
+            border-radius: 50%;
             backdrop-filter: blur(10px);
             cursor: pointer;
             display: flex;
@@ -86,13 +86,7 @@
             justify-content: center;
             color: white;
             transition: background-color 0.2s;
-        }
-
-        @media (max-width: 768px) {
-            .toggle-button {
-                top: auto;
-                bottom: 20px;
-            }
+            z-index: 1001;
         }
 
         .toggle-button:hover {
@@ -196,12 +190,12 @@
 
 <body>
     <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <button class="toggle-button" onclick="toggleSidePanel()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
+        </svg>
+    </button>
     <div class="side-panel" id="side-panel">
-        <button class="toggle-button" onclick="toggleSidePanel()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
-            </svg>
-        </button>
         <input id="mobile-keyboard-focus" class="invisible" />
         <div class="code-section">
             <div class="overflow-container">
