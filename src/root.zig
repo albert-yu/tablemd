@@ -565,6 +565,8 @@ fn handleTouchMoved(event: *const sapp.Event) void {
             state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
             state.is_dragging = true;
             handlePan(pan_dx, pan_dy);
+        } else {
+            clearMomentum();
         }
 
         // Handle pinch zoom
