@@ -164,88 +164,11 @@
             opacity: 0;
             pointer-events: none;
         }
-
-        .bottom-right-menu {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1001;
-        }
-
-        .menu-button {
-            width: 40px;
-            height: 40px;
-            background-color: rgba(14, 33, 47, 0.9);
-            border: rgba(120, 120, 120, 0.9) solid 1px;
-            border-radius: 50%;
-            backdrop-filter: blur(10px);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            transition: background-color 0.2s;
-        }
-
-        .menu-button:hover {
-            background-color: rgba(21, 50, 71, 0.9);
-        }
-
-        .menu-dropdown {
-            position: absolute;
-            bottom: 50px;
-            right: 0;
-            background-color: rgba(14, 33, 47, 0.95);
-            border: rgba(120, 120, 120, 0.9) solid 1px;
-            border-radius: 8px;
-            backdrop-filter: blur(10px);
-            min-width: 150px;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(10px);
-            transition: all 0.2s ease-in-out;
-        }
-
-        .menu-dropdown.visible {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        .menu-item {
-            padding: 12px 16px;
-            color: white;
-            cursor: pointer;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 14px;
-            transition: background-color 0.2s;
-            border-radius: 6px;
-            margin: 4px;
-        }
-
-        .menu-item:hover {
-            background-color: rgba(21, 50, 71, 0.8);
-        }
-
-        .menu-item.danger:hover {
-            background-color: rgba(139, 69, 19, 0.8);
-            color: #ffcccb;
-        }
     </style>
 </head>
 
 <body>
     <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div class="bottom-right-menu">
-        <button class="menu-button" onclick="toggleBottomMenu()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-        </button>
-        <div class="menu-dropdown" id="bottom-menu-dropdown">
-            <div class="menu-item danger" onclick="clearAllTables()">Clear all tables</div>
-        </div>
-    </div>
     <div class="side-panel" id="side-panel">
         <button class="toggle-button" onclick="toggleSidePanel()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -279,6 +202,11 @@
                 Copy HTML
             </button>
         </div>
+        <button class="menu-item danger" onclick="clearAllTables()"
+            style="width: 100%; margin: 10px 0 0 0; padding: 12px; border: 1px solid rgba(120, 120, 120, 0.7); border-radius: 6px; background-color: rgba(139, 69, 19, 0.6); color: white; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; transition: background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(139, 69, 19, 0.8)'; this.style.color='#ffcccb';"
+            onmouseout="this.style.backgroundColor='rgba(139, 69, 19, 0.6)'; this.style.color='white';">Clear all
+            tables</button>
         <script type="text/javascript">
             var Module = {
                 preRun: [],
@@ -415,10 +343,6 @@
                 sidePanel.classList.toggle('collapsed');
             }
 
-            function toggleBottomMenu() {
-                const dropdown = document.getElementById('bottom-menu-dropdown');
-                dropdown.classList.toggle('visible');
-            }
 
             function clearAllTables() {
                 if (confirm('Are you sure you want to clear all tables? This action cannot be undone.')) {
@@ -428,7 +352,7 @@
 
                         // Also clear from IndexedDB
                         const request = indexedDB.open('tablemd', 1);
-                        request.onsuccess = function(event) {
+                        request.onsuccess = function (event) {
                             const db = event.target.result;
                             const transaction = db.transaction(['tables'], 'readwrite');
                             const store = transaction.objectStore('tables');
@@ -436,20 +360,7 @@
                         };
                     }
                 }
-                // Hide the menu
-                const dropdown = document.getElementById('bottom-menu-dropdown');
-                dropdown.classList.remove('visible');
             }
-
-            // Close menu when clicking outside
-            document.addEventListener('click', function(event) {
-                const menu = document.querySelector('.bottom-right-menu');
-                const dropdown = document.getElementById('bottom-menu-dropdown');
-
-                if (!menu.contains(event.target)) {
-                    dropdown.classList.remove('visible');
-                }
-            });
 
             // Check if on mobile and collapse side panel on startup
             function initializeSidePanel() {
