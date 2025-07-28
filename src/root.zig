@@ -59,7 +59,6 @@ const TouchState = struct {
     prev_center: Vec2 = Vec2{ 0, 0 },
     // Momentum tracking
     velocity: Vec2 = Vec2{ 0, 0 },
-    has_momentum: bool = false,
     momentum_samples: [5]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 5,
     momentum_sample_index: u32 = 0,
     last_dragged_at: i64 = 0,
@@ -160,7 +159,7 @@ export fn init() void {
 
 export fn frame() void {
     // Process momentum
-    if (state.touch_state.has_momentum) {
+    if (hasVelocity()) {
         const speed = @sqrt(state.touch_state.velocity[0] * state.touch_state.velocity[0] +
             state.touch_state.velocity[1] * state.touch_state.velocity[1]);
 
@@ -173,7 +172,6 @@ export fn frame() void {
             state.touch_state.velocity[1] *= MOMENTUM_DECELERATION;
         } else {
             // Stop momentum when speed is too low
-            state.touch_state.has_momentum = false;
             state.touch_state.velocity = Vec2{ 0, 0 };
         }
     }
@@ -334,7 +332,6 @@ export fn input(ev: ?*const sapp.Event) void {
         .MOUSE_DOWN => {
             state.mouse_press_pos = state.mouse[0];
             // Stop any existing momentum when user starts mouse interaction
-            state.touch_state.has_momentum = false;
             state.touch_state.velocity = Vec2{ 0, 0 };
         },
         .MOUSE_UP => {
@@ -568,6 +565,8 @@ fn handleTouchMoved(event: *const sapp.Event) void {
             state.touch_state.momentum_sample_index = (state.touch_state.momentum_sample_index + 1) % 5;
             state.is_dragging = true;
             handlePan(pan_dx, pan_dy);
+        } else {
+            clearMomentum();
         }
 
         // Handle pinch zoom
@@ -640,7 +639,6 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
                 if (speed > MOMENTUM_MIN_SPEED) {
                     const scale = @min(MOMENTUM_MAX_SPEED / speed, 3.0); // Boost momentum but cap it
                     state.touch_state.velocity = Vec2{ avg_velocity[0] * scale, avg_velocity[1] * scale };
-                    state.touch_state.has_momentum = true;
                 }
             }
         }
@@ -670,6 +668,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
     state.touch_state.num_touches = 0;
     state.touch_state.initial_distance = 0;
     state.touch_state.prev_distance = 0;
+    clearMomentum();
 }
 
 fn clear() void {
@@ -718,7 +717,6 @@ fn activateMobileKeyboard() void {
 }
 
 fn clearMomentum() void {
-    state.touch_state.has_momentum = false;
     state.touch_state.velocity = Vec2{ 0, 0 };
     // Reset momentum tracking for smooth transition
     state.touch_state.momentum_sample_index = 0;
@@ -726,4 +724,8 @@ fn clearMomentum() void {
     for (&state.touch_state.momentum_samples) |*sample| {
         sample.* = Vec2{ 0, 0 };
     }
+}
+
+fn hasVelocity() bool {
+    return !vec2Equal(state.touch_state.velocity, Vec2{ 0, 0 }, 1.0);
 }
