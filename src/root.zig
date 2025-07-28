@@ -120,33 +120,6 @@ export fn init() void {
         .text = .{ .width = text_width, .height = rect_dims.height },
     });
 
-    // Create a simple 3x3 table
-    const table = state.ui.addTable(state.allocator) catch unreachable;
-    table.position = .{ .left = 1, .top = 1 };
-
-    const col1 = table.addColumn(state.allocator) catch unreachable;
-    const col2 = table.addColumn(state.allocator) catch unreachable;
-    const col3 = table.addColumn(state.allocator) catch unreachable;
-
-    // Column 1
-    col1.addCell(state.allocator, "Name") catch unreachable;
-    col1.addCell(state.allocator, "Alice") catch unreachable;
-    col1.addCell(state.allocator, "Bob") catch unreachable;
-
-    // Column 2
-    col2.addCell(state.allocator, "Age") catch unreachable;
-    col2.addCell(state.allocator, "25") catch unreachable;
-    col2.addCell(state.allocator, "30") catch unreachable;
-
-    // Column 3
-    col3.addCell(state.allocator, "City") catch unreachable;
-    col3.addCell(state.allocator, "NYC") catch unreachable;
-    col3.addCell(state.allocator, "LA") catch unreachable;
-
-    sendTableToDOM(table) catch |err| {
-        std.log.err("Failed to send table to DOM: {}", .{err});
-    };
-
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
         // if we see red, something is wrong
@@ -266,6 +239,11 @@ export fn request_serialize() void {
         return;
     };
     sendSerializedTables(serialized_tables);
+}
+
+export fn clear_tables() void {
+    state.ui.clearTables(state.allocator);
+    updateTableFromCursorState();
 }
 
 const PRINT_DOM_STUFF = false;
