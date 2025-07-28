@@ -88,6 +88,13 @@
             transition: background-color 0.2s;
         }
 
+        @media (max-width: 768px) {
+            .toggle-button {
+                top: auto;
+                bottom: 20px;
+            }
+        }
+
         .toggle-button:hover {
             background-color: rgba(21, 50, 71, 0.9);
         }
@@ -330,6 +337,19 @@
                 const sidePanel = document.getElementById('side-panel');
                 sidePanel.classList.toggle('collapsed');
             }
+
+            // Check if on mobile and collapse side panel on startup
+            function initializeSidePanel() {
+                const sidePanel = document.getElementById('side-panel');
+                const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                if (isMobile) {
+                    sidePanel.classList.add('collapsed');
+                }
+            }
+
+            // Initialize side panel state when DOM is loaded
+            document.addEventListener('DOMContentLoaded', initializeSidePanel);
 
             // Debounced auto-save functionality
             let saveTimeout;
