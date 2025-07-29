@@ -156,6 +156,8 @@ pub const UI = struct {
             allocator.destroy(table);
         }
         self.tables.clearRetainingCapacity();
+        self.active_cursor = null;
+        self.hover_cursor = null;
     }
 
     pub fn getCellFromIndex(self: *UI, cell_index: CellIndex) ?*Cell {
