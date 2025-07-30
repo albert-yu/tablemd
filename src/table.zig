@@ -16,6 +16,10 @@ const TABLE_BG_COLOR: sg.Color = theme.DARK_THEME.table_background_color;
 pub const Units = struct {
     cell: Size,
     text: Size,
+
+    pub fn paddingLeft(self: Units) f32 {
+        return self.cell.width / 5.0;
+    }
 };
 
 pub const GridPos = struct {
@@ -81,7 +85,11 @@ pub const Cell = struct {
             curr_line_width += text_units.width;
         }
         width = @max(width, curr_line_width);
-        const container_width = divCeil(width, cell_units.width);
+
+        // Account for left padding when calculating required cell width
+        const padding = units.paddingLeft();
+        const total_width = width + padding;
+        const container_width = divCeil(total_width, cell_units.width);
         return .{ .width = @intFromFloat(container_width), .height = grid_height };
     }
 
@@ -99,6 +107,7 @@ pub const Cell = struct {
         // the text bearing_y is negative and pulls the text
         // upwards
         var pos_y = position[1] + units.cell.height;
+        const padding = units.paddingLeft();
         var i: usize = 0;
         var start: usize = i;
         while (i < self.value.items.len) : (i += 1) {
@@ -107,7 +116,7 @@ pub const Cell = struct {
                 // send the current line to the scene
                 try scene.texts.append(allocator, .{
                     .text = self.value.items[start..i],
-                    .x = position[0],
+                    .x = position[0] + padding,
                     .y = pos_y,
                     .color = theme.DARK_THEME.text_color,
                 });
@@ -120,7 +129,7 @@ pub const Cell = struct {
         if (start < self.value.items.len) {
             try scene.texts.append(allocator, .{
                 .text = self.value.items[start..self.value.items.len],
-                .x = position[0],
+                .x = position[0] + padding,
                 .y = pos_y,
                 .color = theme.DARK_THEME.text_color,
             });
