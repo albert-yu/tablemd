@@ -237,7 +237,8 @@ pub const UI = struct {
 
                 var col = try table.addColumn(allocator);
                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
+                const padding = self.units.cell.width / 5.0;
+                const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + padding + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
                 for (s) |char| {
@@ -265,7 +266,8 @@ pub const UI = struct {
                 const row_i = table.rows() - 1;
                 const col_i = matching_col.index;
                 const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
-                const new_x = cursor_x + self.units.text.width;
+                const padding = self.units.cell.width / 5.0;
+                const new_x = cursor_x + padding + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
                 for (s) |char| {
@@ -293,7 +295,8 @@ pub const UI = struct {
                 const row_i: usize = 0;
                 const col_i = matching_col.index;
                 const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
-                const new_x = cursor_x + self.units.text.width;
+                const padding = self.units.cell.width / 5.0;
+                const new_x = cursor_x + padding + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
                 for (s) |char| {
@@ -320,7 +323,8 @@ pub const UI = struct {
 
                 var col = try table.insertColumn(allocator, 0);
                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + self.units.text.width;
+                const padding = self.units.cell.width / 5.0;
+                const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + padding + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
                 for (s) |char| {
@@ -388,7 +392,7 @@ pub const UI = struct {
                                     .column_index = 0,
                                     .row_index = 0,
                                 },
-                                .pos = Vec2{ cell_x + self.units.text.width, cell_y },
+                                .pos = Vec2{ cell_x + self.units.cell.width / 5.0 + self.units.text.width, cell_y },
                                 .char_offset = utf8_len,
                             },
                         };
@@ -407,10 +411,11 @@ pub const UI = struct {
                         try cell.value.append(allocator, byte);
                     }
                     const new_table_width = cell.column.table.gridSize(self.units).width;
+                    const padding = self.units.cell.width / 5.0;
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = cell_pos.cell_index,
-                            .pos = Vec2{ cell_pos.pos[0] + self.units.text.width, cell_pos.pos[1] },
+                            .pos = Vec2{ cell_pos.pos[0] + padding + self.units.text.width, cell_pos.pos[1] },
                             .char_offset = utf8_len,
                         },
                     };
@@ -514,7 +519,7 @@ pub const UI = struct {
                                     .column_index = 0,
                                     .row_index = 0,
                                 },
-                                .pos = Vec2{ cell_x + text_width_offset, cell_y },
+                                .pos = Vec2{ cell_x + self.units.cell.width / 5.0 + text_width_offset, cell_y },
                                 .char_offset = clipboard_text.len,
                             },
                         };
@@ -537,10 +542,11 @@ pub const UI = struct {
                     const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
                     const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
                     const new_table_size = cell.column.table.gridSize(self.units);
+                    const padding = self.units.cell.width / 5.0;
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = cell_pos.cell_index,
-                            .pos = Vec2{ cell_pos.pos[0] + text_width_offset, cell_pos.pos[1] },
+                            .pos = Vec2{ cell_pos.pos[0] + padding + text_width_offset, cell_pos.pos[1] },
                             .char_offset = clipboard_text.len,
                         },
                     };
@@ -915,6 +921,7 @@ pub const UI = struct {
             cell_y += column.data.items[row_i].size(self.units).height;
         }
 
+        const padding = self.units.cell.width / 5.0;
         return .{
             .text = .{
                 .cell_index = CellIndex{
@@ -922,7 +929,7 @@ pub const UI = struct {
                     .column_index = cell_index.column_index,
                     .row_index = next_row_index,
                 },
-                .pos = Vec2{ column_x, cell_y },
+                .pos = Vec2{ column_x + padding, cell_y },
                 .char_offset = 0,
             },
         };
@@ -971,6 +978,7 @@ pub const UI = struct {
                 cell_y += next_column.data.items[row_i].size(self.units).height;
             }
 
+            const padding = self.units.cell.width / 5.0;
             self.active_cursor = .{
                 .text = .{
                     .cell_index = CellIndex{
@@ -978,7 +986,7 @@ pub const UI = struct {
                         .column_index = next_col_idx,
                         .row_index = cell_index.row_index,
                     },
-                    .pos = Vec2{ column_x, cell_y },
+                    .pos = Vec2{ column_x + padding, cell_y },
                     .char_offset = 0,
                 },
             };
@@ -1282,7 +1290,8 @@ pub const UI = struct {
         const cell = self.getCellFromIndex(containing_cell.cell_index) orelse return null;
         const lines = countLines(cell);
         var offset: usize = 0;
-        var x: f32 = containing_cell.pos[0];
+        const padding = self.units.cell.width / 5.0;
+        var x: f32 = containing_cell.pos[0] + padding;
         for (0..lines) |target_line| {
             var line_x = x;
             const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
@@ -1290,7 +1299,7 @@ pub const UI = struct {
                 const char = cell.value.items[offset];
                 if (char == '\n') {
                     // reset x to start
-                    x = containing_cell.pos[0];
+                    x = containing_cell.pos[0] + padding;
                     offset += 1;
                     break;
                 }

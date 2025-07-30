@@ -99,6 +99,7 @@ pub const Cell = struct {
         // the text bearing_y is negative and pulls the text
         // upwards
         var pos_y = position[1] + units.cell.height;
+        const padding = units.cell.width / 5.0;
         var i: usize = 0;
         var start: usize = i;
         while (i < self.value.items.len) : (i += 1) {
@@ -107,7 +108,7 @@ pub const Cell = struct {
                 // send the current line to the scene
                 try scene.texts.append(allocator, .{
                     .text = self.value.items[start..i],
-                    .x = position[0],
+                    .x = position[0] + padding,
                     .y = pos_y,
                     .color = theme.DARK_THEME.text_color,
                 });
@@ -120,7 +121,7 @@ pub const Cell = struct {
         if (start < self.value.items.len) {
             try scene.texts.append(allocator, .{
                 .text = self.value.items[start..self.value.items.len],
-                .x = position[0],
+                .x = position[0] + padding,
                 .y = pos_y,
                 .color = theme.DARK_THEME.text_color,
             });
