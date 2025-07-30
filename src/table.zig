@@ -81,7 +81,11 @@ pub const Cell = struct {
             curr_line_width += text_units.width;
         }
         width = @max(width, curr_line_width);
-        const container_width = divCeil(width, cell_units.width);
+
+        // Account for left padding when calculating required cell width
+        const padding = cell_units.width / 5.0;
+        const total_width = width + padding;
+        const container_width = divCeil(total_width, cell_units.width);
         return .{ .width = @intFromFloat(container_width), .height = grid_height };
     }
 
