@@ -237,7 +237,7 @@ pub const UI = struct {
 
                 var col = try table.addColumn(allocator);
                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                const padding = self.units.cell.width / 5.0;
+                const padding = self.units.paddingLeft();
                 const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + padding + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
@@ -266,7 +266,7 @@ pub const UI = struct {
                 const row_i = table.rows() - 1;
                 const col_i = matching_col.index;
                 const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
-                const padding = self.units.cell.width / 5.0;
+                const padding = self.units.paddingLeft();
                 const new_x = cursor_x + padding + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
@@ -295,7 +295,7 @@ pub const UI = struct {
                 const row_i: usize = 0;
                 const col_i = matching_col.index;
                 const cursor_x = @as(f32, @floatFromInt(matching_col.left)) * self.units.cell.width;
-                const padding = self.units.cell.width / 5.0;
+                const padding = self.units.paddingLeft();
                 const new_x = cursor_x + padding + self.units.text.width;
                 const y = @as(f32, @floatFromInt(grid_pos.top)) * self.units.cell.height;
                 const cell = &table.columns.items[col_i].data.items[row_i];
@@ -323,7 +323,7 @@ pub const UI = struct {
 
                 var col = try table.insertColumn(allocator, 0);
                 const new_y = @as(f32, @floatFromInt(matching_row.top)) * self.units.cell.height;
-                const padding = self.units.cell.width / 5.0;
+                const padding = self.units.paddingLeft();
                 const new_x = @as(f32, @floatFromInt(grid_pos.left)) * self.units.cell.width + padding + self.units.text.width;
                 const row_i = matching_row.index;
                 const cell = &col.data.items[row_i];
@@ -392,7 +392,7 @@ pub const UI = struct {
                                     .column_index = 0,
                                     .row_index = 0,
                                 },
-                                .pos = Vec2{ cell_x + self.units.cell.width / 5.0 + self.units.text.width, cell_y },
+                                .pos = Vec2{ cell_x + self.units.paddingLeft() + self.units.text.width, cell_y },
                                 .char_offset = utf8_len,
                             },
                         };
@@ -411,7 +411,7 @@ pub const UI = struct {
                         try cell.value.append(allocator, byte);
                     }
                     const new_table_width = cell.column.table.gridSize(self.units).width;
-                    const padding = self.units.cell.width / 5.0;
+                    const padding = self.units.paddingLeft();
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = cell_pos.cell_index,
@@ -519,7 +519,7 @@ pub const UI = struct {
                                     .column_index = 0,
                                     .row_index = 0,
                                 },
-                                .pos = Vec2{ cell_x + self.units.cell.width / 5.0 + text_width_offset, cell_y },
+                                .pos = Vec2{ cell_x + self.units.paddingLeft() + text_width_offset, cell_y },
                                 .char_offset = clipboard_text.len,
                             },
                         };
@@ -542,7 +542,7 @@ pub const UI = struct {
                     const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
                     const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
                     const new_table_size = cell.column.table.gridSize(self.units);
-                    const padding = self.units.cell.width / 5.0;
+                    const padding = self.units.paddingLeft();
                     self.active_cursor = .{
                         .text = .{
                             .cell_index = cell_pos.cell_index,
@@ -921,7 +921,7 @@ pub const UI = struct {
             cell_y += column.data.items[row_i].size(self.units).height;
         }
 
-        const padding = self.units.cell.width / 5.0;
+        const padding = self.units.paddingLeft();
         return .{
             .text = .{
                 .cell_index = CellIndex{
@@ -978,7 +978,7 @@ pub const UI = struct {
                 cell_y += next_column.data.items[row_i].size(self.units).height;
             }
 
-            const padding = self.units.cell.width / 5.0;
+            const padding = self.units.paddingLeft();
             self.active_cursor = .{
                 .text = .{
                     .cell_index = CellIndex{
@@ -1290,7 +1290,7 @@ pub const UI = struct {
         const cell = self.getCellFromIndex(containing_cell.cell_index) orelse return null;
         const lines = countLines(cell);
         var offset: usize = 0;
-        const padding = self.units.cell.width / 5.0;
+        const padding = self.units.paddingLeft();
         var x: f32 = containing_cell.pos[0] + padding;
         for (0..lines) |target_line| {
             var line_x = x;

@@ -16,6 +16,10 @@ const TABLE_BG_COLOR: sg.Color = theme.DARK_THEME.table_background_color;
 pub const Units = struct {
     cell: Size,
     text: Size,
+
+    pub fn paddingLeft(self: Units) f32 {
+        return self.cell.width / 5.0;
+    }
 };
 
 pub const GridPos = struct {
@@ -83,7 +87,7 @@ pub const Cell = struct {
         width = @max(width, curr_line_width);
 
         // Account for left padding when calculating required cell width
-        const padding = cell_units.width / 5.0;
+        const padding = units.paddingLeft();
         const total_width = width + padding;
         const container_width = divCeil(total_width, cell_units.width);
         return .{ .width = @intFromFloat(container_width), .height = grid_height };
@@ -103,7 +107,7 @@ pub const Cell = struct {
         // the text bearing_y is negative and pulls the text
         // upwards
         var pos_y = position[1] + units.cell.height;
-        const padding = units.cell.width / 5.0;
+        const padding = units.paddingLeft();
         var i: usize = 0;
         var start: usize = i;
         while (i < self.value.items.len) : (i += 1) {
