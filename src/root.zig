@@ -38,7 +38,7 @@ const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
-const TOUCH_THRESHOLD = 10.0; // pixels
+const TOUCH_THRESHOLD = 1.0; // pixels
 
 // Momentum constants
 const MOMENTUM_MIN_SPEED = 5.0; // Minimum speed to trigger momentum
@@ -146,6 +146,8 @@ export fn frame() void {
             // Stop momentum when speed is too low
             state.touch_state.velocity = Vec2{ 0, 0 };
         }
+    } else {
+        clearMomentum();
     }
 
     clear();
