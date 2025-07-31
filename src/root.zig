@@ -146,6 +146,8 @@ export fn frame() void {
             // Stop momentum when speed is too low
             state.touch_state.velocity = Vec2{ 0, 0 };
         }
+    } else {
+        clearMomentum();
     }
 
     clear();
