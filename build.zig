@@ -137,6 +137,7 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
+
     lib.linkLibrary(opts.freetype_lib);
 
     // create a build step which invokes the Emscripten linker
