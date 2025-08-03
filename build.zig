@@ -32,26 +32,11 @@ pub fn build(b: *Build) !void {
     });
 
     // Create FreeType static library
-    const freetype_lib = blk: {
-        if (target.result.cpu.arch.isWasm()) {
-            const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-            // Force EMSDK to be fully installed before building FreeType
-            const emsdk_install = emsdk.builder.getInstallStep();
-            const freetype_lib = try freetype_build.build(b, .{
-                .target = target,
-                .optimize = optimize,
-                .emsdk = emsdk,
-            });
-            freetype_lib.step.dependOn(emsdk_install);
-            break :blk freetype_lib;
-        } else {
-            break :blk try freetype_build.build(b, .{
-                .target = target,
-                .optimize = optimize,
-                .emsdk = null,
-            });
-        }
-    };
+    const freetype_lib = try freetype_build.build(b, .{
+        .target = target,
+        .optimize = optimize,
+        .emsdk = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null,
+    });
 
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),
