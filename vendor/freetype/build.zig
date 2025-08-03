@@ -33,7 +33,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
             const path_str = include_path.getPath(b);
             std.log.info("WASM include path: {s}", .{include_path.getPath(b)});
             // Check if directory exists and list contents
-            const dir = std.fs.openDirAbsolute(path_str, .{ .iterate = true }) catch |err| {
+            var dir = std.fs.openDirAbsolute(path_str, .{ .iterate = true }) catch |err| {
                 std.log.err("Failed to open include directory: {}", .{err});
                 return error.IncludePathNotFound;
             };
