@@ -29,9 +29,17 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     // For WASM builds, add Emscripten system include path
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
-            const cache_result = initEmsdkCache(b, emsdk);
-            lib.step.dependOn(cache_result.cache_init_step);
-            lib.addSystemIncludePath(cache_result.include_path);
+            // Force Emscripten cache population by running a simple emcc command
+            const emcc_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "emcc" }));
+            const cache_init = b.addSystemCommand(&.{
+                emcc_path.getPath(b),
+                "--version",
+            });
+            cache_init.has_side_effects = true;
+            const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
+            // Make library compilation depend on cache initialization
+            lib.step.dependOn(&cache_init.step);
+            lib.addSystemIncludePath(include_path);
         }
     }
 
@@ -66,29 +74,6 @@ pub const BuildOptions = struct {
 };
 
 // Get FreeType source files
-pub const EmsdkCacheResult = struct {
-    cache_init_step: *Build.Step,
-    include_path: Build.LazyPath,
-};
-
-// Shared function to initialize Emscripten cache and get include path
-pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
-    const emcc_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "emcc" }));
-    const cache_init = b.addSystemCommand(&.{
-        emcc_path.getPath(b),
-        "--version",
-    });
-    cache_init.has_side_effects = true;
-
-    const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-    std.log.info("WASM include path: {s}", .{include_path.getPath(b)});
-
-    return EmsdkCacheResult{
-        .cache_init_step = &cache_init.step,
-        .include_path = include_path,
-    };
-}
-
 fn getFreeTypeSources() []const []const u8 {
     return &.{
         "vendor/freetype/src/base/ftbase.c",
