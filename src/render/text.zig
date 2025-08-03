@@ -198,7 +198,7 @@ pub const Renderer = struct {
 
         // this is a hack to make sure the text doesn't bleed
         // down into the next row
-        const manual_adjust_y = -FONT_SIZE - 10.0;
+        const manual_adjust_y = -15.0;
         const scaled_x = x / PIXEL_SCALE;
         const scaled_y = y / PIXEL_SCALE + manual_adjust_y;
         var current_x = scaled_x;
@@ -226,7 +226,7 @@ pub const Renderer = struct {
                 const char_element = CharElement{
                     .instance_position = .{
                         x + fallback.bearing_x,
-                        y + fallback.bearing_y,
+                        y - fallback.bearing_y,
                     },
                     .glyph_size = .{ fallback.width, fallback.height },
                     .tex_offset = .{ fallback.tex_x, fallback.tex_y },
@@ -245,7 +245,7 @@ pub const Renderer = struct {
             const char_element = CharElement{
                 .instance_position = .{
                     x + glyph.bearing_x,
-                    y + glyph.bearing_y,
+                    y - glyph.bearing_y,
                 },
                 .glyph_size = .{ glyph.width, glyph.height },
                 // tex offset/size are normalized to [0, 1]
@@ -393,7 +393,7 @@ pub const Renderer = struct {
         const metrics = font.glyphFontMetrics(glyph_index);
         const advance = @as(f32, @floatFromInt(metrics.hori_advance));
         const bearing_x = @as(f32, @floatFromInt(metrics.hori_bearing_x));
-        const bearing_y = @as(f32, @floatFromInt(metrics.vert_bearing_y));
+        const bearing_y = @as(f32, @floatFromInt(metrics.hori_bearing_y));
 
         // Store glyph info
         try self.glyph_map.put(codepoint, GlyphInfo{
