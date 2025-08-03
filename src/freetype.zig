@@ -212,18 +212,18 @@ pub const Font = struct {
         };
     }
 
-    /// Get horizontal metrics (compatible with TrueType)
-    pub fn glyphHMetrics(self: Font, glyph_index: u32) HMetrics {
+    pub fn glyphFontMetrics(self: Font, glyph_index: u32) FontMetrics {
         // Load the glyph to get metrics
         if (c.FT_Load_Glyph(self.face.face, glyph_index, c.FT_LOAD_DEFAULT) != 0) {
-            return HMetrics{ .advance_width = 0, .left_side_bearing = 0 };
+            return FontMetrics.zero;
         }
 
         const metrics = self.face.getGlyphMetrics() orelse {
-            return HMetrics{ .advance_width = 0, .left_side_bearing = 0 };
+            return FontMetrics.zero;
         };
-
-        return HMetrics{
+        return FontMetrics{
+            .advance_height = @intCast(metrics.vert_advance >> 6), // Convert from 26.6 format
+            .top_side_bearing = @intCast(metrics.vert_bearing_y >> 6),
             .advance_width = @intCast(metrics.hori_advance >> 6), // Convert from 26.6 format
             .left_side_bearing = @intCast(metrics.hori_bearing_x >> 6),
         };
@@ -238,10 +238,18 @@ pub const GlyphDimensions = struct {
     off_y: i32,
 };
 
-/// Horizontal metrics (compatible with TrueType)
-pub const HMetrics = struct {
+pub const FontMetrics = struct {
+    advance_height: i32,
+    top_side_bearing: i32,
     advance_width: i32,
     left_side_bearing: i32,
+
+    pub const zero = FontMetrics{
+        .advance_height = 0,
+        .top_side_bearing = 0,
+        .advance_width = 0,
+        .left_side_bearing = 0,
+    };
 };
 
 /// Load a font from memory (top-level function compatible with TrueType.load)

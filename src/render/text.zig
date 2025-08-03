@@ -63,7 +63,7 @@ const GLYPH_COUNT = 1024;
 
 /// Might be able to be derived from the GRID_N and GRID_DENSITY,
 /// but chosen with trial and error for now
-const PIXEL_SCALE = 1.0 / 1500.0;
+const PIXEL_SCALE = 1.0 / 2048.0;
 
 pub const Renderer = struct {
     bind: sg.Bindings,
@@ -198,7 +198,7 @@ pub const Renderer = struct {
 
         // this is a hack to make sure the text doesn't bleed
         // down into the next row
-        const manual_adjust_y = -10.0;
+        const manual_adjust_y = -FONT_SIZE - 10.0;
         const scaled_x = x / PIXEL_SCALE;
         const scaled_y = y / PIXEL_SCALE + manual_adjust_y;
         var current_x = scaled_x;
@@ -334,7 +334,7 @@ pub const Renderer = struct {
 
         // Handle space character specially (no bitmap)
         if (codepoint == 32) {
-            const hmetrics = font.glyphHMetrics(glyph_index);
+            const hmetrics = font.glyphFontMetrics(glyph_index);
             const advance = @as(f32, @floatFromInt(hmetrics.advance_width));
             try self.glyph_map.put(32, GlyphInfo{
                 .advance = advance,
@@ -367,8 +367,6 @@ pub const Renderer = struct {
 
         const width = @as(u32, @intCast(@max(0, dims.width)));
         const height = @as(u32, @intCast(@max(0, dims.height)));
-        const off_x = dims.off_x;
-        const off_y = dims.off_y;
 
         // Check if we need to move to next row
         if (x.* + width > ATLAS_SIZE) {
@@ -392,10 +390,10 @@ pub const Renderer = struct {
         }
 
         // Get horizontal metrics
-        const hmetrics = font.glyphHMetrics(glyph_index);
-        const advance = @as(f32, @floatFromInt(hmetrics.advance_width));
-        const bearing_x = @as(f32, @floatFromInt(off_x));
-        const bearing_y = @as(f32, @floatFromInt(off_y));
+        const metrics = font.glyphFontMetrics(glyph_index);
+        const advance = @as(f32, @floatFromInt(metrics.advance_width));
+        const bearing_x = @as(f32, @floatFromInt(metrics.left_side_bearing));
+        const bearing_y = @as(f32, @floatFromInt(metrics.top_side_bearing));
 
         // Store glyph info
         try self.glyph_map.put(codepoint, GlyphInfo{
