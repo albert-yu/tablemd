@@ -30,7 +30,20 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
             const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
+            const path_str = include_path.getPath(b);
             std.log.info("WASM include path: {s}", .{include_path.getPath(b)});
+            // Check if directory exists and list contents
+            const dir = std.fs.openDirAbsolute(path_str, .{ .iterate = true }) catch |err| {
+                std.log.err("Failed to open include directory: {}", .{err});
+                return error.IncludePathNotFound;
+            };
+            defer dir.close();
+
+            std.log.info("Directory contents:");
+            var iterator = dir.iterate();
+            while (try iterator.next()) |entry| {
+                std.log.info("  - {s} ({s})", .{ entry.name, @tagName(entry.kind) });
+            }
             lib.addSystemIncludePath(include_path);
         }
     }
