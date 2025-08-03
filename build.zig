@@ -55,7 +55,9 @@ pub fn build(b: *Build) !void {
     // For WASM builds, add Emscripten system include path to FreeType module
     if (target.result.cpu.arch.isWasm()) {
         const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-        mod_freetype.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
+        const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
+        std.log.info("SYS root path: {s}", .{include_path.getPath(b)});
+        mod_freetype.addSystemIncludePath(include_path);
     }
 
     const mod_root = b.createModule(.{
@@ -137,6 +139,7 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
+
     lib.linkLibrary(opts.freetype_lib);
 
     // create a build step which invokes the Emscripten linker

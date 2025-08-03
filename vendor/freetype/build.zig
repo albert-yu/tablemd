@@ -29,7 +29,9 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     // For WASM builds, add Emscripten system include path
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
-            lib.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
+            const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
+            std.log.info("WASM include path: {s}", .{include_path.getPath(b)});
+            lib.addSystemIncludePath(include_path);
         }
     }
 
