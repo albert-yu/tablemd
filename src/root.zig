@@ -20,7 +20,6 @@ const DotGridRenderer = dot_grid.Renderer;
 const RectDims = dot_grid.Size;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
-const TrueType = @import("TrueType");
 
 const io = std.io;
 const sapp = sokol.app;

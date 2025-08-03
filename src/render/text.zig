@@ -2,7 +2,7 @@ const std = @import("std");
 const sokol = @import("sokol");
 const shd_text = @import("text_shader");
 const zigimg = @import("zigimg");
-const TrueType = @import("TrueType");
+const freetype = @import("freetype");
 const ArrayList = std.ArrayListUnmanaged;
 
 const sg = sokol.gfx;
@@ -63,7 +63,7 @@ const GLYPH_COUNT = 1024;
 
 /// Might be able to be derived from the GRID_N and GRID_DENSITY,
 /// but chosen with trial and error for now
-const PIXEL_SCALE = 1.0 / 1500.0;
+const PIXEL_SCALE = 1.0 / 2048.0;
 
 pub const Renderer = struct {
     bind: sg.Bindings,
@@ -72,7 +72,7 @@ pub const Renderer = struct {
     elements: ArrayList(CharElement),
     /// Maps Unicode codepoints to glyph info
     glyph_map: std.HashMap(u21, GlyphInfo, std.hash_map.AutoContext(u21), std.hash_map.default_max_load_percentage),
-    font: ?TrueType,
+    font: ?freetype.Font,
     allocator: std.mem.Allocator,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
@@ -91,7 +91,7 @@ pub const Renderer = struct {
     pub fn setup(self: *Renderer) !f32 {
         // Load font
         const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
-        self.font = try TrueType.load(font_data);
+        self.font = try freetype.load(font_data);
         self.texture = try self.createAtlas();
         const space_glyph = self.glyph_map.get(32) orelse GlyphInfo.empty();
         const advance_width = space_glyph.advance * PIXEL_SCALE;
@@ -198,7 +198,7 @@ pub const Renderer = struct {
 
         // this is a hack to make sure the text doesn't bleed
         // down into the next row
-        const manual_adjust_y = -10.0;
+        const manual_adjust_y = -15.0;
         const scaled_x = x / PIXEL_SCALE;
         const scaled_y = y / PIXEL_SCALE + manual_adjust_y;
         var current_x = scaled_x;
@@ -226,7 +226,7 @@ pub const Renderer = struct {
                 const char_element = CharElement{
                     .instance_position = .{
                         x + fallback.bearing_x,
-                        y + fallback.bearing_y,
+                        y - fallback.bearing_y,
                     },
                     .glyph_size = .{ fallback.width, fallback.height },
                     .tex_offset = .{ fallback.tex_x, fallback.tex_y },
@@ -245,7 +245,7 @@ pub const Renderer = struct {
             const char_element = CharElement{
                 .instance_position = .{
                     x + glyph.bearing_x,
-                    y + glyph.bearing_y,
+                    y - glyph.bearing_y,
                 },
                 .glyph_size = .{ glyph.width, glyph.height },
                 // tex offset/size are normalized to [0, 1]
@@ -269,7 +269,7 @@ pub const Renderer = struct {
         @memset(atlas_data, 0);
 
         const font = self.font.?;
-        const scale = font.scaleForPixelHeight(@as(f32, FONT_SIZE));
+        try font.setPixelHeight(@as(f32, FONT_SIZE));
 
         const u: f32 = 1.0 / @as(f32, ATLAS_SIZE);
         const v: f32 = 1.0 / @as(f32, ATLAS_SIZE);
@@ -291,7 +291,7 @@ pub const Renderer = struct {
         };
 
         // Handle space character (32) separately
-        try self.addGlyphToAtlas(32, font, scale, atlas_data, &x, &y, row_height, u, v);
+        try self.addGlyphToAtlas(32, font, atlas_data, &x, &y, row_height, u, v);
 
         // Generate glyphs for supported Unicode ranges
         for (unicode_ranges) |range| {
@@ -299,7 +299,7 @@ pub const Renderer = struct {
             if (codepoint == 32) codepoint = 33; // Skip space, already handled
 
             while (codepoint <= range.end) : (codepoint += 1) {
-                try self.addGlyphToAtlas(codepoint, font, scale, atlas_data, &x, &y, row_height, u, v);
+                try self.addGlyphToAtlas(codepoint, font, atlas_data, &x, &y, row_height, u, v);
 
                 // Prevent atlas overflow by limiting total glyphs
                 if (self.glyph_map.count() >= GLYPH_COUNT) {
@@ -325,7 +325,7 @@ pub const Renderer = struct {
         return sg.makeImage(img_desc);
     }
 
-    fn addGlyphToAtlas(self: *Renderer, codepoint: u21, font: TrueType, scale: f32, atlas_data: []u8, x: *u32, y: *u32, row_height: u32, u: f32, v: f32) !void {
+    fn addGlyphToAtlas(self: *Renderer, codepoint: u21, font: freetype.Font, atlas_data: []u8, x: *u32, y: *u32, row_height: u32, u: f32, v: f32) !void {
         const glyph_index = font.codepointGlyphIndex(codepoint) orelse {
             // Set empty glyph info for missing characters
             try self.glyph_map.put(codepoint, GlyphInfo.empty());
@@ -334,8 +334,8 @@ pub const Renderer = struct {
 
         // Handle space character specially (no bitmap)
         if (codepoint == 32) {
-            const hmetrics = font.glyphHMetrics(glyph_index);
-            const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
+            const hmetrics = font.glyphFontMetrics(glyph_index);
+            const advance = @as(f32, @floatFromInt(hmetrics.hori_advance));
             try self.glyph_map.put(32, GlyphInfo{
                 .advance = advance,
                 .bearing_x = 0,
@@ -354,7 +354,7 @@ pub const Renderer = struct {
         var buffer = std.ArrayListUnmanaged(u8){};
         defer buffer.deinit(self.allocator);
 
-        const dims = font.glyphBitmap(self.allocator, &buffer, glyph_index, scale, scale) catch |err| {
+        const dims = font.glyphBitmap(self.allocator, &buffer, glyph_index, 1.0, 1.0) catch |err| {
             const non_breaking_space = 0x00A0;
             if (codepoint != non_breaking_space) {
                 // we know this one is missing, so don't log it
@@ -365,10 +365,8 @@ pub const Renderer = struct {
             return;
         };
 
-        const width = @as(u32, @intCast(dims.width));
-        const height = @as(u32, @intCast(dims.height));
-        const off_x = dims.off_x;
-        const off_y = dims.off_y;
+        const width = @as(u32, @intCast(@max(0, dims.width)));
+        const height = @as(u32, @intCast(@max(0, dims.height)));
 
         // Check if we need to move to next row
         if (x.* + width > ATLAS_SIZE) {
@@ -392,10 +390,10 @@ pub const Renderer = struct {
         }
 
         // Get horizontal metrics
-        const hmetrics = font.glyphHMetrics(glyph_index);
-        const advance = @as(f32, @floatFromInt(hmetrics.advance_width)) * scale;
-        const bearing_x = @as(f32, @floatFromInt(off_x));
-        const bearing_y = @as(f32, @floatFromInt(off_y));
+        const metrics = font.glyphFontMetrics(glyph_index);
+        const advance = @as(f32, @floatFromInt(metrics.hori_advance));
+        const bearing_x = @as(f32, @floatFromInt(metrics.hori_bearing_x));
+        const bearing_y = @as(f32, @floatFromInt(metrics.hori_bearing_y));
 
         // Store glyph info
         try self.glyph_map.put(codepoint, GlyphInfo{
@@ -434,5 +432,8 @@ pub const Renderer = struct {
     pub fn cleanup(self: *Renderer) void {
         self.elements.deinit(self.allocator);
         self.glyph_map.deinit();
+        if (self.font) |font| {
+            font.deinit();
+        }
     }
 };

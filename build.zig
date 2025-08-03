@@ -1,10 +1,12 @@
 const std = @import("std");
 const Build = std.Build;
 const sokol = @import("sokol");
+const freetype_build = @import("vendor/freetype/build.zig");
 
 const Options = struct {
     mod: *Build.Module,
     dep_sokol: *Build.Dependency,
+    freetype_lib: *Build.Step.Compile,
 };
 
 const ShaderModule = struct {
@@ -24,20 +26,45 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const dep_truetype = b.dependency("TrueType", .{
-        .target = target,
-        .optimize = optimize,
-    });
     const dep_zigimg = b.dependency("zigimg", .{
         .target = target,
         .optimize = optimize,
     });
+
+    // Create FreeType static library
+    const freetype_lib = try freetype_build.build(b, .{
+        .target = target,
+        .optimize = optimize,
+        .emsdk = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null,
+    });
+
+    // For WASM builds, initialize Emscripten cache first
+    if (target.result.cpu.arch.isWasm()) {
+        const emsdk = dep_sokol.builder.dependency("emsdk", .{});
+        const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+        freetype_lib.step.dependOn(cache_result.cache_init_step);
+    }
 
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    // Create FreeType module
+    const mod_freetype = b.createModule(.{
+        .root_source_file = b.path("src/freetype.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    mod_freetype.addIncludePath(b.path("vendor/freetype/include"));
+
+    // For WASM builds, add Emscripten system include path to FreeType module
+    if (target.result.cpu.arch.isWasm()) {
+        const emsdk = dep_sokol.builder.dependency("emsdk", .{});
+        const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+        mod_freetype.addSystemIncludePath(cache_result.include_path);
+    }
 
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
@@ -57,8 +84,8 @@ pub fn build(b: *Build) !void {
                 .module = dep_zigimg.module("zigimg"),
             },
             .{
-                .name = "TrueType",
-                .module = dep_truetype.module("TrueType"),
+                .name = "freetype",
+                .module = mod_freetype,
             },
             .{
                 .name = "markdown",
@@ -92,7 +119,7 @@ pub fn build(b: *Build) !void {
     });
 
     // special case handling for native vs web build
-    const opts = Options{ .mod = mod_root, .dep_sokol = dep_sokol };
+    const opts = Options{ .mod = mod_root, .dep_sokol = dep_sokol, .freetype_lib = freetype_lib };
     if (target.result.cpu.arch.isWasm()) {
         try buildWeb(b, opts);
     } else {
@@ -106,6 +133,7 @@ fn buildNative(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
+    exe.linkLibrary(opts.freetype_lib);
     b.installArtifact(exe);
     const run = b.addRunArtifact(exe);
     b.step("run", "Run root").dependOn(&run.step);
@@ -118,8 +146,11 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .root_module = opts.mod,
     });
 
+    lib.linkLibrary(opts.freetype_lib);
+
     // create a build step which invokes the Emscripten linker
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
+
     const link_step = try sokol.emLinkStep(b, .{
         .lib_main = lib,
         .target = opts.mod.resolved_target.?,
