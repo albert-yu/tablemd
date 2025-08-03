@@ -38,6 +38,18 @@ pub fn build(b: *Build) !void {
         .emsdk = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null,
     });
 
+    // For WASM builds, initialize Emscripten cache first
+    if (target.result.cpu.arch.isWasm()) {
+        const emsdk = dep_sokol.builder.dependency("emsdk", .{});
+        const emcc_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "emcc" }));
+        const cache_init = b.addSystemCommand(&.{
+            emcc_path.getPath(b),
+            "--version",
+        });
+        cache_init.has_side_effects = true;
+        freetype_lib.step.dependOn(&cache_init.step);
+    }
+
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),
         .target = target,
@@ -56,20 +68,6 @@ pub fn build(b: *Build) !void {
     if (target.result.cpu.arch.isWasm()) {
         const emsdk = dep_sokol.builder.dependency("emsdk", .{});
         const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-        const path_str = include_path.getPath(b);
-        std.log.info("SYS root path: {s}", .{include_path.getPath(b)});
-        // Check if directory exists and list contents
-        var dir = std.fs.openDirAbsolute(path_str, .{ .iterate = true }) catch |err| {
-            std.log.err("Failed to open include directory: {}", .{err});
-            return error.IncludePathNotFound;
-        };
-        defer dir.close();
-
-        std.log.info("SYS Directory contents:", .{});
-        var iterator = dir.iterate();
-        while (try iterator.next()) |entry| {
-            std.log.info("  - {s} ({s})", .{ entry.name, @tagName(entry.kind) });
-        }
         mod_freetype.addSystemIncludePath(include_path);
     }
 
