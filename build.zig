@@ -31,11 +31,14 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
     });
 
+    // Get EMSDK dependency for WASM builds
+    const emsdk_dep = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null;
+
     // Create FreeType static library
     const freetype_lib = try freetype_build.build(b, .{
         .target = target,
         .optimize = optimize,
-        .emsdk = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null,
+        .emsdk = emsdk_dep,
     });
 
     const mod_markdown = b.createModule(.{
@@ -52,10 +55,17 @@ pub fn build(b: *Build) !void {
     });
     mod_freetype.addIncludePath(b.path("vendor/freetype/include"));
 
-    // For WASM builds, add Emscripten system include path to FreeType module
+    // For WASM builds, add Emscripten system include paths to FreeType module
     if (target.result.cpu.arch.isWasm()) {
-        const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-        mod_freetype.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
+        if (emsdk_dep) |emsdk| {
+            // Add the primary Emscripten include path
+            const primary_path = emsdk.path(b.pathJoin(&.{"upstream/emscripten/cache/sysroot/include"}));
+            mod_freetype.addSystemIncludePath(primary_path);
+
+            // Add fallback system include path
+            const system_path = emsdk.path(b.pathJoin(&.{"upstream/emscripten/system/include"}));
+            mod_freetype.addSystemIncludePath(system_path);
+        }
     }
 
     const mod_root = b.createModule(.{

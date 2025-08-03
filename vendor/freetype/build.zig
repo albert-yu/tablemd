@@ -26,10 +26,48 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
         "-std=c99",
     });
 
-    // For WASM builds, add Emscripten system include path
+    // Add WASM-specific flags
+    if (target.result.cpu.arch.isWasm()) {
+        try c_flags.appendSlice(&.{
+            "-Wno-unused-parameter",
+            "-Wno-unused-variable",
+            "-Wno-unused-function",
+            "-fno-strict-aliasing",
+            "-D__EMSCRIPTEN__",
+            "-D_GNU_SOURCE",
+            "-Wno-implicit-function-declaration",
+            "-Wno-int-conversion",
+            "-Wno-incompatible-pointer-types",
+            "-fno-builtin",
+        });
+    }
+
+    // For WASM builds, add Emscripten system include paths
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
-            lib.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
+            // Primary path that should contain string.h and other standard headers
+            const primary_path = emsdk.path(b.pathJoin(&.{"upstream/emscripten/cache/sysroot/include"}));
+            lib.addSystemIncludePath(primary_path);
+
+            // Fallback paths for different EMSDK configurations
+            const fallback_paths = [_][]const u8{
+                "upstream/emscripten/system/include",
+                "upstream/emscripten/system/include/libc",
+                "system/include",
+                "system/include/libc",
+                "include",
+            };
+
+            for (fallback_paths) |path_suffix| {
+                const fallback_path = emsdk.path(b.pathJoin(&.{path_suffix}));
+                lib.addSystemIncludePath(fallback_path);
+            }
+
+            // Add compatibility includes
+            lib.addSystemIncludePath(emsdk.path("upstream/emscripten/system/include/compat"));
+
+            // Try to use system libc if available
+            lib.addSystemIncludePath(emsdk.path("."));
         }
     }
 

@@ -230,6 +230,54 @@ if ! command_exists zig; then
 fi
 
 echo "🔨 Building with Zig..."
+
+# For CI environments, we may need to initialize the Emscripten cache
+if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CLOUDFLARE_PAGES" ]; then
+    echo "🌐 CI environment detected, ensuring Emscripten cache is initialized..."
+
+    # Set environment variables that might help with Emscripten
+    export EM_CACHE="/tmp/emscripten_cache"
+    export EMSCRIPTEN_CACHE_ROOT="/tmp/emscripten_cache"
+
+    # Try to find emcc and run a simple command to initialize cache
+    if command_exists emcc; then
+        echo "📦 Initializing Emscripten cache..."
+
+        # Force cache initialization with system headers
+        emcc --version
+
+        # Create cache directory if it doesn't exist
+        mkdir -p "$EM_CACHE"
+
+        # Force populate the sysroot cache by compiling a C library function
+        echo "🔧 Force populating Emscripten sysroot cache..."
+        emcc --populate-cache || true
+
+        # Create a minimal test that uses string.h to ensure system headers are available
+        echo '#include <string.h>' > /tmp/test_emcc.c
+        echo '#include <stdio.h>' >> /tmp/test_emcc.c
+        echo 'int main() { printf("test: %zu", strlen("test")); return 0; }' >> /tmp/test_emcc.c
+
+        echo "🧪 Testing Emscripten system headers..."
+        if emcc /tmp/test_emcc.c -o /tmp/test_emcc.js; then
+            echo "✅ Emscripten system headers are working"
+        else
+            echo "❌ Emscripten system headers test failed, attempting cache rebuild..."
+            # Try to rebuild the cache completely
+            emcc --clear-cache || true
+            emcc --populate-cache || true
+
+            # Try one more time with more verbose output
+            echo "🔄 Retrying system headers test with verbose output..."
+            emcc -v /tmp/test_emcc.c -o /tmp/test_emcc.js || echo "❌ Still failing, but continuing with build..."
+        fi
+
+        rm -f /tmp/test_emcc.c /tmp/test_emcc.js /tmp/test_emcc.wasm 2>/dev/null || true
+    else
+        echo "⚠️  emcc not found in PATH, continuing with build..."
+    fi
+fi
+
 zig build -Dtarget=wasm32-emscripten --release=safe
 
 # Check if build was successful
