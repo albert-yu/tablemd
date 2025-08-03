@@ -71,7 +71,9 @@ pub const EmsdkCacheResult = struct {
     include_path: Build.LazyPath,
 };
 
-// Shared function to initialize Emscripten cache and get include path
+/// Shared function to initialize Emscripten cache and get include path
+/// TODO: Why do we need to do this on both the root build.zig and this one?
+/// It seems like we only need to do this once.
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
 
