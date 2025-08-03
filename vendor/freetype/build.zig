@@ -39,7 +39,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
             };
             defer dir.close();
 
-            std.log.info("Directory contents:");
+            std.log.info("Directory contents:", .{});
             var iterator = dir.iterate();
             while (try iterator.next()) |entry| {
                 std.log.info("  - {s} ({s})", .{ entry.name, @tagName(entry.kind) });

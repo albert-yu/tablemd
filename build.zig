@@ -65,7 +65,7 @@ pub fn build(b: *Build) !void {
         };
         defer dir.close();
 
-        std.log.info("SYS Directory contents:");
+        std.log.info("SYS Directory contents:", .{});
         var iterator = dir.iterate();
         while (try iterator.next()) |entry| {
             std.log.info("  - {s} ({s})", .{ entry.name, @tagName(entry.kind) });
