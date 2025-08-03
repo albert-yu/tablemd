@@ -222,10 +222,14 @@ pub const Font = struct {
             return FontMetrics.zero;
         };
         return FontMetrics{
-            .advance_height = @intCast(metrics.vert_advance >> 6), // Convert from 26.6 format
-            .top_side_bearing = @intCast(metrics.vert_bearing_y >> 6),
-            .advance_width = @intCast(metrics.hori_advance >> 6), // Convert from 26.6 format
-            .left_side_bearing = @intCast(metrics.hori_bearing_x >> 6),
+            .width = @intCast(metrics.width >> 6), // Convert from 26.6 format
+            .height = @intCast(metrics.height >> 6), // Convert from 26.6 format
+            .hori_bearing_x = @intCast(metrics.hori_bearing_x >> 6), // Convert from 26.6 format
+            .hori_bearing_y = @intCast(metrics.hori_bearing_y >> 6), // Convert from 26.6 format
+            .hori_advance = @intCast(metrics.hori_advance >> 6), // Convert from 26.6 format
+            .vert_bearing_x = @intCast(metrics.vert_bearing_x >> 6), // Convert from 26.6 format
+            .vert_bearing_y = @intCast(metrics.vert_bearing_y >> 6), // Convert from 26.6 format
+            .vert_advance = @intCast(metrics.vert_advance >> 6), // Convert from 26.6 format
         };
     }
 };
@@ -238,17 +242,26 @@ pub const GlyphDimensions = struct {
     off_y: i32,
 };
 
+/// Glyph metrics, but with 26.6 fixed point values
 pub const FontMetrics = struct {
-    advance_height: i32,
-    top_side_bearing: i32,
-    advance_width: i32,
-    left_side_bearing: i32,
+    width: i32,
+    height: i32,
+    hori_bearing_x: i32,
+    hori_bearing_y: i32,
+    hori_advance: i32,
+    vert_bearing_x: i32,
+    vert_bearing_y: i32,
+    vert_advance: i32,
 
     pub const zero = FontMetrics{
-        .advance_height = 0,
-        .top_side_bearing = 0,
-        .advance_width = 0,
-        .left_side_bearing = 0,
+        .width = 0,
+        .height = 0,
+        .hori_bearing_x = 0,
+        .hori_bearing_y = 0,
+        .hori_advance = 0,
+        .vert_bearing_x = 0,
+        .vert_bearing_y = 0,
+        .vert_advance = 0,
     };
 };
 

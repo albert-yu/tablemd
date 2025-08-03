@@ -335,7 +335,7 @@ pub const Renderer = struct {
         // Handle space character specially (no bitmap)
         if (codepoint == 32) {
             const hmetrics = font.glyphFontMetrics(glyph_index);
-            const advance = @as(f32, @floatFromInt(hmetrics.advance_width));
+            const advance = @as(f32, @floatFromInt(hmetrics.hori_advance));
             try self.glyph_map.put(32, GlyphInfo{
                 .advance = advance,
                 .bearing_x = 0,
@@ -391,9 +391,9 @@ pub const Renderer = struct {
 
         // Get horizontal metrics
         const metrics = font.glyphFontMetrics(glyph_index);
-        const advance = @as(f32, @floatFromInt(metrics.advance_width));
-        const bearing_x = @as(f32, @floatFromInt(metrics.left_side_bearing));
-        const bearing_y = @as(f32, @floatFromInt(metrics.top_side_bearing));
+        const advance = @as(f32, @floatFromInt(metrics.hori_advance));
+        const bearing_x = @as(f32, @floatFromInt(metrics.hori_bearing_x));
+        const bearing_y = @as(f32, @floatFromInt(metrics.vert_bearing_y));
 
         // Store glyph info
         try self.glyph_map.put(codepoint, GlyphInfo{
