@@ -73,10 +73,14 @@ pub const EmsdkCacheResult = struct {
 
 // Shared function to initialize Emscripten cache and get include path
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
-    const emcc_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "emcc" }));
+    const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
+
+    // Use embuilder to ensure system libraries are built
     const cache_init = b.addSystemCommand(&.{
-        emcc_path.getPath(b),
-        "--version",
+        embuilder_path.getPath(b),
+        "build",
+        "libc",
+        "--force",
     });
     cache_init.has_side_effects = true;
 
