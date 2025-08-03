@@ -41,13 +41,8 @@ pub fn build(b: *Build) !void {
     // For WASM builds, initialize Emscripten cache first
     if (target.result.cpu.arch.isWasm()) {
         const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-        const emcc_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "emcc" }));
-        const cache_init = b.addSystemCommand(&.{
-            emcc_path.getPath(b),
-            "--version",
-        });
-        cache_init.has_side_effects = true;
-        freetype_lib.step.dependOn(&cache_init.step);
+        const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+        freetype_lib.step.dependOn(cache_result.cache_init_step);
     }
 
     const mod_markdown = b.createModule(.{
@@ -67,8 +62,8 @@ pub fn build(b: *Build) !void {
     // For WASM builds, add Emscripten system include path to FreeType module
     if (target.result.cpu.arch.isWasm()) {
         const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-        const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-        mod_freetype.addSystemIncludePath(include_path);
+        const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+        mod_freetype.addSystemIncludePath(cache_result.include_path);
     }
 
     const mod_root = b.createModule(.{
