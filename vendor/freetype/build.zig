@@ -29,28 +29,19 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     // For WASM builds, add Emscripten system include paths
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
-            // Add Emscripten include paths with multiple fallbacks
-            const sysroot_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-            lib.addSystemIncludePath(sysroot_path);
+            // Add primary Emscripten include path
+            lib.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
 
-            // Try alternative include paths for different Emscripten setups
-            lib.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "system", "include" })));
-            lib.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "system", "include", "libc" })));
-
-            // Add additional C flags for Emscripten compatibility
-            try c_flags.appendSlice(&.{
-                "-D__EMSCRIPTEN__",
-                "-DEMSCRIPTEN",
-                "-fno-builtin",
-                "-Wno-warn-absolute-paths",
-            });
-        } else {
-            // Fallback flags when emsdk is not available
-            try c_flags.appendSlice(&.{
-                "-D__EMSCRIPTEN__",
-                "-DEMSCRIPTEN",
-            });
+            // Ensure EMSDK is fully initialized before building
+            const emsdk_install_step = emsdk.builder.getInstallStep();
+            lib.step.dependOn(emsdk_install_step);
         }
+
+        // Add Emscripten compatibility flags
+        try c_flags.appendSlice(&.{
+            "-D__EMSCRIPTEN__",
+            "-DEMSCRIPTEN",
+        });
     }
 
     // Get FreeType source files
@@ -73,15 +64,6 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     }
 
     lib.linkLibC();
-
-    // For WASM builds, ensure EMSDK is fully initialized before building
-    if (target.result.cpu.arch.isWasm()) {
-        if (options.emsdk) |emsdk| {
-            // Create a dependency on the EMSDK installation step
-            const emsdk_install_step = emsdk.builder.getInstallStep();
-            lib.step.dependOn(emsdk_install_step);
-        }
-    }
 
     return lib;
 }
