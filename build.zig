@@ -5,6 +5,7 @@ const sokol = @import("sokol");
 const Options = struct {
     mod: *Build.Module,
     dep_sokol: *Build.Dependency,
+    freetype_lib: *Build.Step.Compile,
 };
 
 const ShaderModule = struct {
@@ -24,20 +25,27 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const dep_truetype = b.dependency("TrueType", .{
-        .target = target,
-        .optimize = optimize,
-    });
     const dep_zigimg = b.dependency("zigimg", .{
         .target = target,
         .optimize = optimize,
     });
+
+    // Create FreeType static library
+    const freetype_lib = try createFreeTypeLib(b, target, optimize);
 
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    // Create FreeType module
+    const mod_freetype = b.createModule(.{
+        .root_source_file = b.path("src/freetype.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    mod_freetype.addIncludePath(b.path("vendor/freetype/include"));
 
     const mod_root = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
@@ -57,8 +65,8 @@ pub fn build(b: *Build) !void {
                 .module = dep_zigimg.module("zigimg"),
             },
             .{
-                .name = "TrueType",
-                .module = dep_truetype.module("TrueType"),
+                .name = "freetype",
+                .module = mod_freetype,
             },
             .{
                 .name = "markdown",
@@ -92,7 +100,7 @@ pub fn build(b: *Build) !void {
     });
 
     // special case handling for native vs web build
-    const opts = Options{ .mod = mod_root, .dep_sokol = dep_sokol };
+    const opts = Options{ .mod = mod_root, .dep_sokol = dep_sokol, .freetype_lib = freetype_lib };
     if (target.result.cpu.arch.isWasm()) {
         try buildWeb(b, opts);
     } else {
@@ -106,6 +114,7 @@ fn buildNative(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
+    exe.linkLibrary(opts.freetype_lib);
     b.installArtifact(exe);
     const run = b.addRunArtifact(exe);
     b.step("run", "Run root").dependOn(&run.step);
@@ -117,6 +126,7 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
+    lib.linkLibrary(opts.freetype_lib);
 
     // create a build step which invokes the Emscripten linker
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
@@ -163,4 +173,152 @@ fn createShaderModule(b: *Build, dep_sokol: *Build.Dependency, mod: ShaderModule
             .wgsl = true,
         },
     });
+}
+
+// Create FreeType static library
+fn createFreeTypeLib(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*Build.Step.Compile {
+    const lib = b.addStaticLibrary(.{
+        .name = "freetype",
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add include directories
+    lib.addIncludePath(b.path("vendor/freetype/include"));
+    lib.addIncludePath(b.path("vendor/freetype/src"));
+
+    // Common compilation flags
+    const c_flags = &.{
+        "-DFT2_BUILD_LIBRARY",
+        "-DFT_CONFIG_OPTION_ERROR_STRINGS",
+        "-std=c99",
+    };
+
+    // Base module - core functionality
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftbase.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftinit.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftsystem.c"),
+        .flags = c_flags,
+    });
+
+    // Font drivers we need
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/truetype/truetype.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/sfnt/sfnt.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/cff/cff.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/type1/type1.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/cid/type1cid.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/pfr/pfr.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/type42/type42.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/winfonts/winfnt.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/pcf/pcf.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/bdf/bdf.c"),
+        .flags = c_flags,
+    });
+
+    // Rasterizers
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/smooth/smooth.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/raster/raster.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/sdf/sdf.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/svg/svg.c"),
+        .flags = c_flags,
+    });
+
+    // Hinting modules
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/autofit/autofit.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/pshinter/pshinter.c"),
+        .flags = c_flags,
+    });
+
+    // PostScript support
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/psaux/psaux.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/psnames/psnames.c"),
+        .flags = c_flags,
+    });
+
+    // Compression support
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/gzip/ftgzip.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/lzw/ftlzw.c"),
+        .flags = c_flags,
+    });
+
+    // Debug support
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftdebug.c"),
+        .flags = c_flags,
+    });
+
+    // Base extensions we need
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftbitmap.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftglyph.c"),
+        .flags = c_flags,
+    });
+    lib.addCSourceFile(.{
+        .file = b.path("vendor/freetype/src/base/ftmm.c"),
+        .flags = c_flags,
+    });
+
+    lib.linkLibC();
+
+    return lib;
 }
