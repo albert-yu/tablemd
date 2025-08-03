@@ -80,7 +80,6 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
         embuilder_path.getPath(b),
         "build",
         "libc",
-        "--force",
     });
     cache_init.has_side_effects = true;
 
