@@ -1,6 +1,7 @@
 const std = @import("std");
 const Build = std.Build;
 const sokol = @import("sokol");
+const freetype_build = @import("vendor/freetype/build.zig");
 
 const Options = struct {
     mod: *Build.Module,
@@ -31,7 +32,11 @@ pub fn build(b: *Build) !void {
     });
 
     // Create FreeType static library
-    const freetype_lib = try createFreeTypeLib(b, target, optimize);
+    const freetype_lib = try freetype_build.build(b, .{
+        .target = target,
+        .optimize = optimize,
+        .emsdk = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null,
+    });
 
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),
@@ -49,10 +54,7 @@ pub fn build(b: *Build) !void {
 
     // For WASM builds, add Emscripten system include path to FreeType module
     if (target.result.cpu.arch.isWasm()) {
-        const emsdk = b.dependency("sokol", .{
-            .target = target,
-            .optimize = optimize,
-        }).builder.dependency("emsdk", .{});
+        const emsdk = dep_sokol.builder.dependency("emsdk", .{});
         mod_freetype.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
     }
 
@@ -135,40 +137,10 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
+    lib.linkLibrary(opts.freetype_lib);
 
     // create a build step which invokes the Emscripten linker
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
-
-    // For WASM builds, add FreeType C sources directly to the library
-    const freetype_sources = getFreeTypeSources();
-    const c_flags = &.{
-        "-DFT2_BUILD_LIBRARY",
-        "-DFT_CONFIG_OPTION_ERROR_STRINGS",
-        "-DFT_CONFIG_OPTION_NO_ASSEMBLER",
-        "-DFT_CONFIG_OPTION_DISABLE_STREAM_SUPPORT",
-        "-std=c99",
-    };
-
-    // Add include directories
-    lib.addIncludePath(b.path("vendor/freetype/include"));
-    lib.addIncludePath(b.path("vendor/freetype/src"));
-
-    // Add Emscripten system include path for standard headers like string.h
-    lib.addSystemIncludePath(emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" })));
-
-    // Add all FreeType C source files
-    for (freetype_sources) |source| {
-        lib.addCSourceFile(.{
-            .file = b.path(source),
-            .flags = c_flags,
-        });
-    }
-
-    // Add setjmp/longjmp stub implementation for WASM
-    lib.addCSourceFile(.{
-        .file = b.path("src/web/setjmp_stub.c"),
-        .flags = c_flags,
-    });
 
     const link_step = try sokol.emLinkStep(b, .{
         .lib_main = lib,
@@ -182,7 +154,6 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .extra_args = &.{
             "-sUSE_OFFSET_CONVERTER",
             "-sALLOW_MEMORY_GROWTH=1",
-
             // Need to include Sokol's original entry point (main),
             // because specifying this flag overrides the original
             "-sEXPORTED_FUNCTIONS=_main,_handle_paste_from_web,_malloc,_free,_handle_deserialize,_request_serialize,_clear_tables",
@@ -214,185 +185,4 @@ fn createShaderModule(b: *Build, dep_sokol: *Build.Dependency, mod: ShaderModule
             .wgsl = true,
         },
     });
-}
-
-// Create FreeType static library
-fn createFreeTypeLib(b: *Build, target: Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !*Build.Step.Compile {
-    const lib = b.addStaticLibrary(.{
-        .name = "freetype",
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // Add include directories
-    lib.addIncludePath(b.path("vendor/freetype/include"));
-    lib.addIncludePath(b.path("vendor/freetype/src"));
-
-    // Common compilation flags
-    const c_flags = &.{
-        "-DFT2_BUILD_LIBRARY",
-        "-DFT_CONFIG_OPTION_ERROR_STRINGS",
-        "-std=c99",
-    };
-
-    // Base module - core functionality
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftbase.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftinit.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftsystem.c"),
-        .flags = c_flags,
-    });
-
-    // Font drivers we need
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/truetype/truetype.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/sfnt/sfnt.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/cff/cff.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/type1/type1.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/cid/type1cid.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/pfr/pfr.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/type42/type42.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/winfonts/winfnt.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/pcf/pcf.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/bdf/bdf.c"),
-        .flags = c_flags,
-    });
-
-    // Rasterizers
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/smooth/smooth.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/raster/raster.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/sdf/sdf.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/svg/svg.c"),
-        .flags = c_flags,
-    });
-
-    // Hinting modules
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/autofit/autofit.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/pshinter/pshinter.c"),
-        .flags = c_flags,
-    });
-
-    // PostScript support
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/psaux/psaux.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/psnames/psnames.c"),
-        .flags = c_flags,
-    });
-
-    // Compression support
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/gzip/ftgzip.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/lzw/ftlzw.c"),
-        .flags = c_flags,
-    });
-
-    // Debug support
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftdebug.c"),
-        .flags = c_flags,
-    });
-
-    // Base extensions we need
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftbitmap.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftglyph.c"),
-        .flags = c_flags,
-    });
-    lib.addCSourceFile(.{
-        .file = b.path("vendor/freetype/src/base/ftmm.c"),
-        .flags = c_flags,
-    });
-
-    lib.linkLibC();
-
-    return lib;
-}
-
-// Get FreeType source files for Emscripten compilation
-fn getFreeTypeSources() []const []const u8 {
-    return &.{
-        "vendor/freetype/src/base/ftbase.c",
-        "vendor/freetype/src/base/ftinit.c",
-        "vendor/freetype/src/base/ftsystem.c",
-        "vendor/freetype/src/truetype/truetype.c",
-        "vendor/freetype/src/sfnt/sfnt.c",
-        "vendor/freetype/src/cff/cff.c",
-        "vendor/freetype/src/type1/type1.c",
-        "vendor/freetype/src/cid/type1cid.c",
-        "vendor/freetype/src/pfr/pfr.c",
-        "vendor/freetype/src/type42/type42.c",
-        "vendor/freetype/src/winfonts/winfnt.c",
-        "vendor/freetype/src/pcf/pcf.c",
-        "vendor/freetype/src/bdf/bdf.c",
-        "vendor/freetype/src/smooth/smooth.c",
-        "vendor/freetype/src/raster/raster.c",
-        "vendor/freetype/src/sdf/sdf.c",
-        "vendor/freetype/src/svg/svg.c",
-        "vendor/freetype/src/autofit/autofit.c",
-        "vendor/freetype/src/pshinter/pshinter.c",
-        "vendor/freetype/src/psaux/psaux.c",
-        "vendor/freetype/src/psnames/psnames.c",
-        "vendor/freetype/src/gzip/ftgzip.c",
-        "vendor/freetype/src/lzw/ftlzw.c",
-        "vendor/freetype/src/base/ftdebug.c",
-        "vendor/freetype/src/base/ftbitmap.c",
-        "vendor/freetype/src/base/ftglyph.c",
-        "vendor/freetype/src/base/ftmm.c",
-    };
 }
