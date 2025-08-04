@@ -53,7 +53,7 @@ pub fn build(b: *Build) !void {
 
     // Create FreeType module
     const mod_freetype = b.createModule(.{
-        .root_source_file = b.path("src/freetype.zig"),
+        .root_source_file = b.path("vendor/freetype/freetype.zig"),
         .target = target,
         .optimize = optimize,
     });
