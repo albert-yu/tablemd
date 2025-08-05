@@ -86,7 +86,6 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     cache_init.has_side_effects = true;
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-    std.log.info("WASM include path: {s}", .{include_path.getPath(b)});
 
     return EmsdkCacheResult{
         .cache_init_step = &cache_init.step,
