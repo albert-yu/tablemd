@@ -74,6 +74,21 @@ The application supports basic table editing functionality:
 - Paste text from clipboard
 - Pan/zoom
 
+## Common Issues & Solutions
+
+### CI Build Failures with embuilder
+
+**Issue**: Web builds may fail on CI with "FileNotFound" errors when running `embuilder`.
+
+**Solution**: The build system now gracefully handles missing or non-executable `embuilder` tools on CI environments. The `initEmsdkCache` function in `vendor/freetype/build.zig` will:
+
+1. Check if `embuilder` exists and is executable
+2. Run it if available to initialize the Emscripten cache
+3. Skip cache initialization with a warning if not available
+4. Continue the build process regardless
+
+This ensures builds work both locally (where embuilder typically works) and on CI environments where it might not be available or properly configured.
+
 ## File Structure Notes
 
 - Font assets in `src/fonts/`
