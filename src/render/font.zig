@@ -2,6 +2,7 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const shd_font = @import("font_shader");
+const ArrayList = std.ArrayListUnmanaged;
 
 const ft = @import("freetype");
 
@@ -49,15 +50,36 @@ const BufferVertex = struct {
     buffer_index: i32,
 };
 
+pub const SetupArgs = struct {
+    face: ft.Face,
+    world_size: f32 = 1.0,
+    hinting: bool = false,
+};
+
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
+    elements: ArrayList(BufferVertex),
+    kerning_mode: ft.KerningMode,
+    load_flags: ft.LoadFlags,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
-        _ = allocator;
         return .{
             .bind = .{},
             .pip = .{},
+            .elements = ArrayList(BufferVertex).initCapacity(allocator, 0) catch unreachable,
+            .kerning_mode = .default,
+            .load_flags = .default,
         };
+    }
+
+    pub fn setup(self: *Renderer, args: SetupArgs) !void {
+        if (args.hinting) {
+            self.load_flags = .no_bitmap;
+            self.kerning_mode = .default;
+        } else {
+            self.load_flags = .no_scale | .no_hinting | .no_bitmap;
+            self.kerning_mode = .unscaled;
+        }
     }
 };

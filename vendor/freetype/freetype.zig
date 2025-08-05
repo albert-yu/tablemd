@@ -12,6 +12,35 @@ pub const c = @cImport({
 pub const uint = c.FT_UInt;
 pub const pos = c.FT_Pos;
 
+pub const KerningMode = enum(c.enum_FT_Kerning_Mode_) {
+    default = c.FT_KERNING_DEFAULT,
+    unfitted = c.FT_KERNING_UNFITTED,
+    unscaled = c.FT_KERNING_UNSCALED,
+};
+
+pub const LoadFlags = enum(c_long) {
+    default = c.FT_LOAD_DEFAULT,
+    no_scale = c.FT_LOAD_NO_SCALE,
+    no_hinting = c.FT_LOAD_NO_HINTING,
+    render = c.FT_LOAD_RENDER,
+    no_bitmap = c.FT_LOAD_NO_BITMAP,
+    vertical_layout = c.FT_LOAD_VERTICAL_LAYOUT,
+    force_autohint = c.FT_LOAD_FORCE_AUTOHINT,
+    crop_bitmap = c.FT_LOAD_CROP_BITMAP,
+    pedantic = c.FT_LOAD_PEDANTIC,
+    ignore_global_advance_width = c.FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH,
+    no_recurse = c.FT_LOAD_NO_RECURSE,
+    ignore_transform = c.FT_LOAD_IGNORE_TRANSFORM,
+    monochrome = c.FT_LOAD_MONOCHROME,
+    linear_design = c.FT_LOAD_LINEAR_DESIGN,
+    no_autohint = c.FT_LOAD_NO_AUTOHINT,
+    target_normal = c.FT_LOAD_TARGET_NORMAL,
+    target_light = c.FT_LOAD_TARGET_LIGHT,
+    target_monochrome = c.FT_LOAD_TARGET_MONO,
+    target_lcd = c.FT_LOAD_TARGET_LCD,
+    target_lcd_v = c.FT_LOAD_TARGET_LCD_V,
+};
+
 pub const FreeTypeError = error{
     InitError,
     LoadFaceError,
