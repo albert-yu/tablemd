@@ -34,11 +34,6 @@ pub const LoadFlags = enum(c_long) {
     monochrome = c.FT_LOAD_MONOCHROME,
     linear_design = c.FT_LOAD_LINEAR_DESIGN,
     no_autohint = c.FT_LOAD_NO_AUTOHINT,
-    target_normal = c.FT_LOAD_TARGET_NORMAL,
-    target_light = c.FT_LOAD_TARGET_LIGHT,
-    target_monochrome = c.FT_LOAD_TARGET_MONO,
-    target_lcd = c.FT_LOAD_TARGET_LCD,
-    target_lcd_v = c.FT_LOAD_TARGET_LCD_V,
 };
 
 pub const FreeTypeError = error{

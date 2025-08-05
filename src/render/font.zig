@@ -62,6 +62,7 @@ pub const Renderer = struct {
     elements: ArrayList(BufferVertex),
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
+    em_size: f32,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
@@ -70,6 +71,7 @@ pub const Renderer = struct {
             .elements = ArrayList(BufferVertex).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
             .load_flags = .default,
+            .em_size = 1.0,
         };
     }
 
@@ -77,9 +79,12 @@ pub const Renderer = struct {
         if (args.hinting) {
             self.load_flags = .no_bitmap;
             self.kerning_mode = .default;
+            self.em_size = args.world_size * 64.0;
+            try args.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
         } else {
             self.load_flags = .no_scale | .no_hinting | .no_bitmap;
             self.kerning_mode = .unscaled;
+            self.em_size = @as(f32, @floatFromInt(args.face.face.*.units_per_EM));
         }
     }
 };
