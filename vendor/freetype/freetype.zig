@@ -9,6 +9,9 @@ pub const c = @cImport({
     @cInclude("freetype/ftoutln.h");
 });
 
+pub const uint = c.FT_UInt;
+pub const pos = c.FT_Pos;
+
 pub const FreeTypeError = error{
     InitError,
     LoadFaceError,
