@@ -115,6 +115,14 @@ pub fn build(b: *Build) !void {
                     .output_file = "text_shader.zig",
                 }),
             },
+            .{
+                .name = "font_shader",
+                .module = try createShaderModule(b, dep_sokol, .{
+                    .module_name = "font_shader",
+                    .input_file = "src/shaders/font.glsl",
+                    .output_file = "font_shader.zig",
+                }),
+            },
         },
     });
 
