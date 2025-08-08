@@ -59,7 +59,7 @@ pub const SetupArgs = struct {
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
-    elements: ArrayList(BufferVertex),
+    elements: ArrayList(Element),
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
     em_size: f32,
@@ -68,7 +68,7 @@ pub const Renderer = struct {
         return .{
             .bind = .{},
             .pip = .{},
-            .elements = ArrayList(BufferVertex).initCapacity(allocator, 0) catch unreachable,
+            .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
             .load_flags = .default,
             .em_size = 1.0,
@@ -86,5 +86,122 @@ pub const Renderer = struct {
             self.kerning_mode = .unscaled;
             self.em_size = @as(f32, @floatFromInt(args.face.face.*.units_per_EM));
         }
+
+        // Setup vertex buffer for quad geometry (position only)
+        self.bind.vertex_buffers[0] = sg.makeBuffer(.{
+            .data = sg.asRange(&[_]f32{
+                0.0, 0.0, // bottom-left
+                1.0, 0.0, // bottom-right
+                0.0, 1.0, // top-left
+                1.0, 1.0, // top-right
+            }),
+        });
+
+        // Setup index buffer for quad
+        self.bind.index_buffer = sg.makeBuffer(.{
+            .usage = .{ .index_buffer = true },
+            .data = sg.asRange(&[_]u16{
+                0, 1, 2,
+                1, 2, 3,
+            }),
+        });
+
+        // Setup instance buffer for Element data
+        self.bind.vertex_buffers[1] = sg.makeBuffer(.{
+            .usage = .{ .stream_update = true },
+            .size = @sizeOf(Element) * 1024, // Max instances
+        });
+
+        // TODO: Setup texture buffers for glyph and curve data
+        // This will require creating 1D textures that act as texture buffers
+        // to store BufferGlyph and BufferCurve data
+
+        // Create pipeline
+        var pip_desc: sg.PipelineDesc = .{
+            .shader = sg.makeShader(shd_font.fontShaderDesc(sg.queryBackend())),
+            .layout = init: {
+                var l = sg.VertexLayoutState{};
+                // Set instance buffer step function
+                l.buffers[1].step_func = .PER_INSTANCE;
+
+                // Vertex attribute (per-vertex)
+                l.attrs[shd_font.ATTR_text_position] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 0,
+                    .offset = 0,
+                };
+
+                // Instance attributes (per-instance)
+                l.attrs[shd_font.ATTR_text_instance_position] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(Element, "instance_position"),
+                };
+                l.attrs[shd_font.ATTR_text_glyph_size] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(Element, "glyph_size"),
+                };
+                l.attrs[shd_font.ATTR_text_vertex_uv] = .{
+                    .format = .FLOAT2,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(Element, "vertex_uv"),
+                };
+                l.attrs[shd_font.ATTR_text_vertex_index] = .{
+                    .format = .SINT32,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(Element, "vertex_index"),
+                };
+                l.attrs[shd_font.ATTR_text_color] = .{
+                    .format = .FLOAT4,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(Element, "color"),
+                };
+                l.attrs[shd_font.ATTR_text_pixel_scale] = .{
+                    .format = .FLOAT,
+                    .buffer_index = 1,
+                    .offset = @offsetOf(Element, "pixel_scale"),
+                };
+                break :init l;
+            },
+            .index_type = .UINT16,
+            .depth = .{
+                .compare = .LESS_EQUAL,
+                .write_enabled = true,
+            },
+        };
+
+        // Enable alpha blending
+        pip_desc.colors[0].blend = .{
+            .enabled = true,
+            .src_factor_alpha = .SRC_ALPHA,
+            .dst_factor_alpha = .ONE_MINUS_SRC_ALPHA,
+            .src_factor_rgb = .SRC_ALPHA,
+            .dst_factor_rgb = .ONE_MINUS_SRC_ALPHA,
+        };
+
+        self.pip = sg.makePipeline(pip_desc);
+    }
+
+    pub fn updateBuffer(self: Renderer) void {
+        if (self.elements.items.len == 0) {
+            return;
+        }
+        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements.items));
+    }
+
+    pub fn clear(self: *Renderer) void {
+        self.elements.clearRetainingCapacity();
+    }
+
+    pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+        sg.applyPipeline(self.pip);
+        sg.applyBindings(self.bind);
+        sg.applyUniforms(shd_font.UB_vs_params, vs_range);
+        sg.draw(0, 6, @intCast(self.elements.items.len));
+    }
+
+    pub fn cleanup(self: *Renderer, allocator: std.mem.Allocator) void {
+        self.elements.deinit(allocator);
     }
 };
