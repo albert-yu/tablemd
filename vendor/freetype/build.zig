@@ -87,8 +87,32 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
 
+    // Add a wait step to ensure the include path has content
+    const wait_for_cache = b.addSystemCommand(&.{
+        "sh",
+        "-c",
+        b.fmt(
+            \\max_retries=30
+            \\retry_count=0
+            \\include_dir="{s}"
+            \\while [ $retry_count -lt $max_retries ]; do
+            \\  if [ -d "$include_dir" ] && [ "$(ls -A "$include_dir" 2>/dev/null)" ]; then
+            \\    echo "Include directory ready: $include_dir"
+            \\    exit 0
+            \\  fi
+            \\  echo "Waiting for include directory to be populated... (attempt $((retry_count + 1))/$max_retries)"
+            \\  sleep 1
+            \\  retry_count=$((retry_count + 1))
+            \\done
+            \\echo "Timeout waiting for include directory to be populated: $include_dir"
+            \\exit 1
+        , .{include_path.getPath(b)}),
+    });
+    wait_for_cache.step.dependOn(&cache_init.step);
+    wait_for_cache.has_side_effects = true;
+
     return EmsdkCacheResult{
-        .cache_init_step = &cache_init.step,
+        .cache_init_step = &wait_for_cache.step,
         .include_path = include_path,
     };
 }
