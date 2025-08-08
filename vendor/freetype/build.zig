@@ -78,28 +78,60 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
 
-    // Create a cache initialization that's optional for CI environments
-    // Use a shell command that gracefully handles missing embuilder
-    const cache_init = b.addSystemCommand(&.{
+    // First step: wait for embuilder with timeout
+    const wait_step = b.addSystemCommand(&.{
         "sh", "-c",
     });
 
-    // Build command that checks if embuilder exists and is executable
-    const check_and_run = b.fmt("if [ -x \"{s}\" ]; then " ++
-        "echo 'Running embuilder to initialize cache...'; " ++
-        "\"{s}\" build libc || " ++
-        "echo 'Warning: embuilder failed, but continuing build'; " ++
-        "else " ++
-        "echo 'Warning: embuilder not found or not executable, skipping cache init'; " ++
-        "fi; " ++
-        "mkdir -p \"{s}\"", .{ embuilder_path.getPath(b), embuilder_path.getPath(b), include_path.getPath(b) });
+    const wait_script = b.fmt(
+        \\set -e
+        \\echo "Waiting for embuilder to be available..."
+        \\for i in {{1..30}}; do
+        \\    if [ -x "{s}" ]; then
+        \\        echo "Found embuilder after $i attempts"
+        \\        exit 0
+        \\    fi
+        \\    echo "Waiting for embuilder... (attempt $i/30)"
+        \\    sleep 2
+        \\done
+        \\echo "Error: embuilder not found after 30 attempts (60 seconds)"
+        \\exit 1
+    , .{embuilder_path.getPath(b)});
 
-    cache_init.addArg(check_and_run);
-    cache_init.has_side_effects = true;
-    cache_init.setName("embuilder_cache_init");
+    wait_step.addArg(wait_script);
+    wait_step.setName("wait_for_embuilder");
+
+    // Second step: initialize cache
+    const init_step = b.addSystemCommand(&.{ embuilder_path.getPath(b), "build", "libc" });
+    init_step.step.dependOn(&wait_step.step);
+    init_step.setName("init_emscripten_cache");
+
+    // Third step: verify cache with timeout
+    const verify_step = b.addSystemCommand(&.{
+        "sh", "-c",
+    });
+
+    const verify_script = b.fmt(
+        \\set -e
+        \\echo "Verifying cache initialization..."
+        \\for i in {{1..15}}; do
+        \\    if [ -d "{s}" ] && [ "$(find "{s}" -type f | wc -l)" -gt 0 ]; then
+        \\        echo "Cache verification successful after $i attempts"
+        \\        exit 0
+        \\    fi
+        \\    echo "Waiting for cache files... (attempt $i/15)"
+        \\    sleep 2
+        \\done
+        \\echo "Error: cache verification failed after 15 attempts (30 seconds)"
+        \\exit 1
+    , .{ include_path.getPath(b), include_path.getPath(b) });
+
+    verify_step.addArg(verify_script);
+    verify_step.step.dependOn(&init_step.step);
+    verify_step.setName("verify_emscripten_cache");
 
     return EmsdkCacheResult{
-        .cache_init_step = &cache_init.step,
+        .cache_init_step = &verify_step.step,
         .include_path = include_path,
     };
 }
