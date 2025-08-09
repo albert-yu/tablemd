@@ -77,12 +77,36 @@ pub const EmsdkCacheResult = struct {
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
 
+    // Wait for embuilder binary to be available
+    const wait_for_embuilder = b.addSystemCommand(&.{
+        "sh",
+        "-c",
+        b.fmt(
+            \\max_retries=30
+            \\retry_count=0
+            \\embuilder_bin="{s}"
+            \\while [ $retry_count -lt $max_retries ]; do
+            \\  if [ -f "$embuilder_bin" ] && [ -x "$embuilder_bin" ]; then
+            \\    echo "Embuilder binary ready: $embuilder_bin"
+            \\    exit 0
+            \\  fi
+            \\  echo "Waiting for embuilder binary to be available... (attempt $((retry_count + 1))/$max_retries)"
+            \\  sleep 1
+            \\  retry_count=$((retry_count + 1))
+            \\done
+            \\echo "Timeout waiting for embuilder binary: $embuilder_bin"
+            \\exit 1
+        , .{embuilder_path.getPath(b)}),
+    });
+    wait_for_embuilder.has_side_effects = true;
+
     // Use embuilder to ensure system libraries are built
     const cache_init = b.addSystemCommand(&.{
         embuilder_path.getPath(b),
         "build",
         "libc",
     });
+    cache_init.step.dependOn(&wait_for_embuilder.step);
     cache_init.has_side_effects = true;
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
