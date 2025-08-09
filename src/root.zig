@@ -189,6 +189,7 @@ export fn frame() void {
 
 export fn cleanup() void {
     state.text_renderer.cleanup();
+    state.font_renderer.cleanup();
     state.scene.deinit(state.allocator);
     state.ui.deinit(state.allocator);
     sg.shutdown();
