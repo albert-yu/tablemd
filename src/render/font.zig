@@ -56,6 +56,30 @@ pub const SetupArgs = struct {
     hinting: bool = false,
 };
 
+/// High-quality vector font renderer using quadratic Bézier curves.
+/// Supports Unicode text, kerning, and hinting for crisp text rendering.
+///
+/// Usage example:
+/// ```zig
+/// var font_renderer = font.Renderer.new(allocator);
+/// defer font_renderer.cleanup();
+///
+/// // Setup with a FreeType font face
+/// const setup_args = font.SetupArgs{
+///     .face = my_font_face,
+///     .world_size = 16.0, // Font size in pixels
+///     .hinting = true,    // Enable for crisp pixel-aligned text
+/// };
+/// try font_renderer.setup(setup_args);
+///
+/// // Render text
+/// font_renderer.addLine("Hello, World!", 100.0, 200.0, sg.Color{ .r = 1, .g = 1, .b = 1, .a = 1 });
+/// font_renderer.updateBuffer();
+///
+/// // In render loop
+/// font_renderer.renderInPass(vs_uniforms);
+/// font_renderer.clear(); // Clear for next frame
+/// ```
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
@@ -72,6 +96,7 @@ pub const Renderer = struct {
     allocator: std.mem.Allocator,
     glyph_texture: sg.Image,
     curve_texture: sg.Image,
+    dilation: f32,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
@@ -90,6 +115,7 @@ pub const Renderer = struct {
             .allocator = allocator,
             .glyph_texture = .{},
             .curve_texture = .{},
+            .dilation = 0.0,
         };
     }
 
@@ -470,6 +496,15 @@ pub const Renderer = struct {
         sg.draw(0, 6, @intCast(self.elements.items.len));
     }
 
+    /// Setup shader uniforms for drawing (matches C++ drawSetup method)
+    pub fn drawSetup(self: *Renderer) void {
+        // Bindings are already set up in renderInPass, but this method
+        // provides C++ API compatibility for advanced users who want
+        // to manually control the render pipeline
+        sg.applyPipeline(self.pip);
+        sg.applyBindings(self.bind);
+    }
+
     pub fn addGlyph(self: *Renderer, charcode: u32, x: f32, y: f32, color: sg.Color) void {
         const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse return;
 
@@ -497,7 +532,13 @@ pub const Renderer = struct {
         };
     }
 
-    pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) f32 {
+    /// Draw text at a specific position with custom color (convenience method)
+    pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) void {
+        self.addLine(text, x, y, color);
+    }
+
+    /// Draw text and return the advance width (useful for layout calculations)
+    pub fn drawAndMeasure(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) f32 {
         var current_x = x;
         var previous_glyph: ft.uint = 0;
 
@@ -531,6 +572,33 @@ pub const Renderer = struct {
 
         return current_x;
     }
+
+    pub const TextElement = struct {
+        text: []const u8,
+        x: f32,
+        y: f32,
+        color: sg.Color,
+
+        /// Create a TextElement with white color as default
+        pub fn init(text: []const u8, x: f32, y: f32) TextElement {
+            return TextElement{
+                .text = text,
+                .x = x,
+                .y = y,
+                .color = sg.Color{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
+            };
+        }
+
+        /// Create a TextElement with custom color
+        pub fn initWithColor(text: []const u8, x: f32, y: f32, color: sg.Color) TextElement {
+            return TextElement{
+                .text = text,
+                .x = x,
+                .y = y,
+                .color = color,
+            };
+        }
+    };
 
     pub const BoundingBox = struct {
         min_x: f32,
@@ -665,5 +733,195 @@ pub const Renderer = struct {
         self.buffer_glyphs.deinit(self.allocator);
         self.buffer_curves.deinit(self.allocator);
         self.glyphs.deinit();
+    }
+
+    /// Decodes the first Unicode code point from UTF-8 string and advances the index
+    fn decodeCharcode(text: []const u8, index: *usize) u32 {
+        if (index.* >= text.len) return 0;
+
+        const first = text[index.*];
+
+        // Fast path for ASCII
+        if (first < 128) {
+            index.* += 1;
+            return @as(u32, first);
+        }
+
+        var result: u32 = 0;
+        var size: usize = 0;
+
+        if ((first & 0xE0) == 0xC0) { // 110xxxxx
+            result = first & 0x1F;
+            size = 2;
+        } else if ((first & 0xF0) == 0xE0) { // 1110xxxx
+            result = first & 0x0F;
+            size = 3;
+        } else if ((first & 0xF8) == 0xF0) { // 11110xxx
+            result = first & 0x07;
+            size = 4;
+        } else {
+            // Invalid encoding
+            index.* += 1;
+            return 0;
+        }
+
+        if (index.* + size > text.len) {
+            index.* += 1;
+            return 0;
+        }
+
+        for (1..size) |i| {
+            const value = text[index.* + i];
+            if ((value & 0xC0) != 0x80) { // 10xxxxxx
+                index.* += 1;
+                return 0;
+            }
+            result = (result << 6) | (value & 0x3F);
+        }
+
+        index.* += size;
+        return result;
+    }
+
+    /// Add a line of text for rendering with full Unicode support and kerning.
+    /// This method is similar to text.zig addLine but uses vector-based rendering
+    /// for higher quality output. Supports newlines for multi-line text.
+    ///
+    /// Args:
+    /// - text: UTF-8 encoded text string
+    /// - x, y: Position in world coordinates
+    /// - color: Text color
+    pub fn addLine(self: *Renderer, text: []const u8, x: f32, y: f32, color: sg.Color) void {
+        // Prepare all glyphs needed for this text
+        self.prepareGlyphsForText(text) catch return;
+
+        var current_x = x;
+        var current_y = y;
+        const original_x = x;
+        var index: usize = 0;
+        var previous_glyph_index: u32 = 0;
+
+        while (index < text.len) {
+            const charcode = decodeCharcode(text, &index);
+            if (charcode == 0) continue;
+
+            if (charcode == '\r') continue;
+
+            if (charcode == '\n') {
+                current_x = original_x;
+                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
+                current_y -= line_height;
+                if (self.hinting) {
+                    current_y = @round(current_y);
+                }
+                continue;
+            }
+
+            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
+
+            // Apply kerning
+            if (previous_glyph_index != 0 and glyph.index != 0) {
+                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
+            }
+
+            // Add glyph quad if it has curves
+            if (glyph.curve_count > 0) {
+                self.addGlyph(charcode, current_x, current_y, color);
+            }
+
+            // Advance cursor
+            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
+            previous_glyph_index = glyph.index;
+        }
+    }
+
+    /// Measure the bounding box of text without rendering it.
+    /// Useful for layout calculations and UI positioning.
+    ///
+    /// Returns: BoundingBox with exact bounds of the rendered text
+    pub fn measureText(self: *Renderer, text: []const u8, x: f32, y: f32) BoundingBox {
+        var bbox = BoundingBox{
+            .min_x = std.math.inf(f32),
+            .min_y = std.math.inf(f32),
+            .max_x = -std.math.inf(f32),
+            .max_y = -std.math.inf(f32),
+        };
+
+        var current_x = x;
+        var current_y = y;
+        const original_x = x;
+        var index: usize = 0;
+        var previous_glyph_index: u32 = 0;
+
+        while (index < text.len) {
+            const charcode = decodeCharcode(text, &index);
+            if (charcode == 0) continue;
+
+            if (charcode == '\r') continue;
+
+            if (charcode == '\n') {
+                current_x = original_x;
+                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
+                current_y -= line_height;
+                if (self.hinting) {
+                    current_y = @round(current_y);
+                }
+                continue;
+            }
+
+            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
+
+            // Apply kerning
+            if (previous_glyph_index != 0 and glyph.index != 0) {
+                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
+            }
+
+            // Calculate glyph bounds (without dilation for exact bounds)
+            const glyph_u0 = @as(f32, @floatFromInt(glyph.bearing_x)) / self.em_size;
+            const glyph_v0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) / self.em_size;
+            const glyph_u1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) / self.em_size;
+            const glyph_v1 = @as(f32, @floatFromInt(glyph.bearing_y)) / self.em_size;
+
+            const x0 = current_x + glyph_u0 * self.world_size;
+            const y0 = current_y + glyph_v0 * self.world_size;
+            const x1 = current_x + glyph_u1 * self.world_size;
+            const y1 = current_y + glyph_v1 * self.world_size;
+
+            // Update bounding box
+            if (x0 < bbox.min_x) bbox.min_x = x0;
+            if (y0 < bbox.min_y) bbox.min_y = y0;
+            if (x1 > bbox.max_x) bbox.max_x = x1;
+            if (y1 > bbox.max_y) bbox.max_y = y1;
+
+            // Advance cursor
+            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
+            previous_glyph_index = glyph.index;
+        }
+
+        return bbox;
+    }
+
+    /// Get the advance width for a space character (useful for layout)
+    pub fn getSpaceAdvance(self: *Renderer) f32 {
+        const space_glyph = self.glyphs.get(32) orelse return 0.0;
+        return @as(f32, @floatFromInt(space_glyph.advance)) / self.em_size * self.world_size;
+    }
+
+    /// Check if a glyph is available for the given character
+    pub fn hasGlyph(self: *Renderer, charcode: u32) bool {
+        return self.glyphs.contains(charcode);
+    }
+
+    /// Get the line height for the current font
+    pub fn getLineHeight(self: *Renderer) f32 {
+        return @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
+    }
+
+    /// Convenience method that matches text.zig API for easy migration.
+    /// Use this if you want to switch from bitmap text rendering to vector text.
+    pub fn addTextElement(self: *Renderer, element: TextElement) void {
+        self.addLine(element.text, element.x, element.y, element.color);
     }
 };
