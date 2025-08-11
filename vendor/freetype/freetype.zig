@@ -18,32 +18,23 @@ pub const KerningMode = enum(c.enum_FT_Kerning_Mode_) {
     unscaled = c.FT_KERNING_UNSCALED,
 };
 
-pub const LoadFlags = c_long;
-
-pub const LOAD_DEFAULT = c.FT_LOAD_DEFAULT;
-pub const LOAD_NO_SCALE = c.FT_LOAD_NO_SCALE;
-pub const LOAD_NO_HINTING = c.FT_LOAD_NO_HINTING;
-pub const LOAD_RENDER = c.FT_LOAD_RENDER;
-pub const LOAD_NO_BITMAP = c.FT_LOAD_NO_BITMAP;
-pub const LOAD_VERTICAL_LAYOUT = c.FT_LOAD_VERTICAL_LAYOUT;
-pub const LOAD_FORCE_AUTOHINT = c.FT_LOAD_FORCE_AUTOHINT;
-pub const LOAD_CROP_BITMAP = c.FT_LOAD_CROP_BITMAP;
-pub const LOAD_PEDANTIC = c.FT_LOAD_PEDANTIC;
-pub const LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH = c.FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH;
-pub const LOAD_NO_RECURSE = c.FT_LOAD_NO_RECURSE;
-pub const LOAD_IGNORE_TRANSFORM = c.FT_LOAD_IGNORE_TRANSFORM;
-pub const LOAD_MONOCHROME = c.FT_LOAD_MONOCHROME;
-pub const LOAD_LINEAR_DESIGN = c.FT_LOAD_LINEAR_DESIGN;
-pub const LOAD_NO_AUTOHINT = c.FT_LOAD_NO_AUTOHINT;
-
-// Outline flags
-pub const OUTLINE_REVERSE_FILL = c.FT_OUTLINE_REVERSE_FILL;
-
-// Curve tag constants
-pub const CURVE_TAG_ON = c.FT_CURVE_TAG_ON;
-pub const CURVE_TAG_CONIC = c.FT_CURVE_TAG_CONIC;
-pub const CURVE_TAG_CUBIC = c.FT_CURVE_TAG_CUBIC;
-pub const CURVE_TAG_MASK = c.FT_CURVE_TAG(3);
+pub const LoadFlags = enum(c_long) {
+    default = c.FT_LOAD_DEFAULT,
+    no_scale = c.FT_LOAD_NO_SCALE,
+    no_hinting = c.FT_LOAD_NO_HINTING,
+    render = c.FT_LOAD_RENDER,
+    no_bitmap = c.FT_LOAD_NO_BITMAP,
+    vertical_layout = c.FT_LOAD_VERTICAL_LAYOUT,
+    force_autohint = c.FT_LOAD_FORCE_AUTOHINT,
+    crop_bitmap = c.FT_LOAD_CROP_BITMAP,
+    pedantic = c.FT_LOAD_PEDANTIC,
+    ignore_global_advance_width = c.FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH,
+    no_recurse = c.FT_LOAD_NO_RECURSE,
+    ignore_transform = c.FT_LOAD_IGNORE_TRANSFORM,
+    monochrome = c.FT_LOAD_MONOCHROME,
+    linear_design = c.FT_LOAD_LINEAR_DESIGN,
+    no_autohint = c.FT_LOAD_NO_AUTOHINT,
+};
 
 pub const FreeTypeError = error{
     InitError,
@@ -52,19 +43,9 @@ pub const FreeTypeError = error{
     LoadGlyphError,
     RenderGlyphError,
     GetGlyphError,
-    GetKerningError,
     OutOfMemory,
     OutlineError,
 };
-
-/// Vector type for kerning and other operations
-pub const Vector = struct {
-    x: i32,
-    y: i32,
-};
-
-/// Outline type alias for FreeType outline
-pub const Outline = c.FT_Outline;
 
 /// Outline point types
 pub const OutlinePointType = enum(u8) {
@@ -133,8 +114,8 @@ pub const Face = struct {
         _ = c.FT_Done_Face(self.face);
     }
 
-    pub fn setPixelSizes(self: Face, width: u32, pixel_height: u32) FreeTypeError!void {
-        if (c.FT_Set_Pixel_Sizes(self.face, width, pixel_height) != 0) {
+    pub fn setPixelSizes(self: Face, width: u32, height: u32) FreeTypeError!void {
+        if (c.FT_Set_Pixel_Sizes(self.face, width, height) != 0) {
             return FreeTypeError.SetSizeError;
         }
     }
@@ -153,38 +134,6 @@ pub const Face = struct {
 
     pub fn getGlyphIndex(self: Face, char_code: u32) u32 {
         return c.FT_Get_Char_Index(self.face, char_code);
-    }
-
-    /// Alias for getGlyphIndex for compatibility with font renderer
-    pub fn getCharIndex(self: Face, char_code: u32) u32 {
-        return self.getGlyphIndex(char_code);
-    }
-
-    /// Load glyph by index
-    pub fn loadGlyph(self: Face, glyph_index: u32, load_flags: LoadFlags) FreeTypeError!void {
-        if (c.FT_Load_Glyph(self.face, glyph_index, @intCast(load_flags)) != 0) {
-            return FreeTypeError.LoadGlyphError;
-        }
-    }
-
-    /// Get kerning between two glyphs
-    pub fn getKerning(self: Face, left_glyph: u32, right_glyph: u32, kern_mode: KerningMode) !Vector {
-        var kerning: c.FT_Vector = undefined;
-        const err = c.FT_Get_Kerning(self.face, left_glyph, right_glyph, @intFromEnum(kern_mode), &kerning);
-        if (err != 0) {
-            return error.GetKerningError;
-        }
-        return Vector{ .x = @intCast(kerning.x), .y = @intCast(kerning.y) };
-    }
-
-    /// Get face height in font units
-    pub fn height(self: Face) i32 {
-        return @intCast(self.face.*.height);
-    }
-
-    /// Get units per EM
-    pub fn units_per_EM(self: Face) u32 {
-        return @intCast(self.face.*.units_per_EM);
     }
 
     /// Returns glyph bitmap data

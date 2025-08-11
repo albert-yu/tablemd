@@ -104,7 +104,7 @@ pub const Renderer = struct {
             .pip = .{},
             .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
-            .load_flags = ft.LOAD_DEFAULT,
+            .load_flags = .default,
             .em_size = 1.0,
             .face = undefined,
             .world_size = 1.0,
@@ -125,14 +125,14 @@ pub const Renderer = struct {
         self.hinting = args.hinting;
 
         if (args.hinting) {
-            self.load_flags = ft.LOAD_NO_BITMAP;
+            self.load_flags = .no_bitmap;
             self.kerning_mode = .default;
             self.em_size = args.world_size * 64.0;
             try args.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
         } else {
-            self.load_flags = ft.LOAD_NO_SCALE | ft.LOAD_NO_HINTING | ft.LOAD_NO_BITMAP;
+            self.load_flags = .no_scale | .no_hinting | .no_bitmap;
             self.kerning_mode = .unscaled;
-            self.em_size = @as(f32, @floatFromInt(args.face.units_per_EM()));
+            self.em_size = @as(f32, @floatFromInt(args.face.face.*.units_per_EM));
         }
 
         // Build undefined glyph (index 0)
@@ -212,39 +212,39 @@ pub const Renderer = struct {
                 l.buffers[1].step_func = .PER_INSTANCE;
 
                 // Vertex attribute (per-vertex)
-                l.attrs[shd_font.ATTR_font_position] = .{
+                l.attrs[shd_font.ATTR_text_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
                     .offset = 0,
                 };
 
                 // Instance attributes (per-instance)
-                l.attrs[shd_font.ATTR_font_instance_position] = .{
+                l.attrs[shd_font.ATTR_text_instance_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "instance_position"),
                 };
-                l.attrs[shd_font.ATTR_font_glyph_size] = .{
+                l.attrs[shd_font.ATTR_text_glyph_size] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "glyph_size"),
                 };
-                l.attrs[shd_font.ATTR_font_vertex_uv] = .{
+                l.attrs[shd_font.ATTR_text_vertex_uv] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "vertex_uv"),
                 };
-                l.attrs[shd_font.ATTR_font_vertex_index] = .{
-                    .format = .INT,
+                l.attrs[shd_font.ATTR_text_vertex_index] = .{
+                    .format = .SINT32,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "vertex_index"),
                 };
-                l.attrs[shd_font.ATTR_font_color] = .{
+                l.attrs[shd_font.ATTR_text_color] = .{
                     .format = .FLOAT4,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "color"),
                 };
-                l.attrs[shd_font.ATTR_font_pixel_scale] = .{
+                l.attrs[shd_font.ATTR_text_pixel_scale] = .{
                     .format = .FLOAT,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "pixel_scale"),
@@ -276,7 +276,7 @@ pub const Renderer = struct {
             .count = 0,
         };
         const buffer_glyph_index = self.buffer_glyphs.items.len;
-        try self.buffer_glyphs.append(self.allocator, buffer_glyph);
+        try self.buffer_glyphs.append(buffer_glyph);
 
         const glyph_slot = self.face.face.*.glyph;
         const outline = &glyph_slot.*.outline;
@@ -290,7 +290,7 @@ pub const Renderer = struct {
         }
 
         // Update curve count
-        self.buffer_glyphs.items[buffer_glyph_index].count = @as(i32, @intCast(self.buffer_curves.items.len)) - self.buffer_glyphs.items[buffer_glyph_index].start;
+        self.buffer_glyphs.items[buffer_glyph_index].count = @intCast(self.buffer_curves.items.len - self.buffer_glyphs.items[buffer_glyph_index].start);
 
         // Store glyph info
         const glyph = Glyph{
@@ -321,7 +321,7 @@ pub const Renderer = struct {
         }
 
         const convert = struct {
-            fn call(v: ft.c.FT_Vector, em: f32) [2]f32 {
+            fn call(v: ft.Vector, em: f32) [2]f32 {
                 return .{
                     @as(f32, @floatFromInt(v.x)) / em,
                     @as(f32, @floatFromInt(v.y)) / em,
@@ -388,14 +388,14 @@ pub const Renderer = struct {
                     const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
                     const d = make_midpoint(c0, c1);
 
-                    try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
-                    try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
+                    try self.buffer_curves.append(make_curve(b0, c0, d));
+                    try self.buffer_curves.append(make_curve(d, c1, b3));
                 } else if (previous_tag == ft.CURVE_TAG_ON) {
                     // Linear segment
-                    try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, current), current));
+                    try self.buffer_curves.append(make_curve(previous, make_midpoint(previous, current), current));
                 } else {
                     // Regular bezier curve
-                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, current));
+                    try self.buffer_curves.append(make_curve(start, previous, current));
                 }
                 start = current;
                 control = current;
@@ -405,13 +405,13 @@ pub const Renderer = struct {
                 } else {
                     // Create virtual on point
                     const mid = make_midpoint(previous, current);
-                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, mid));
+                    try self.buffer_curves.append(make_curve(start, previous, mid));
                     start = mid;
                     control = mid;
                 }
             }
             previous = current;
-            previous_tag = @intCast(current_tag);
+            previous_tag = current_tag;
         }
 
         // Close the contour
@@ -425,32 +425,32 @@ pub const Renderer = struct {
             const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
             const d = make_midpoint(c0, c1);
 
-            try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
-            try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
+            try self.buffer_curves.append(make_curve(b0, c0, d));
+            try self.buffer_curves.append(make_curve(d, c1, b3));
         } else if (previous_tag == ft.CURVE_TAG_ON) {
             // Linear segment
-            try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, first), first));
+            try self.buffer_curves.append(make_curve(previous, make_midpoint(previous, first), first));
         } else {
-            try self.buffer_curves.append(self.allocator, make_curve(start, previous, first));
+            try self.buffer_curves.append(make_curve(start, previous, first));
         }
     }
 
     fn uploadBuffers(self: *Renderer) !void {
-        // Create glyph texture (RG32F format for start/count pairs)
+        // Create glyph texture (RG32I format for start/count pairs)
         var glyph_desc: sg.ImageDesc = .{
             .label = "glyph texture",
             .width = @intCast(self.buffer_glyphs.items.len),
             .height = 1,
-            .pixel_format = .RG32F,
+            .pixel_format = .RG32SI,
             .sample_count = 1,
             .num_mipmaps = 1,
         };
 
-        // Convert BufferGlyph to packed format (using float for compatibility)
-        const glyph_data = try self.allocator.alloc([2]f32, self.buffer_glyphs.items.len);
+        // Convert BufferGlyph to packed format
+        const glyph_data = try self.allocator.alloc([2]i32, self.buffer_glyphs.items.len);
         defer self.allocator.free(glyph_data);
         for (self.buffer_glyphs.items, 0..) |glyph, i| {
-            glyph_data[i] = .{ @floatFromInt(glyph.start), @floatFromInt(glyph.count) };
+            glyph_data[i] = .{ glyph.start, glyph.count };
         }
         glyph_desc.data.subimage[0][0] = sg.asRange(glyph_data);
         self.glyph_texture = sg.makeImage(glyph_desc);
@@ -680,7 +680,7 @@ pub const Renderer = struct {
             const charcode: u32 = @intCast(codepoint);
             if (self.glyphs.contains(charcode)) continue;
 
-            const glyph_index = self.face.getGlyphIndex(charcode);
+            const glyph_index = self.face.getCharIndex(charcode);
             if (glyph_index == 0) continue;
 
             _ = self.face.loadGlyph(glyph_index, self.load_flags) catch {
@@ -809,7 +809,7 @@ pub const Renderer = struct {
 
             if (charcode == '\n') {
                 current_x = original_x;
-                const line_height = @as(f32, @floatFromInt(self.face.height())) / @as(f32, @floatFromInt(self.face.units_per_EM())) * self.world_size;
+                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
                 current_y -= line_height;
                 if (self.hinting) {
                     current_y = @round(current_y);
@@ -862,7 +862,7 @@ pub const Renderer = struct {
 
             if (charcode == '\n') {
                 current_x = original_x;
-                const line_height = @as(f32, @floatFromInt(self.face.height())) / @as(f32, @floatFromInt(self.face.units_per_EM())) * self.world_size;
+                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
                 current_y -= line_height;
                 if (self.hinting) {
                     current_y = @round(current_y);
@@ -916,7 +916,7 @@ pub const Renderer = struct {
 
     /// Get the line height for the current font
     pub fn getLineHeight(self: *Renderer) f32 {
-        return @as(f32, @floatFromInt(self.face.height())) / @as(f32, @floatFromInt(self.face.units_per_EM())) * self.world_size;
+        return @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
     }
 
     /// Convenience method that matches text.zig API for easy migration.
