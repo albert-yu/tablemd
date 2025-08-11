@@ -14,7 +14,6 @@ extern fn activate_mobile_keyboard() void;
 const Scene = ui.Scene;
 const UI = ui.UI;
 const RectRenderer = @import("render/rect.zig").Renderer;
-const TextRenderer = @import("render/text.zig").Renderer;
 const FontRenderer = @import("render/font.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
@@ -66,7 +65,6 @@ const TouchState = struct {
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
-    var text_renderer: TextRenderer = undefined;
     var font_renderer: FontRenderer = undefined;
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
@@ -109,21 +107,30 @@ export fn init() void {
     state.rect_dims = rect_dims;
     state.rect_renderer.setup();
 
-    // text renderer
-    // TODO: replace with font renderer
-    state.text_renderer = TextRenderer.new(state.allocator);
-    const text_width = state.text_renderer.setup() catch |err| {
-        std.log.err("Failed to setup text renderer: {}", .{err});
+    // font renderer setup
+    state.font_renderer = FontRenderer.new(state.allocator);
+
+    const font_data = @embedFile("fonts/SpaceMono-Regular.ttf");
+    const font_face = @import("freetype").load(font_data) catch |err| {
+        std.log.err("Failed to load font: {}", .{err});
         return;
     };
+
+    state.font_renderer.setup(.{
+        .face = font_face.face,
+        .world_size = 16.0,
+        .hinting = true,
+    }) catch |err| {
+        std.log.err("Failed to setup font renderer: {}", .{err});
+        return;
+    };
+
+    const text_width = state.font_renderer.getSpaceAdvance();
     state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
     state.ui = UI.init(state.allocator, .{
         .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
         .text = .{ .width = text_width, .height = rect_dims.height },
     });
-
-    // font renderer
-    state.font_renderer = FontRenderer.new(state.allocator);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -164,9 +171,9 @@ export fn frame() void {
     }
     state.rect_renderer.updateBuffer();
     for (state.scene.texts.items) |text| {
-        state.text_renderer.addLine(text);
+        state.font_renderer.draw(text.x, text.y, text.text, text.color);
     }
-    state.text_renderer.updateBuffer();
+    state.font_renderer.updateBuffer();
 
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
@@ -181,14 +188,13 @@ export fn frame() void {
     });
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
-    state.text_renderer.renderInPass(vs_range);
+    state.font_renderer.renderInPass(vs_range);
 
     sg.endPass();
     sg.commit();
 }
 
 export fn cleanup() void {
-    state.text_renderer.cleanup();
     state.font_renderer.cleanup();
     state.scene.deinit(state.allocator);
     state.ui.deinit(state.allocator);
@@ -648,7 +654,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 
 fn clear() void {
     state.rect_renderer.clear();
-    state.text_renderer.clear();
+    state.font_renderer.clear();
     state.scene.clear();
 }
 

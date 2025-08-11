@@ -195,4 +195,4 @@ void main() {
 }
 @end
 
-@program text vs fs
+@program font vs fs
