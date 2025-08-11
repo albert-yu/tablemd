@@ -212,39 +212,39 @@ pub const Renderer = struct {
                 l.buffers[1].step_func = .PER_INSTANCE;
 
                 // Vertex attribute (per-vertex)
-                l.attrs[shd_font.ATTR_text_position] = .{
+                l.attrs[shd_font.ATTR_font_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
                     .offset = 0,
                 };
 
                 // Instance attributes (per-instance)
-                l.attrs[shd_font.ATTR_text_instance_position] = .{
+                l.attrs[shd_font.ATTR_font_instance_position] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "instance_position"),
                 };
-                l.attrs[shd_font.ATTR_text_glyph_size] = .{
+                l.attrs[shd_font.ATTR_font_glyph_size] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "glyph_size"),
                 };
-                l.attrs[shd_font.ATTR_text_vertex_uv] = .{
+                l.attrs[shd_font.ATTR_font_vertex_uv] = .{
                     .format = .FLOAT2,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "vertex_uv"),
                 };
-                l.attrs[shd_font.ATTR_text_vertex_index] = .{
+                l.attrs[shd_font.ATTR_font_vertex_index] = .{
                     .format = .SINT32,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "vertex_index"),
                 };
-                l.attrs[shd_font.ATTR_text_color] = .{
+                l.attrs[shd_font.ATTR_font_color] = .{
                     .format = .FLOAT4,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "color"),
                 };
-                l.attrs[shd_font.ATTR_text_pixel_scale] = .{
+                l.attrs[shd_font.ATTR_font_pixel_scale] = .{
                     .format = .FLOAT,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "pixel_scale"),
