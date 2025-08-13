@@ -38,12 +38,12 @@ pub fn build(b: *Build) !void {
         .emsdk = if (target.result.cpu.arch.isWasm()) dep_sokol.builder.dependency("emsdk", .{}) else null,
     });
 
-    // For WASM builds, initialize Emscripten cache first
-    if (target.result.cpu.arch.isWasm()) {
-        const emsdk = dep_sokol.builder.dependency("emsdk", .{});
-        const cache_result = freetype_build.initEmsdkCache(b, emsdk);
-        freetype_lib.step.dependOn(cache_result.cache_init_step);
-    }
+    // // For WASM builds, initialize Emscripten cache first
+    // if (target.result.cpu.arch.isWasm()) {
+    //     const emsdk = dep_sokol.builder.dependency("emsdk", .{});
+    //     const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+    //     freetype_lib.step.dependOn(cache_result.cache_init_step);
+    // }
 
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),

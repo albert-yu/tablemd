@@ -30,8 +30,8 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
             const cache_result = initEmsdkCache(b, emsdk);
-            lib.step.dependOn(cache_result.cache_init_step);
-            lib.addSystemIncludePath(cache_result.include_path);
+            // lib.step.dependOn(cache_result.cache_init_step);
+            lib.addIncludePath(cache_result.include_path);
         }
     }
 
@@ -67,7 +67,7 @@ pub const BuildOptions = struct {
 
 // Get FreeType source files
 pub const EmsdkCacheResult = struct {
-    cache_init_step: *Build.Step,
+    // cache_init_step: *Build.Step,
     include_path: Build.LazyPath,
 };
 
@@ -75,68 +75,17 @@ pub const EmsdkCacheResult = struct {
 /// TODO: Why do we need to do this on both the root build.zig and this one?
 /// It seems like we only need to do this once.
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
-    const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
-
-    // Wait for embuilder binary to be available
-    const wait_for_embuilder = b.addSystemCommand(&.{
-        "sh",
-        "-c",
-        b.fmt(
-            \\max_retries=30
-            \\retry_count=0
-            \\embuilder_bin="{s}"
-            \\while [ $retry_count -lt $max_retries ]; do
-            \\  if [ -f "$embuilder_bin" ] && [ -x "$embuilder_bin" ]; then
-            \\    echo "Embuilder binary ready: $embuilder_bin"
-            \\    exit 0
-            \\  fi
-            \\  echo "Waiting for embuilder binary to be available... (attempt $((retry_count + 1))/$max_retries)"
-            \\  sleep 1
-            \\  retry_count=$((retry_count + 1))
-            \\done
-            \\echo "Timeout waiting for embuilder binary: $embuilder_bin"
-            \\exit 1
-        , .{embuilder_path.getPath(b)}),
-    });
-    wait_for_embuilder.has_side_effects = true;
-
-    // Use embuilder to ensure system libraries are built
-    const cache_init = b.addSystemCommand(&.{
-        embuilder_path.getPath(b),
-        "build",
-        "libc",
-    });
-    cache_init.step.dependOn(&wait_for_embuilder.step);
-    cache_init.has_side_effects = true;
+    // if (b.sysroot == null) {
+    //     @panic("Pass '--sysroot \"$EMSDK/upstream/emscripten\"'");
+    // }
+    // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-
-    // Add a wait step to ensure the include path has content
-    const wait_for_cache = b.addSystemCommand(&.{
-        "sh",
-        "-c",
-        b.fmt(
-            \\max_retries=30
-            \\retry_count=0
-            \\include_dir="{s}"
-            \\while [ $retry_count -lt $max_retries ]; do
-            \\  if [ -d "$include_dir" ] && [ "$(ls -A "$include_dir" 2>/dev/null)" ]; then
-            \\    echo "Include directory ready: $include_dir"
-            \\    exit 0
-            \\  fi
-            \\  echo "Waiting for include directory to be populated... (attempt $((retry_count + 1))/$max_retries)"
-            \\  sleep 1
-            \\  retry_count=$((retry_count + 1))
-            \\done
-            \\echo "Timeout waiting for include directory to be populated: $include_dir"
-            \\exit 1
-        , .{include_path.getPath(b)}),
-    });
-    wait_for_cache.step.dependOn(&cache_init.step);
-    wait_for_cache.has_side_effects = true;
+    var dir = std.fs.openDirAbsolute(include_path.getPath(b), std.fs.Dir.OpenDirOptions{ .access_sub_paths = true, .no_follow = true }) catch @panic("No emscripten cache. Generate it!");
+    dir.close();
 
     return EmsdkCacheResult{
-        .cache_init_step = &wait_for_cache.step,
+        // .cache_init_step = &wait_for_cache.step,
         .include_path = include_path,
     };
 }
