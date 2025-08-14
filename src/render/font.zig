@@ -766,7 +766,10 @@ pub const Renderer = struct {
     /// - color: Text color
     pub fn addLine(self: *Renderer, text: []const u8, x: f32, y: f32, color: sg.Color) void {
         // Prepare all glyphs needed for this text
-        self.prepareGlyphsForText(text) catch return;
+        self.prepareGlyphsForText(text) catch |err| {
+            std.log.err("Failed to prepare glyphs for text: {}", .{err});
+            return;
+        };
 
         var current_x = x;
         var current_y = y;
