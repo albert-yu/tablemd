@@ -30,7 +30,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
             const cache_result = initEmsdkCache(b, emsdk);
-            // lib.step.dependOn(cache_result.cache_init_step);
+            lib.step.dependOn(cache_result.cache_init_step);
             lib.addIncludePath(cache_result.include_path);
         } else {
             @panic("Must provide emsdk dependency when building for web");
@@ -69,7 +69,7 @@ pub const BuildOptions = struct {
 
 // Get FreeType source files
 pub const EmsdkCacheResult = struct {
-    // cache_init_step: *Build.Step,
+    cache_init_step: *Build.Step,
     include_path: Build.LazyPath,
 };
 
@@ -77,10 +77,16 @@ pub const EmsdkCacheResult = struct {
 /// TODO: Why do we need to do this on both the root build.zig and this one?
 /// It seems like we only need to do this once.
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
-    // if (b.sysroot == null) {
-    //     @panic("Pass '--sysroot \"$EMSDK/upstream/emscripten\"'");
-    // }
     // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
+    const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
+
+    // Use embuilder to ensure system libraries are built
+    const cache_init = b.addSystemCommand(&.{
+        embuilder_path.getPath(b),
+        "build",
+        "sysroot",
+    });
+    cache_init.has_side_effects = true;
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
     var dir = std.fs.openDirAbsolute(
@@ -93,7 +99,7 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     dir.close();
 
     return EmsdkCacheResult{
-        // .cache_init_step = &wait_for_cache.step,
+        .cache_init_step = &cache_init.step,
         .include_path = include_path,
     };
 }
