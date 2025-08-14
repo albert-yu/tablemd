@@ -7,8 +7,6 @@ const Options = struct {
     mod: *Build.Module,
     dep_sokol: *Build.Dependency,
     mod_freetype: *Build.Module,
-    target: Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
 };
 
 const ShaderModule = struct {
@@ -112,8 +110,6 @@ pub fn build(b: *Build) !void {
         .mod = mod_root,
         .dep_sokol = dep_sokol,
         .mod_freetype = mod_freetype,
-        .target = target,
-        .optimize = optimize,
     };
     if (target.result.cpu.arch.isWasm()) {
         try buildWeb(b, opts);
@@ -128,8 +124,8 @@ fn buildNative(b: *Build, opts: Options) !void {
         .name = "root",
         .root_module = opts.mod,
     });
-    const target = opts.target;
-    const optimize = opts.optimize;
+    const target = opts.mod.resolved_target.?;
+    const optimize = opts.mod.optimize.?;
     const freetype_lib = try freetype_build.build(b, .{
         .target = target,
         .optimize = optimize,
@@ -148,8 +144,8 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .root_module = opts.mod,
     });
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
-    const target = opts.target;
-    const optimize = opts.optimize;
+    const target = opts.mod.resolved_target.?;
+    const optimize = opts.mod.optimize.?;
     const freetype_lib = try freetype_build.build(b, .{
         .target = target,
         .optimize = optimize,
