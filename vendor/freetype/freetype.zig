@@ -6,7 +6,35 @@ pub const c = @cImport({
     @cInclude("freetype/freetype.h");
     @cInclude("freetype/ftglyph.h");
     @cInclude("freetype/ftbitmap.h");
+    @cInclude("freetype/ftoutln.h");
 });
+
+pub const uint = c.FT_UInt;
+pub const pos = c.FT_Pos;
+
+pub const KerningMode = enum(c.enum_FT_Kerning_Mode_) {
+    default = c.FT_KERNING_DEFAULT,
+    unfitted = c.FT_KERNING_UNFITTED,
+    unscaled = c.FT_KERNING_UNSCALED,
+};
+
+pub const LoadFlags = enum(c_long) {
+    default = c.FT_LOAD_DEFAULT,
+    no_scale = c.FT_LOAD_NO_SCALE,
+    no_hinting = c.FT_LOAD_NO_HINTING,
+    render = c.FT_LOAD_RENDER,
+    no_bitmap = c.FT_LOAD_NO_BITMAP,
+    vertical_layout = c.FT_LOAD_VERTICAL_LAYOUT,
+    force_autohint = c.FT_LOAD_FORCE_AUTOHINT,
+    crop_bitmap = c.FT_LOAD_CROP_BITMAP,
+    pedantic = c.FT_LOAD_PEDANTIC,
+    ignore_global_advance_width = c.FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH,
+    no_recurse = c.FT_LOAD_NO_RECURSE,
+    ignore_transform = c.FT_LOAD_IGNORE_TRANSFORM,
+    monochrome = c.FT_LOAD_MONOCHROME,
+    linear_design = c.FT_LOAD_LINEAR_DESIGN,
+    no_autohint = c.FT_LOAD_NO_AUTOHINT,
+};
 
 pub const FreeTypeError = error{
     InitError,
@@ -16,6 +44,34 @@ pub const FreeTypeError = error{
     RenderGlyphError,
     GetGlyphError,
     OutOfMemory,
+    OutlineError,
+};
+
+/// Outline point types
+pub const OutlinePointType = enum(u8) {
+    on_curve = 1,
+    off_curve_conic = 0,
+    off_curve_cubic = 2,
+};
+
+/// Outline point with type information
+pub const OutlinePoint = struct {
+    x: f32,
+    y: f32,
+    type: OutlinePointType,
+};
+
+/// Contour information for outline processing
+pub const Contour = struct {
+    points: []OutlinePoint,
+    closed: bool,
+};
+
+/// Quadratic bezier curve for GPU rendering
+pub const QuadCurve = struct {
+    p0: [2]f32, // Start point
+    p1: [2]f32, // Control point
+    p2: [2]f32, // End point
 };
 
 /// FreeType library handle
@@ -116,6 +172,148 @@ pub const Face = struct {
             .vert_bearing_y = @intCast(metrics.vertBearingY),
             .vert_advance = @intCast(metrics.vertAdvance),
         };
+    }
+
+    /// Extract glyph outline as contours
+    pub fn getGlyphOutline(self: Face, allocator: std.mem.Allocator, glyph_index: u32) FreeTypeError![]Contour {
+        // Load glyph without bitmap rendering
+        if (c.FT_Load_Glyph(self.face, glyph_index, c.FT_LOAD_NO_BITMAP) != 0) {
+            return FreeTypeError.LoadGlyphError;
+        }
+
+        const glyph = self.face.*.glyph;
+        if (glyph.*.format != c.FT_GLYPH_FORMAT_OUTLINE) {
+            return FreeTypeError.OutlineError;
+        }
+
+        const outline = &glyph.*.outline;
+        if (outline.n_points == 0) {
+            return &[_]Contour{};
+        }
+
+        var contours = std.ArrayList(Contour).init(allocator);
+        errdefer {
+            for (contours.items) |contour| {
+                allocator.free(contour.points);
+            }
+            contours.deinit();
+        }
+
+        var start_idx: usize = 0;
+        for (0..@intCast(outline.n_contours)) |contour_idx| {
+            const end_idx = @as(usize, @intCast(outline.contours[contour_idx])) + 1;
+            const point_count = end_idx - start_idx;
+
+            var points = try allocator.alloc(OutlinePoint, point_count);
+            errdefer allocator.free(points);
+
+            for (start_idx..end_idx) |i| {
+                const point_idx = i;
+                const ft_point = outline.points[point_idx];
+                const tag = outline.tags[point_idx];
+
+                // Convert from 26.6 fixed point to float
+                const x = @as(f32, @floatFromInt(ft_point.x)) / 64.0;
+                const y = @as(f32, @floatFromInt(ft_point.y)) / 64.0;
+
+                // Determine point type from FreeType tags
+                const point_type: OutlinePointType = if ((tag & 1) != 0)
+                    .on_curve
+                else if ((tag & 2) != 0)
+                    .off_curve_cubic
+                else
+                    .off_curve_conic;
+
+                points[point_idx - start_idx] = OutlinePoint{
+                    .x = x,
+                    .y = y,
+                    .type = point_type,
+                };
+            }
+
+            try contours.append(Contour{
+                .points = points,
+                .closed = true, // TrueType contours are always closed
+            });
+
+            start_idx = end_idx;
+        }
+
+        return contours.toOwnedSlice();
+    }
+
+    /// Convert outline contours to quadratic bezier curves for GPU rendering
+    pub fn outlineToQuadCurves(allocator: std.mem.Allocator, contours: []const Contour) FreeTypeError![]QuadCurve {
+        var curves = std.ArrayList(QuadCurve).init(allocator);
+        errdefer curves.deinit();
+
+        for (contours) |contour| {
+            if (contour.points.len < 2) continue;
+
+            var i: usize = 0;
+            while (i < contour.points.len) {
+                const current = contour.points[i];
+                const next_idx = if (i + 1 < contour.points.len) i + 1 else 0;
+                const next = contour.points[next_idx];
+
+                if (current.type == .on_curve) {
+                    if (next.type == .on_curve) {
+                        // Line segment - convert to degenerate quadratic
+                        try curves.append(QuadCurve{
+                            .p0 = .{ current.x, current.y },
+                            .p1 = .{ (current.x + next.x) / 2.0, (current.y + next.y) / 2.0 },
+                            .p2 = .{ next.x, next.y },
+                        });
+                        i += 1;
+                    } else if (next.type == .off_curve_conic) {
+                        // Quadratic bezier curve
+                        const after_next_idx = if (i + 2 < contour.points.len) i + 2 else if (contour.closed) 0 else i + 1;
+                        var end_point = contour.points[after_next_idx];
+
+                        // If the end point is also off-curve, create implied on-curve point
+                        if (end_point.type == .off_curve_conic) {
+                            end_point = OutlinePoint{
+                                .x = (next.x + end_point.x) / 2.0,
+                                .y = (next.y + end_point.y) / 2.0,
+                                .type = .on_curve,
+                            };
+                            i += 1; // We only consumed one off-curve point
+                        } else {
+                            i += 2; // We consumed both off-curve and on-curve points
+                        }
+
+                        try curves.append(QuadCurve{
+                            .p0 = .{ current.x, current.y },
+                            .p1 = .{ next.x, next.y },
+                            .p2 = .{ end_point.x, end_point.y },
+                        });
+                    } else {
+                        // Cubic bezier - convert to quadratic approximation
+                        const ctrl1 = next;
+                        const ctrl2_idx = if (i + 2 < contour.points.len) i + 2 else 0;
+                        const ctrl2 = contour.points[ctrl2_idx];
+                        const end_idx = if (i + 3 < contour.points.len) i + 3 else if (contour.closed) 0 else i + 2;
+                        const end_point = contour.points[end_idx];
+
+                        // Simple cubic to quadratic approximation
+                        const approx_ctrl_x = (ctrl1.x + ctrl2.x) / 2.0;
+                        const approx_ctrl_y = (ctrl1.y + ctrl2.y) / 2.0;
+
+                        try curves.append(QuadCurve{
+                            .p0 = .{ current.x, current.y },
+                            .p1 = .{ approx_ctrl_x, approx_ctrl_y },
+                            .p2 = .{ end_point.x, end_point.y },
+                        });
+                        i += 3;
+                    }
+                } else {
+                    // Skip orphaned off-curve points
+                    i += 1;
+                }
+            }
+        }
+
+        return curves.toOwnedSlice();
     }
 };
 
@@ -231,6 +429,19 @@ pub const Font = struct {
             .vert_bearing_y = @intCast(metrics.vert_bearing_y >> 6), // Convert from 26.6 format
             .vert_advance = @intCast(metrics.vert_advance >> 6), // Convert from 26.6 format
         };
+    }
+
+    /// Extract glyph outline as quadratic curves for GPU rendering
+    pub fn glyphQuadCurves(self: Font, allocator: std.mem.Allocator, glyph_index: u32) FreeTypeError![]QuadCurve {
+        const contours = try self.face.getGlyphOutline(allocator, glyph_index);
+        defer {
+            for (contours) |contour| {
+                allocator.free(contour.points);
+            }
+            allocator.free(contours);
+        }
+
+        return Face.outlineToQuadCurves(allocator, contours);
     }
 };
 

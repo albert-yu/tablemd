@@ -15,6 +15,7 @@ const Scene = ui.Scene;
 const UI = ui.UI;
 const RectRenderer = @import("render/rect.zig").Renderer;
 const TextRenderer = @import("render/text.zig").Renderer;
+const FontRenderer = @import("render/font.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
 const RectDims = dot_grid.Size;
@@ -66,6 +67,7 @@ const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
     var text_renderer: TextRenderer = undefined;
+    var font_renderer: FontRenderer = undefined;
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
     var allocator: std.mem.Allocator = undefined;
@@ -108,6 +110,7 @@ export fn init() void {
     state.rect_renderer.setup();
 
     // text renderer
+    // TODO: replace with font renderer
     state.text_renderer = TextRenderer.new(state.allocator);
     const text_width = state.text_renderer.setup() catch |err| {
         std.log.err("Failed to setup text renderer: {}", .{err});
@@ -118,6 +121,9 @@ export fn init() void {
         .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
         .text = .{ .width = text_width, .height = rect_dims.height },
     });
+
+    // font renderer
+    state.font_renderer = FontRenderer.new(state.allocator);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -183,6 +189,7 @@ export fn frame() void {
 
 export fn cleanup() void {
     state.text_renderer.cleanup();
+    state.font_renderer.cleanup();
     state.scene.deinit(state.allocator);
     state.ui.deinit(state.allocator);
     sg.shutdown();

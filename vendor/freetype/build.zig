@@ -1,6 +1,17 @@
 const std = @import("std");
 const Build = std.Build;
 
+pub const BuildOptions = struct {
+    target: Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    emsdk_cache: ?*EmsdkCacheResult = null,
+};
+
+pub const EmsdkCacheResult = struct {
+    cache_init_step: ?*Build.Step,
+    include_path: Build.LazyPath,
+};
+
 pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     const target = options.target;
     const optimize = options.optimize;
@@ -28,10 +39,13 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
 
     // For WASM builds, add Emscripten system include path
     if (target.result.cpu.arch.isWasm()) {
-        if (options.emsdk) |emsdk| {
-            const cache_result = initEmsdkCache(b, emsdk);
-            lib.step.dependOn(cache_result.cache_init_step);
-            lib.addSystemIncludePath(cache_result.include_path);
+        if (options.emsdk_cache) |cache_result| {
+            if (cache_result.cache_init_step) |c_init_step| {
+                lib.step.dependOn(c_init_step);
+            }
+            lib.addIncludePath(cache_result.include_path);
+        } else {
+            @panic("Must provide emsdk_cache dependency when building for web");
         }
     }
 
@@ -57,41 +71,6 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     lib.linkLibC();
 
     return lib;
-}
-
-pub const BuildOptions = struct {
-    target: Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    emsdk: ?*Build.Dependency = null,
-};
-
-// Get FreeType source files
-pub const EmsdkCacheResult = struct {
-    cache_init_step: *Build.Step,
-    include_path: Build.LazyPath,
-};
-
-/// Shared function to initialize Emscripten cache and get include path
-/// TODO: Why do we need to do this on both the root build.zig and this one?
-/// It seems like we only need to do this once.
-pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
-    const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
-
-    // Use embuilder to ensure system libraries are built
-    const cache_init = b.addSystemCommand(&.{
-        embuilder_path.getPath(b),
-        "build",
-        "libc",
-    });
-    cache_init.has_side_effects = true;
-
-    const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-    std.log.info("WASM include path: {s}", .{include_path.getPath(b)});
-
-    return EmsdkCacheResult{
-        .cache_init_step = &cache_init.step,
-        .include_path = include_path,
-    };
 }
 
 fn getFreeTypeSources() []const []const u8 {
