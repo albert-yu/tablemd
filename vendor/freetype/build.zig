@@ -30,7 +30,9 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
             const cache_result = initEmsdkCache(b, emsdk);
-            lib.step.dependOn(cache_result.cache_init_step);
+            if (cache_result.cache_init_step) |c_init_step| {
+                lib.step.dependOn(c_init_step);
+            }
             lib.addIncludePath(cache_result.include_path);
         } else {
             @panic("Must provide emsdk dependency when building for web");
@@ -69,7 +71,7 @@ pub const BuildOptions = struct {
 
 // Get FreeType source files
 pub const EmsdkCacheResult = struct {
-    cache_init_step: *Build.Step,
+    cache_init_step: ?*Build.Step,
     include_path: Build.LazyPath,
 };
 
@@ -77,29 +79,37 @@ pub const EmsdkCacheResult = struct {
 /// TODO: Why do we need to do this on both the root build.zig and this one?
 /// It seems like we only need to do this once.
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
-    // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
-    const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
-
-    // Use embuilder to ensure system libraries are built
-    const cache_init = b.addSystemCommand(&.{
-        embuilder_path.getPath(b),
-        "build",
-        "sysroot",
-    });
-    cache_init.has_side_effects = true;
-
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
+    var cache_init: ?*Build.Step.Run = null;
     var dir = std.fs.openDirAbsolute(
         include_path.getPath(b),
         std.fs.Dir.OpenDirOptions{
             .access_sub_paths = true,
             .no_follow = true,
         },
-    ) catch @panic("No emscripten cache. Generate it!");
-    dir.close();
+    ) catch {
+        std.log.info("No emscripten sysroot cache. Generating...", .{});
+        // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
+        const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
+
+        // Use embuilder to ensure system libraries are built
+        cache_init = b.addSystemCommand(&.{
+            embuilder_path.getPath(b),
+            "build",
+            "sysroot",
+        });
+        if (cache_init) |c_init| {
+            c_init.has_side_effects = true;
+        }
+        return EmsdkCacheResult{
+            .cache_init_step = if (cache_init) |c_init| &c_init.step else null,
+            .include_path = include_path,
+        };
+    };
+    defer dir.close();
 
     return EmsdkCacheResult{
-        .cache_init_step = &cache_init.step,
+        .cache_init_step = if (cache_init) |c_init| &c_init.step else null,
         .include_path = include_path,
     };
 }
