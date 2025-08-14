@@ -532,42 +532,6 @@ pub const Renderer = struct {
         };
     }
 
-    /// Draw text and return the advance width (useful for layout calculations)
-    pub fn drawAndMeasure(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) f32 {
-        var current_x = x;
-        var previous_glyph: ft.uint = 0;
-
-        // Decode UTF-8 text
-        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
-            std.log.err("Invalid UTF-8 text: {}", .{err});
-            return current_x;
-        };
-        var iterator = utf8_view.iterator();
-
-        while (iterator.nextCodepoint()) |codepoint| {
-            if (codepoint == '\r') continue;
-            if (codepoint == '\n') {
-                // Handle newlines if needed
-                continue;
-            }
-
-            const charcode: u32 = @intCast(codepoint);
-            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-            // Apply kerning if available
-            if (previous_glyph != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-            }
-
-            self.addGlyph(charcode, current_x, y, color);
-            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-            previous_glyph = glyph.index;
-        }
-
-        return current_x;
-    }
-
     pub const BoundingBox = struct {
         min_x: f32,
         min_y: f32,
