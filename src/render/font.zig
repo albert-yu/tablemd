@@ -532,11 +532,6 @@ pub const Renderer = struct {
         };
     }
 
-    /// Draw text at a specific position with custom color (convenience method)
-    pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) void {
-        self.addLine(text, x, y, color);
-    }
-
     /// Draw text and return the advance width (useful for layout calculations)
     pub fn drawAndMeasure(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) f32 {
         var current_x = x;
@@ -772,26 +767,13 @@ pub const Renderer = struct {
         };
 
         var current_x = x;
-        var current_y = y;
-        const original_x = x;
+        const current_y = y;
         var index: usize = 0;
         var previous_glyph_index: u32 = 0;
 
         while (index < text.len) {
             const charcode = decodeCharcode(text, &index);
             if (charcode == 0) continue;
-
-            if (charcode == '\r') continue;
-
-            if (charcode == '\n') {
-                current_x = original_x;
-                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
-                current_y -= line_height;
-                if (self.hinting) {
-                    current_y = @round(current_y);
-                }
-                continue;
-            }
 
             const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
 
