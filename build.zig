@@ -154,7 +154,7 @@ fn buildWeb(b: *Build, opts: Options) !void {
 
     lib.linkLibrary(freetype_lib);
 
-    const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+    const cache_result = try freetype_build.initEmsdkCache(b, emsdk);
     if (cache_result.cache_init_step) |c_init_step| {
         freetype_lib.step.dependOn(c_init_step);
     }

@@ -1,5 +1,6 @@
 const std = @import("std");
 const Build = std.Build;
+const builtin = @import("builtin");
 
 pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     const target = options.target;
@@ -29,7 +30,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     // For WASM builds, add Emscripten system include path
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
-            const cache_result = initEmsdkCache(b, emsdk);
+            const cache_result = try initEmsdkCache(b, emsdk);
             if (cache_result.cache_init_step) |c_init_step| {
                 lib.step.dependOn(c_init_step);
             }
@@ -78,9 +79,8 @@ pub const EmsdkCacheResult = struct {
 /// Shared function to initialize Emscripten cache and get include path
 /// TODO: Why do we need to do this on both the root build.zig and this one?
 /// It seems like we only need to do this once.
-pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
+pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !EmsdkCacheResult {
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-    std.log.info("Using emscripten sysroot cache at: {s}", .{include_path.getPath(b)});
     var cache_init: ?*Build.Step.Run = null;
     var dir = std.fs.openDirAbsolute(
         include_path.getPath(b),
@@ -95,11 +95,6 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
 
         // Check if embuilder exists before trying to run it
         const embuilder_absolute_path = embuilder_path.getPath(b);
-        std.fs.accessAbsolute(embuilder_absolute_path, .{}) catch |err| {
-            std.log.warn("Cannot find embuilder at path: {s}", .{embuilder_absolute_path});
-            std.log.warn("Error: {}", .{err});
-            @panic("Failed to find embuilder");
-        };
 
         // Use embuilder to ensure system libraries are built
         cache_init = b.addSystemCommand(&.{
@@ -110,6 +105,11 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
         if (cache_init) |c_init| {
             c_init.has_side_effects = true;
             c_init.setName("generate sysroot cache");
+            const opt_emsdk_setup_step = try emSdkSetupStep(b, emsdk);
+            if (opt_emsdk_setup_step) |emsdk_setup_step| {
+                std.log.info("emsdk setup step: {s}", .{emsdk_setup_step.step.name});
+                c_init.step.dependOn(&emsdk_setup_step.step);
+            }
         }
         return EmsdkCacheResult{
             .cache_init_step = if (cache_init) |c_init| &c_init.step else null,
@@ -122,6 +122,42 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
         .cache_init_step = if (cache_init) |c_init| &c_init.step else null,
         .include_path = include_path,
     };
+}
+
+// helper function to build a LazyPath from the emsdk root and provided path components
+fn emSdkLazyPath(b: *Build, emsdk: *Build.Dependency, sub_paths: []const []const u8) Build.LazyPath {
+    return emsdk.path(b.pathJoin(sub_paths));
+}
+
+// helper function to get Emscripten SDK tool path
+pub fn emTool(b: *Build, emsdk: *Build.Dependency, tool: []const u8) Build.LazyPath {
+    return emSdkLazyPath(b, emsdk, &.{ "upstream", "emscripten", tool });
+}
+
+fn createEmsdkStep(b: *Build, emsdk: *Build.Dependency) *Build.Step.Run {
+    if (builtin.os.tag == .windows) {
+        return b.addSystemCommand(&.{emSdkLazyPath(b, emsdk, &.{"emsdk.bat"}).getPath(b)});
+    } else {
+        const step = b.addSystemCommand(&.{"bash"});
+        step.addArg(emSdkLazyPath(b, emsdk, &.{"emsdk"}).getPath(b));
+        return step;
+    }
+}
+
+/// Copied from sokol build.zig (it wasn't exported)
+fn emSdkSetupStep(b: *Build, emsdk: *Build.Dependency) !?*Build.Step.Run {
+    const dot_emsc_path = emSdkLazyPath(b, emsdk, &.{".emscripten"}).getPath(b);
+    const dot_emsc_exists = !std.meta.isError(std.fs.accessAbsolute(dot_emsc_path, .{}));
+    if (!dot_emsc_exists) {
+        const emsdk_install = createEmsdkStep(b, emsdk);
+        emsdk_install.addArgs(&.{ "install", "latest" });
+        const emsdk_activate = createEmsdkStep(b, emsdk);
+        emsdk_activate.addArgs(&.{ "activate", "latest" });
+        emsdk_activate.step.dependOn(&emsdk_install.step);
+        return emsdk_activate;
+    } else {
+        return null;
+    }
 }
 
 fn getFreeTypeSources() []const []const u8 {
