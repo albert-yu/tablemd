@@ -80,6 +80,7 @@ pub const EmsdkCacheResult = struct {
 /// It seems like we only need to do this once.
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
+    std.log.info("Using emscripten sysroot cache at: {s}", .{include_path.getPath(b)});
     var cache_init: ?*Build.Step.Run = null;
     var dir = std.fs.openDirAbsolute(
         include_path.getPath(b),
@@ -97,14 +98,7 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
         std.fs.accessAbsolute(embuilder_absolute_path, .{}) catch |err| {
             std.log.warn("Cannot find embuilder at path: {s}", .{embuilder_absolute_path});
             std.log.warn("Error: {}", .{err});
-            std.log.warn("Proceeding without sysroot cache generation. This may cause linking issues.", .{});
-            std.log.warn("Try running 'zig build --fetch' to ensure all dependencies are downloaded.", .{});
-            // Return without cache init step - let the build proceed and potentially fail later
-            // This gives more informative error messages than panicking here
-            return EmsdkCacheResult{
-                .cache_init_step = null,
-                .include_path = include_path,
-            };
+            @panic("Failed to find embuilder");
         };
 
         // Use embuilder to ensure system libraries are built
