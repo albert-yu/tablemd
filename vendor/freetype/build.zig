@@ -100,6 +100,7 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
         });
         if (cache_init) |c_init| {
             c_init.has_side_effects = true;
+            c_init.setName("generate sysroot cache");
         }
         return EmsdkCacheResult{
             .cache_init_step = if (cache_init) |c_init| &c_init.step else null,
