@@ -88,13 +88,28 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
             .no_follow = true,
         },
     ) catch {
-        std.log.info("No emscripten sysroot cache. Generating...", .{});
+        std.log.info("No emscripten sysroot cache. Attempting to generate...", .{});
         // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
         const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
 
+        // Check if embuilder exists before trying to run it
+        const embuilder_absolute_path = embuilder_path.getPath(b);
+        std.fs.accessAbsolute(embuilder_absolute_path, .{}) catch |err| {
+            std.log.warn("Cannot find embuilder at path: {s}", .{embuilder_absolute_path});
+            std.log.warn("Error: {}", .{err});
+            std.log.warn("Proceeding without sysroot cache generation. This may cause linking issues.", .{});
+            std.log.warn("Try running 'zig build --fetch' to ensure all dependencies are downloaded.", .{});
+            // Return without cache init step - let the build proceed and potentially fail later
+            // This gives more informative error messages than panicking here
+            return EmsdkCacheResult{
+                .cache_init_step = null,
+                .include_path = include_path,
+            };
+        };
+
         // Use embuilder to ensure system libraries are built
         cache_init = b.addSystemCommand(&.{
-            embuilder_path.getPath(b),
+            embuilder_absolute_path,
             "build",
             "sysroot",
         });
