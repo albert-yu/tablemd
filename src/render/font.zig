@@ -8,6 +8,13 @@ const ft = @import("freetype");
 
 const sg = sokol.gfx;
 
+pub const BoundingBox = struct {
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+};
+
 const Element = struct {
     instance_position: [2]f32,
     glyph_size: [2]f32,
@@ -496,7 +503,7 @@ pub const Renderer = struct {
         sg.draw(0, 6, @intCast(self.elements.items.len));
     }
 
-    pub fn addGlyph(self: *Renderer, charcode: u32, x: f32, y: f32, color: sg.Color) void {
+    fn addGlyph(self: *Renderer, charcode: u32, x: f32, y: f32, color: sg.Color) void {
         const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse return;
 
         if (glyph.curve_count == 0) return; // Skip empty glyphs (whitespace)
@@ -523,14 +530,7 @@ pub const Renderer = struct {
         };
     }
 
-    pub const BoundingBox = struct {
-        min_x: f32,
-        min_y: f32,
-        max_x: f32,
-        max_y: f32,
-    };
-
-    pub fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
+    fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
         var bb = BoundingBox{
             .min_x = std.math.floatMax(f32),
             .min_y = std.math.floatMax(f32),
@@ -753,7 +753,7 @@ pub const Renderer = struct {
     /// Useful for layout calculations and UI positioning.
     ///
     /// Returns: BoundingBox with exact bounds of the rendered text
-    pub fn measureText(self: *Renderer, text: []const u8, x: f32, y: f32) BoundingBox {
+    fn measureText(self: *Renderer, text: []const u8, x: f32, y: f32) BoundingBox {
         var bbox = BoundingBox{
             .min_x = std.math.inf(f32),
             .min_y = std.math.inf(f32),
