@@ -32,6 +32,8 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
             const cache_result = initEmsdkCache(b, emsdk);
             // lib.step.dependOn(cache_result.cache_init_step);
             lib.addIncludePath(cache_result.include_path);
+        } else {
+            @panic("Must provide emsdk dependency when building for web");
         }
     }
 
