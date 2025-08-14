@@ -230,6 +230,7 @@ if ! command_exists zig; then
 fi
 
 echo "🔨 Building with Zig..."
+zig build --fetch
 zig build -Dtarget=wasm32-emscripten --release=safe
 
 # Check if build was successful
