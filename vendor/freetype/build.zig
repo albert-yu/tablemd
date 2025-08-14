@@ -30,7 +30,9 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     if (target.result.cpu.arch.isWasm()) {
         if (options.emsdk) |emsdk| {
             const cache_result = initEmsdkCache(b, emsdk);
-            // lib.step.dependOn(cache_result.cache_init_step);
+            if (cache_result.cache_init_step) |step| {
+                lib.step.dependOn(step);
+            }
             lib.addIncludePath(cache_result.include_path);
         }
     }
@@ -67,13 +69,11 @@ pub const BuildOptions = struct {
 
 // Get FreeType source files
 pub const EmsdkCacheResult = struct {
-    // cache_init_step: *Build.Step,
+    cache_init_step: ?*Build.Step,
     include_path: Build.LazyPath,
 };
 
 /// Shared function to initialize Emscripten cache and get include path
-/// TODO: Why do we need to do this on both the root build.zig and this one?
-/// It seems like we only need to do this once.
 pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     // if (b.sysroot == null) {
     //     @panic("Pass '--sysroot \"$EMSDK/upstream/emscripten\"'");
@@ -81,11 +81,27 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-    var dir = std.fs.openDirAbsolute(include_path.getPath(b), std.fs.Dir.OpenDirOptions{ .access_sub_paths = true, .no_follow = true }) catch @panic("No emscripten cache. Generate it!");
+
+    // Try to open the directory, and if it fails, create a step to generate the cache
+    var dir = std.fs.openDirAbsolute(include_path.getPath(b), std.fs.Dir.OpenDirOptions{
+        .access_sub_paths = true,
+        .no_follow = true,
+    }) catch {
+        // Create a step to generate the cache by running emcc --version
+        const emcc_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "emcc" }));
+        const cache_step = b.addSystemCommand(&.{ emcc_path.getPath(b), "--version" });
+        cache_step.setName("generate-emscripten-cache");
+
+        return EmsdkCacheResult{
+            .cache_init_step = &cache_step.step,
+            .include_path = include_path,
+        };
+    };
+
     dir.close();
 
     return EmsdkCacheResult{
-        // .cache_init_step = &wait_for_cache.step,
+        .cache_init_step = null,
         .include_path = include_path,
     };
 }

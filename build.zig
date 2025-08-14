@@ -63,6 +63,9 @@ pub fn build(b: *Build) !void {
     if (target.result.cpu.arch.isWasm()) {
         const emsdk = dep_sokol.builder.dependency("emsdk", .{});
         const cache_result = freetype_build.initEmsdkCache(b, emsdk);
+        if (cache_result.cache_init_step) |step| {
+            freetype_lib.step.dependOn(step);
+        }
         mod_freetype.addSystemIncludePath(cache_result.include_path);
     }
 
