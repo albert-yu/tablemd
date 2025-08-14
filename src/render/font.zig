@@ -496,15 +496,6 @@ pub const Renderer = struct {
         sg.draw(0, 6, @intCast(self.elements.items.len));
     }
 
-    /// Setup shader uniforms for drawing (matches C++ drawSetup method)
-    pub fn drawSetup(self: *Renderer) void {
-        // Bindings are already set up in renderInPass, but this method
-        // provides C++ API compatibility for advanced users who want
-        // to manually control the render pipeline
-        sg.applyPipeline(self.pip);
-        sg.applyBindings(self.bind);
-    }
-
     pub fn addGlyph(self: *Renderer, charcode: u32, x: f32, y: f32, color: sg.Color) void {
         const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse return;
 
