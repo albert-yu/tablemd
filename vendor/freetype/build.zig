@@ -83,7 +83,13 @@ pub fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) EmsdkCacheResult {
     // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
 
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
-    var dir = std.fs.openDirAbsolute(include_path.getPath(b), std.fs.Dir.OpenDirOptions{ .access_sub_paths = true, .no_follow = true }) catch @panic("No emscripten cache. Generate it!");
+    var dir = std.fs.openDirAbsolute(
+        include_path.getPath(b),
+        std.fs.Dir.OpenDirOptions{
+            .access_sub_paths = true,
+            .no_follow = true,
+        },
+    ) catch @panic("No emscripten cache. Generate it!");
     dir.close();
 
     return EmsdkCacheResult{
