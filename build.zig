@@ -218,7 +218,7 @@ fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !freetype_build.EmsdkCach
     ) catch {
         std.log.info("No emscripten sysroot cache. Attempting to generate...", .{});
         // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
-        const embuilder_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "embuilder" }));
+        const embuilder_path = emTool(b, emsdk, "embuilder");
 
         // Check if embuilder exists before trying to run it
         const embuilder_absolute_path = embuilder_path.getPath(b);
