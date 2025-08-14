@@ -58,7 +58,6 @@ const BufferVertex = struct {
 };
 
 pub const SetupArgs = struct {
-    face: ft.Face,
     world_size: f32 = 1.0,
     hinting: bool = false,
 };
@@ -127,7 +126,9 @@ pub const Renderer = struct {
     }
 
     pub fn setup(self: *Renderer, args: SetupArgs) !void {
-        self.face = args.face;
+        const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
+        const font = try ft.load(font_data);
+        self.face = font.face;
         self.world_size = args.world_size;
         self.hinting = args.hinting;
 
