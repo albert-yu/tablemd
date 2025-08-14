@@ -573,33 +573,6 @@ pub const Renderer = struct {
         return current_x;
     }
 
-    pub const TextElement = struct {
-        text: []const u8,
-        x: f32,
-        y: f32,
-        color: sg.Color,
-
-        /// Create a TextElement with white color as default
-        pub fn init(text: []const u8, x: f32, y: f32) TextElement {
-            return TextElement{
-                .text = text,
-                .x = x,
-                .y = y,
-                .color = sg.Color{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
-            };
-        }
-
-        /// Create a TextElement with custom color
-        pub fn initWithColor(text: []const u8, x: f32, y: f32, color: sg.Color) TextElement {
-            return TextElement{
-                .text = text,
-                .x = x,
-                .y = y,
-                .color = color,
-            };
-        }
-    };
-
     pub const BoundingBox = struct {
         min_x: f32,
         min_y: f32,
@@ -917,11 +890,5 @@ pub const Renderer = struct {
     /// Get the line height for the current font
     pub fn getLineHeight(self: *Renderer) f32 {
         return @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
-    }
-
-    /// Convenience method that matches text.zig API for easy migration.
-    /// Use this if you want to switch from bitmap text rendering to vector text.
-    pub fn addTextElement(self: *Renderer, element: TextElement) void {
-        self.addLine(element.text, element.x, element.y, element.color);
     }
 };

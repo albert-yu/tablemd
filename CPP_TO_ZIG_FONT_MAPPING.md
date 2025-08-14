@@ -72,9 +72,6 @@ The Zig implementation provides several convenience methods not present in the C
 pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) void;
 pub fn drawAndMeasure(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) f32;
 
-// TextElement API for compatibility with bitmap renderer
-pub fn addTextElement(self: *Renderer, element: TextElement) void;
-
 // Utility methods
 pub fn getSpaceAdvance(self: *Renderer) f32;
 pub fn hasGlyph(self: *Renderer, charcode: u32) bool;
