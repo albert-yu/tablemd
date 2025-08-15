@@ -88,7 +88,6 @@ const state = struct {
 };
 
 export fn init() void {
-    std.log.info("Initializing...", .{});
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
