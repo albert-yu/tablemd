@@ -58,7 +58,7 @@ const BufferVertex = struct {
 };
 
 pub const SetupArgs = struct {
-    world_size: f32 = 1.0,
+    world_size: f32 = 16.0,
     hinting: bool = false,
 };
 
@@ -110,13 +110,13 @@ pub const Renderer = struct {
             .pip = .{},
             .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
-            .load_flags = .default,
+            .load_flags = ft.LOAD_DEFAULT,
             .em_size = 1.0,
             .face = undefined,
             .world_size = 1.0,
             .hinting = false,
-            .buffer_glyphs = ArrayList(BufferGlyph){},
-            .buffer_curves = ArrayList(BufferCurve){},
+            .buffer_glyphs = ArrayList(BufferGlyph).initCapacity(allocator, 0) catch unreachable,
+            .buffer_curves = ArrayList(BufferCurve).initCapacity(allocator, 0) catch unreachable,
             .glyphs = std.HashMap(u32, Glyph, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
             .allocator = allocator,
             .glyph_texture = .{},
@@ -133,20 +133,20 @@ pub const Renderer = struct {
         self.hinting = args.hinting;
 
         if (args.hinting) {
-            self.load_flags = .no_bitmap;
+            self.load_flags = ft.LOAD_NO_BITMAP;
             self.kerning_mode = .default;
             self.em_size = args.world_size * 64.0;
-            try args.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
+            try self.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
         } else {
-            self.load_flags = .no_scale | .no_hinting | .no_bitmap;
+            self.load_flags = ft.LOAD_NO_SCALE | ft.LOAD_NO_HINTING | ft.LOAD_NO_BITMAP;
             self.kerning_mode = .unscaled;
-            self.em_size = @as(f32, @floatFromInt(args.face.face.*.units_per_EM));
+            self.em_size = @as(f32, @floatFromInt(self.face.face.*.units_per_EM));
         }
 
         // Build undefined glyph (index 0)
         const charcode: u32 = 0;
         const glyph_index: ft.uint = 0;
-        _ = args.face.loadGlyph(glyph_index, self.load_flags) catch {
+        _ = self.face.loadGlyph(glyph_index, self.load_flags) catch {
             std.log.err("[font] error while loading undefined glyph", .{});
         };
         try self.buildGlyph(charcode, glyph_index);
@@ -154,10 +154,10 @@ pub const Renderer = struct {
         // Build glyphs for ASCII printable characters
         var char: u32 = 32;
         while (char < 128) : (char += 1) {
-            const glyph_idx = args.face.getCharIndex(char);
+            const glyph_idx = self.face.getGlyphIndex(char);
             if (glyph_idx == 0) continue;
 
-            _ = args.face.loadGlyph(glyph_idx, self.load_flags) catch {
+            _ = self.face.loadGlyph(glyph_idx, self.load_flags) catch {
                 std.log.err("[font] error while loading glyph for character {}", .{char});
                 continue;
             };
@@ -243,7 +243,7 @@ pub const Renderer = struct {
                     .offset = @offsetOf(Element, "vertex_uv"),
                 };
                 l.attrs[shd_font.ATTR_font_vertex_index] = .{
-                    .format = .SINT32,
+                    .format = .INT,
                     .buffer_index = 1,
                     .offset = @offsetOf(Element, "vertex_index"),
                 };
@@ -284,7 +284,7 @@ pub const Renderer = struct {
             .count = 0,
         };
         const buffer_glyph_index = self.buffer_glyphs.items.len;
-        try self.buffer_glyphs.append(buffer_glyph);
+        try self.buffer_glyphs.append(self.allocator, buffer_glyph);
 
         const glyph_slot = self.face.face.*.glyph;
         const outline = &glyph_slot.*.outline;
@@ -298,7 +298,7 @@ pub const Renderer = struct {
         }
 
         // Update curve count
-        self.buffer_glyphs.items[buffer_glyph_index].count = @intCast(self.buffer_curves.items.len - self.buffer_glyphs.items[buffer_glyph_index].start);
+        self.buffer_glyphs.items[buffer_glyph_index].count = @intCast(self.buffer_curves.items.len - @as(usize, @intCast(self.buffer_glyphs.items[buffer_glyph_index].start)));
 
         // Store glyph info
         const glyph = Glyph{
@@ -314,14 +314,14 @@ pub const Renderer = struct {
         try self.glyphs.put(charcode, glyph);
     }
 
-    fn convertContour(self: *Renderer, outline: *const ft.Outline, first_index: i16, last_index: i16, em_size: f32) !void {
+    fn convertContour(self: *Renderer, outline: *const ft.c.FT_Outline, first_index: i16, last_index: i16, em_size: f32) !void {
         if (first_index == last_index) return;
 
         var d_index: i16 = 1;
         var actual_first = first_index;
         var actual_last = last_index;
 
-        if (outline.flags & ft.OUTLINE_REVERSE_FILL != 0) {
+        if (outline.flags & ft.c.FT_OUTLINE_REVERSE_FILL != 0) {
             const tmp = actual_last;
             actual_last = actual_first;
             actual_first = tmp;
@@ -329,7 +329,7 @@ pub const Renderer = struct {
         }
 
         const convert = struct {
-            fn call(v: ft.Vector, em: f32) [2]f32 {
+            fn call(v: ft.c.FT_Vector, em: f32) [2]f32 {
                 return .{
                     @as(f32, @floatFromInt(v.x)) / em,
                     @as(f32, @floatFromInt(v.y)) / em,
@@ -358,12 +358,12 @@ pub const Renderer = struct {
 
         // Find a point that is on the curve
         var first: [2]f32 = undefined;
-        const first_on_curve = (outline.tags[@intCast(actual_first)] & ft.CURVE_TAG_ON) != 0;
+        const first_on_curve = (outline.tags[@intCast(actual_first)] & ft.c.FT_CURVE_TAG_ON) != 0;
         if (first_on_curve) {
             first = convert(outline.points[@intCast(actual_first)], em_size);
             actual_first += d_index;
         } else {
-            const last_on_curve = (outline.tags[@intCast(actual_last)] & ft.CURVE_TAG_ON) != 0;
+            const last_on_curve = (outline.tags[@intCast(actual_last)] & ft.c.FT_CURVE_TAG_ON) != 0;
             if (last_on_curve) {
                 first = convert(outline.points[@intCast(actual_last)], em_size);
                 actual_last -= d_index;
@@ -375,17 +375,17 @@ pub const Renderer = struct {
         var start = first;
         var control = first;
         var previous = first;
-        var previous_tag: u8 = ft.CURVE_TAG_ON;
+        var previous_tag: u8 = ft.c.FT_CURVE_TAG_ON;
 
         var index = actual_first;
         while (index != actual_last + d_index) : (index += d_index) {
             const current = convert(outline.points[@intCast(index)], em_size);
-            const current_tag = outline.tags[@intCast(index)] & ft.CURVE_TAG_MASK;
+            const current_tag = outline.tags[@intCast(index)];
 
-            if (current_tag == ft.CURVE_TAG_CUBIC) {
+            if (current_tag == ft.c.FT_CURVE_TAG_CUBIC) {
                 control = previous;
-            } else if (current_tag == ft.CURVE_TAG_ON) {
-                if (previous_tag == ft.CURVE_TAG_CUBIC) {
+            } else if (current_tag == ft.c.FT_CURVE_TAG_ON) {
+                if (previous_tag == ft.c.FT_CURVE_TAG_CUBIC) {
                     // Cubic bezier - approximate with two quadratic curves
                     const b0 = start;
                     const b1 = control;
@@ -396,24 +396,24 @@ pub const Renderer = struct {
                     const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
                     const d = make_midpoint(c0, c1);
 
-                    try self.buffer_curves.append(make_curve(b0, c0, d));
-                    try self.buffer_curves.append(make_curve(d, c1, b3));
-                } else if (previous_tag == ft.CURVE_TAG_ON) {
+                    try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
+                    try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
+                } else if (previous_tag == ft.c.FT_CURVE_TAG_ON) {
                     // Linear segment
-                    try self.buffer_curves.append(make_curve(previous, make_midpoint(previous, current), current));
+                    try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, current), current));
                 } else {
                     // Regular bezier curve
-                    try self.buffer_curves.append(make_curve(start, previous, current));
+                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, current));
                 }
                 start = current;
                 control = current;
-            } else { // current_tag == ft.CURVE_TAG_CONIC
-                if (previous_tag == ft.CURVE_TAG_ON) {
+            } else { // current_tag == ft.c.FT_CURVE_TAG_CONIC
+                if (previous_tag == ft.c.FT_CURVE_TAG_ON) {
                     // Wait for third point
                 } else {
                     // Create virtual on point
                     const mid = make_midpoint(previous, current);
-                    try self.buffer_curves.append(make_curve(start, previous, mid));
+                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, mid));
                     start = mid;
                     control = mid;
                 }
@@ -423,7 +423,7 @@ pub const Renderer = struct {
         }
 
         // Close the contour
-        if (previous_tag == ft.CURVE_TAG_CUBIC) {
+        if (previous_tag == ft.c.FT_CURVE_TAG_CUBIC) {
             const b0 = start;
             const b1 = control;
             const b2 = previous;
@@ -433,13 +433,13 @@ pub const Renderer = struct {
             const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
             const d = make_midpoint(c0, c1);
 
-            try self.buffer_curves.append(make_curve(b0, c0, d));
-            try self.buffer_curves.append(make_curve(d, c1, b3));
-        } else if (previous_tag == ft.CURVE_TAG_ON) {
+            try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
+            try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
+        } else if (previous_tag == ft.c.FT_CURVE_TAG_ON) {
             // Linear segment
-            try self.buffer_curves.append(make_curve(previous, make_midpoint(previous, first), first));
+            try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, first), first));
         } else {
-            try self.buffer_curves.append(make_curve(start, previous, first));
+            try self.buffer_curves.append(self.allocator, make_curve(start, previous, first));
         }
     }
 
@@ -561,7 +561,7 @@ pub const Renderer = struct {
 
             // Apply kerning if available
             if (previous_glyph != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                const kerning = self.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -735,7 +735,7 @@ pub const Renderer = struct {
 
             // Apply kerning
             if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -788,7 +788,7 @@ pub const Renderer = struct {
 
             // Apply kerning
             if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 

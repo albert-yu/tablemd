@@ -116,6 +116,11 @@ export fn init() void {
         std.log.err("Failed to setup text renderer: {}", .{err});
         return;
     };
+    state.font_renderer = FontRenderer.new(state.allocator);
+    state.font_renderer.setup(.{}) catch |err| {
+        std.log.err("Failed to setup font renderer: {}", .{err});
+        return;
+    };
     state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
     state.ui = UI.init(state.allocator, .{
         .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
