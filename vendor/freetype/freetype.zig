@@ -12,6 +12,18 @@ pub const c = @cImport({
 pub const uint = c.FT_UInt;
 pub const pos = c.FT_Pos;
 
+// Type aliases
+pub const Outline = c.FT_Outline;
+pub const Vector = c.FT_Vector;
+
+// Outline flags
+pub const OUTLINE_REVERSE_FILL = c.FT_OUTLINE_REVERSE_FILL;
+
+// Curve tags
+pub const CURVE_TAG_ON = c.FT_CURVE_TAG_ON;
+pub const CURVE_TAG_CUBIC = c.FT_CURVE_TAG_CUBIC;
+pub const CURVE_TAG_CONIC = c.FT_CURVE_TAG_CONIC;
+
 pub const KerningMode = enum(c.enum_FT_Kerning_Mode_) {
     default = c.FT_KERNING_DEFAULT,
     unfitted = c.FT_KERNING_UNFITTED,

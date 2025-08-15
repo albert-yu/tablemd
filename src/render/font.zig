@@ -314,14 +314,14 @@ pub const Renderer = struct {
         try self.glyphs.put(charcode, glyph);
     }
 
-    fn convertContour(self: *Renderer, outline: *const ft.c.FT_Outline, first_index: i16, last_index: i16, em_size: f32) !void {
+    fn convertContour(self: *Renderer, outline: *const ft.Outline, first_index: i16, last_index: i16, em_size: f32) !void {
         if (first_index == last_index) return;
 
         var d_index: i16 = 1;
         var actual_first = first_index;
         var actual_last = last_index;
 
-        if (outline.flags & ft.c.FT_OUTLINE_REVERSE_FILL != 0) {
+        if (outline.flags & ft.OUTLINE_REVERSE_FILL != 0) {
             const tmp = actual_last;
             actual_last = actual_first;
             actual_first = tmp;
@@ -329,7 +329,7 @@ pub const Renderer = struct {
         }
 
         const convert = struct {
-            fn call(v: ft.c.FT_Vector, em: f32) [2]f32 {
+            fn call(v: ft.Vector, em: f32) [2]f32 {
                 return .{
                     @as(f32, @floatFromInt(v.x)) / em,
                     @as(f32, @floatFromInt(v.y)) / em,
@@ -358,12 +358,12 @@ pub const Renderer = struct {
 
         // Find a point that is on the curve
         var first: [2]f32 = undefined;
-        const first_on_curve = (outline.tags[@intCast(actual_first)] & ft.c.FT_CURVE_TAG_ON) != 0;
+        const first_on_curve = (outline.tags[@intCast(actual_first)] & ft.CURVE_TAG_ON) != 0;
         if (first_on_curve) {
             first = convert(outline.points[@intCast(actual_first)], em_size);
             actual_first += d_index;
         } else {
-            const last_on_curve = (outline.tags[@intCast(actual_last)] & ft.c.FT_CURVE_TAG_ON) != 0;
+            const last_on_curve = (outline.tags[@intCast(actual_last)] & ft.CURVE_TAG_ON) != 0;
             if (last_on_curve) {
                 first = convert(outline.points[@intCast(actual_last)], em_size);
                 actual_last -= d_index;
@@ -375,17 +375,17 @@ pub const Renderer = struct {
         var start = first;
         var control = first;
         var previous = first;
-        var previous_tag: u8 = ft.c.FT_CURVE_TAG_ON;
+        var previous_tag: u8 = ft.CURVE_TAG_ON;
 
         var index = actual_first;
         while (index != actual_last + d_index) : (index += d_index) {
             const current = convert(outline.points[@intCast(index)], em_size);
             const current_tag = outline.tags[@intCast(index)];
 
-            if (current_tag == ft.c.FT_CURVE_TAG_CUBIC) {
+            if (current_tag == ft.CURVE_TAG_CUBIC) {
                 control = previous;
-            } else if (current_tag == ft.c.FT_CURVE_TAG_ON) {
-                if (previous_tag == ft.c.FT_CURVE_TAG_CUBIC) {
+            } else if (current_tag == ft.CURVE_TAG_ON) {
+                if (previous_tag == ft.CURVE_TAG_CUBIC) {
                     // Cubic bezier - approximate with two quadratic curves
                     const b0 = start;
                     const b1 = control;
@@ -398,7 +398,7 @@ pub const Renderer = struct {
 
                     try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
                     try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
-                } else if (previous_tag == ft.c.FT_CURVE_TAG_ON) {
+                } else if (previous_tag == ft.CURVE_TAG_ON) {
                     // Linear segment
                     try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, current), current));
                 } else {
@@ -407,8 +407,8 @@ pub const Renderer = struct {
                 }
                 start = current;
                 control = current;
-            } else { // current_tag == ft.c.FT_CURVE_TAG_CONIC
-                if (previous_tag == ft.c.FT_CURVE_TAG_ON) {
+            } else { // current_tag == ft.CURVE_TAG_CONIC
+                if (previous_tag == ft.CURVE_TAG_ON) {
                     // Wait for third point
                 } else {
                     // Create virtual on point
@@ -423,7 +423,7 @@ pub const Renderer = struct {
         }
 
         // Close the contour
-        if (previous_tag == ft.c.FT_CURVE_TAG_CUBIC) {
+        if (previous_tag == ft.CURVE_TAG_CUBIC) {
             const b0 = start;
             const b1 = control;
             const b2 = previous;
@@ -435,7 +435,7 @@ pub const Renderer = struct {
 
             try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
             try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
-        } else if (previous_tag == ft.c.FT_CURVE_TAG_ON) {
+        } else if (previous_tag == ft.CURVE_TAG_ON) {
             // Linear segment
             try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, first), first));
         } else {
@@ -561,7 +561,7 @@ pub const Renderer = struct {
 
             // Apply kerning if available
             if (previous_glyph != 0 and glyph.index != 0) {
-                const kerning = self.font.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
+                const kerning = self.font.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -736,7 +736,7 @@ pub const Renderer = struct {
 
             // Apply kerning
             if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
+                const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -789,7 +789,7 @@ pub const Renderer = struct {
 
             // Apply kerning
             if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
+                const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
