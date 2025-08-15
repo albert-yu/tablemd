@@ -57,6 +57,7 @@ pub const FreeTypeError = error{
     GetGlyphError,
     OutOfMemory,
     OutlineError,
+    GetKerningError,
 };
 
 /// Outline point types
@@ -152,6 +153,14 @@ pub const Face = struct {
 
     pub fn getGlyphIndex(self: Face, char_code: u32) u32 {
         return c.FT_Get_Char_Index(self.face, char_code);
+    }
+
+    pub fn getKerning(self: Face, left_glyph: u32, right_glyph: u32, kern_mode: KerningMode) FreeTypeError!Vector {
+        var kerning: Vector = undefined;
+        if (c.FT_Get_Kerning(self.face, left_glyph, right_glyph, @intFromEnum(kern_mode), &kerning) != 0) {
+            return FreeTypeError.GetKerningError;
+        }
+        return kerning;
     }
 
     /// Returns glyph bitmap data

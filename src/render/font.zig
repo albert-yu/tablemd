@@ -24,6 +24,13 @@ const Element = struct {
     pixel_scale: f32,
 };
 
+pub const TextElement = struct {
+    text: []const u8,
+    x: f32,
+    y: f32,
+    color: sg.Color,
+};
+
 const Glyph = struct {
     index: ft.uint,
     buffer_index: i32,
@@ -604,8 +611,7 @@ pub const Renderer = struct {
             const charcode: u32 = @intCast(codepoint);
             if (self.glyphs.contains(charcode)) continue;
 
-            const glyph_index = self.font.face.getCharIndex(charcode);
-            if (glyph_index == 0) continue;
+            const glyph_index = self.font.codepointGlyphIndex(charcode) orelse continue;
 
             _ = self.font.face.loadGlyph(glyph_index, self.load_flags) catch {
                 std.log.err("[font] error while loading glyph for character {}", .{charcode});
@@ -716,7 +722,12 @@ pub const Renderer = struct {
     /// - text: UTF-8 encoded text string
     /// - x, y: Position in world coordinates
     /// - color: Text color
-    pub fn addLine(self: *Renderer, text: []const u8, x: f32, y: f32, color: sg.Color) void {
+    pub fn addLine(self: *Renderer, text_element: TextElement) void {
+        const text = text_element.text;
+        const x = text_element.x;
+        const y = text_element.y;
+        const color = text_element.color;
+
         // Prepare all glyphs needed for this text
         self.prepareGlyphsForText(text) catch |err| {
             std.log.err("Failed to prepare glyphs for text: {}", .{err});
