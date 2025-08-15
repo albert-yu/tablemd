@@ -72,7 +72,6 @@ pub const SetupArgs = struct {
 ///
 /// // Setup with a FreeType font face
 /// const setup_args = font.SetupArgs{
-///     .face = my_font_face,
 ///     .world_size = 16.0, // Font size in pixels
 ///     .hinting = true,    // Enable for crisp pixel-aligned text
 /// };
@@ -93,7 +92,7 @@ pub const Renderer = struct {
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
     em_size: f32,
-    face: ft.Face,
+    font: ft.Font,
     world_size: f32,
     hinting: bool,
     buffer_glyphs: ArrayList(BufferGlyph),
@@ -112,7 +111,7 @@ pub const Renderer = struct {
             .kerning_mode = .default,
             .load_flags = ft.LOAD_DEFAULT,
             .em_size = 1.0,
-            .face = undefined,
+            .font = undefined,
             .world_size = 1.0,
             .hinting = false,
             .buffer_glyphs = ArrayList(BufferGlyph).initCapacity(allocator, 0) catch unreachable,
@@ -128,25 +127,26 @@ pub const Renderer = struct {
     pub fn setup(self: *Renderer, args: SetupArgs) !void {
         const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
         const font = try ft.load(font_data);
-        self.face = font.face;
+        self.font = font;
         self.world_size = args.world_size;
         self.hinting = args.hinting;
+        var face = self.font.face;
 
         if (args.hinting) {
             self.load_flags = ft.LOAD_NO_BITMAP;
             self.kerning_mode = .default;
             self.em_size = args.world_size * 64.0;
-            try self.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
+            try face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
         } else {
             self.load_flags = ft.LOAD_NO_SCALE | ft.LOAD_NO_HINTING | ft.LOAD_NO_BITMAP;
             self.kerning_mode = .unscaled;
-            self.em_size = @as(f32, @floatFromInt(self.face.face.*.units_per_EM));
+            self.em_size = @as(f32, @floatFromInt(face.face.*.units_per_EM));
         }
 
         // Build undefined glyph (index 0)
         const charcode: u32 = 0;
         const glyph_index: ft.uint = 0;
-        _ = self.face.loadGlyph(glyph_index, self.load_flags) catch {
+        _ = face.loadGlyph(glyph_index, self.load_flags) catch {
             std.log.err("[font] error while loading undefined glyph", .{});
         };
         try self.buildGlyph(charcode, glyph_index);
@@ -154,10 +154,10 @@ pub const Renderer = struct {
         // Build glyphs for ASCII printable characters
         var char: u32 = 32;
         while (char < 128) : (char += 1) {
-            const glyph_idx = self.face.getGlyphIndex(char);
+            const glyph_idx = face.getGlyphIndex(char);
             if (glyph_idx == 0) continue;
 
-            _ = self.face.loadGlyph(glyph_idx, self.load_flags) catch {
+            _ = self.font.face.loadGlyph(glyph_idx, self.load_flags) catch {
                 std.log.err("[font] error while loading glyph for character {}", .{char});
                 continue;
             };
@@ -286,7 +286,7 @@ pub const Renderer = struct {
         const buffer_glyph_index = self.buffer_glyphs.items.len;
         try self.buffer_glyphs.append(self.allocator, buffer_glyph);
 
-        const glyph_slot = self.face.face.*.glyph;
+        const glyph_slot = self.font.face.face.*.glyph;
         const outline = &glyph_slot.*.outline;
 
         // Convert contours to quadratic bezier curves
@@ -561,7 +561,7 @@ pub const Renderer = struct {
 
             // Apply kerning if available
             if (previous_glyph != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
+                const kerning = self.font.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -604,10 +604,10 @@ pub const Renderer = struct {
             const charcode: u32 = @intCast(codepoint);
             if (self.glyphs.contains(charcode)) continue;
 
-            const glyph_index = self.face.getCharIndex(charcode);
+            const glyph_index = self.font.face.getCharIndex(charcode);
             if (glyph_index == 0) continue;
 
-            _ = self.face.loadGlyph(glyph_index, self.load_flags) catch {
+            _ = self.font.face.loadGlyph(glyph_index, self.load_flags) catch {
                 std.log.err("[font] error while loading glyph for character {}", .{charcode});
                 continue;
             };
@@ -629,7 +629,7 @@ pub const Renderer = struct {
 
         // Rebuild buffers for hinting
         self.em_size = world_size * 64.0;
-        _ = self.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(world_size)))) catch {
+        _ = self.font.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(world_size)))) catch {
             std.log.err("[font] error while setting pixel size", .{});
         };
 
@@ -641,7 +641,7 @@ pub const Renderer = struct {
             const charcode = entry.key_ptr.*;
             const glyph = entry.value_ptr.*;
 
-            _ = self.face.loadGlyph(glyph.index, self.load_flags) catch {
+            _ = self.font.face.loadGlyph(glyph.index, self.load_flags) catch {
                 std.log.err("[font] error while reloading glyph for character {}", .{charcode});
                 continue;
             };
@@ -657,6 +657,7 @@ pub const Renderer = struct {
         self.buffer_glyphs.deinit(self.allocator);
         self.buffer_curves.deinit(self.allocator);
         self.glyphs.deinit();
+        self.font.deinit();
     }
 
     /// Decodes the first Unicode code point from UTF-8 string and advances the index
@@ -735,7 +736,7 @@ pub const Renderer = struct {
 
             // Apply kerning
             if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
+                const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -776,7 +777,7 @@ pub const Renderer = struct {
 
             if (charcode == '\n') {
                 current_x = original_x;
-                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
+                const line_height = @as(f32, @floatFromInt(self.font.face.height)) / @as(f32, @floatFromInt(self.font.face.units_per_EM)) * self.world_size;
                 current_y -= line_height;
                 if (self.hinting) {
                     current_y = @round(current_y);
@@ -788,7 +789,7 @@ pub const Renderer = struct {
 
             // Apply kerning
             if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
+                const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.c.FT_Vector{ .x = 0, .y = 0 };
                 current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
@@ -830,6 +831,6 @@ pub const Renderer = struct {
 
     /// Get the line height for the current font
     pub fn getLineHeight(self: *Renderer) f32 {
-        return @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
+        return @as(f32, @floatFromInt(self.font.face.height)) / @as(f32, @floatFromInt(self.font.face.units_per_EM)) * self.world_size;
     }
 };
