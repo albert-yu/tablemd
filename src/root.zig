@@ -88,6 +88,7 @@ const state = struct {
 };
 
 export fn init() void {
+    std.log.info("Initializing...", .{});
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -126,9 +127,6 @@ export fn init() void {
         .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
         .text = .{ .width = text_width, .height = rect_dims.height },
     });
-
-    // font renderer
-    state.font_renderer = FontRenderer.new(state.allocator);
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -654,6 +652,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 fn clear() void {
     state.rect_renderer.clear();
     state.text_renderer.clear();
+    state.font_renderer.clear();
     state.scene.clear();
 }
 
