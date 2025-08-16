@@ -32,14 +32,14 @@ pub const TextElement = struct {
 };
 
 const Glyph = struct {
-    index: ft.uint,
+    index: ft.UInt,
     buffer_index: i32,
     curve_count: i32,
-    width: ft.pos,
-    height: ft.pos,
-    bearing_x: ft.pos,
-    bearing_y: ft.pos,
-    advance: ft.pos,
+    width: ft.Pos,
+    height: ft.Pos,
+    bearing_x: ft.Pos,
+    bearing_y: ft.Pos,
+    advance: ft.Pos,
 };
 
 const BufferGlyph = struct {
@@ -143,7 +143,7 @@ pub const Renderer = struct {
             self.load_flags = ft.LOAD_NO_BITMAP;
             self.kerning_mode = .default;
             self.em_size = args.world_size * 64.0;
-            try face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
+            try face.setPixelSizes(0, @as(ft.UInt, @intFromFloat(@ceil(args.world_size))));
         } else {
             self.load_flags = ft.LOAD_NO_SCALE | ft.LOAD_NO_HINTING | ft.LOAD_NO_BITMAP;
             self.kerning_mode = .unscaled;
@@ -152,7 +152,7 @@ pub const Renderer = struct {
 
         // Build undefined glyph (index 0)
         const charcode: u32 = 0;
-        const glyph_index: ft.uint = 0;
+        const glyph_index: ft.UInt = 0;
         _ = face.loadGlyph(glyph_index, self.load_flags) catch {
             std.log.err("[font] error while loading undefined glyph", .{});
         };
@@ -285,7 +285,7 @@ pub const Renderer = struct {
         self.pip = sg.makePipeline(pip_desc);
     }
 
-    fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.uint) !void {
+    fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.UInt) !void {
         const buffer_glyph = BufferGlyph{
             .start = @intCast(self.buffer_curves.items.len),
             .count = 0,
@@ -547,7 +547,7 @@ pub const Renderer = struct {
         };
 
         var current_x = x;
-        var previous_glyph: ft.uint = 0;
+        var previous_glyph: ft.UInt = 0;
 
         // Decode UTF-8 text
         const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
@@ -635,7 +635,7 @@ pub const Renderer = struct {
 
         // Rebuild buffers for hinting
         self.em_size = world_size * 64.0;
-        _ = self.font.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(world_size)))) catch {
+        _ = self.font.face.setPixelSizes(0, @as(ft.UInt, @intFromFloat(@ceil(world_size)))) catch {
             std.log.err("[font] error while setting pixel size", .{});
         };
 

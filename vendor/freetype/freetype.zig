@@ -9,8 +9,8 @@ pub const c = @cImport({
     @cInclude("freetype/ftoutln.h");
 });
 
-pub const uint = c.FT_UInt;
-pub const pos = c.FT_Pos;
+pub const UInt = c.FT_UInt;
+pub const Pos = c.FT_Pos;
 
 // Type aliases
 pub const Outline = c.FT_Outline;
