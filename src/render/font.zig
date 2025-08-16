@@ -499,13 +499,6 @@ pub const Renderer = struct {
         self.curve_texture = sg.makeImage(curve_desc);
     }
 
-    pub fn updateBuffer(self: Renderer) void {
-        if (self.elements.items.len == 0) {
-            return;
-        }
-        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements.items));
-    }
-
     pub fn clear(self: *Renderer) void {
         self.elements.clearRetainingCapacity();
     }
@@ -562,14 +555,12 @@ pub const Renderer = struct {
         };
         var iterator = utf8_view.iterator();
 
-        const face = self.font.face;
-
         while (iterator.nextCodepoint()) |codepoint| {
             if (codepoint == '\r') continue;
             if (codepoint == '\n') {
                 // Handle newlines if needed
                 x = original_x;
-                y -= @as(f32, @floatFromInt(face.face.*.height)) / @as(f32, @floatFromInt(face.face.*.units_per_EM)) * self.world_size;
+                y -= self.getLineHeight();
                 if (self.hinting) {
                     y = @round(y);
                 }
@@ -679,52 +670,138 @@ pub const Renderer = struct {
         self.font.deinit();
     }
 
-    /// Decodes the first Unicode code point from UTF-8 string and advances the index
-    fn decodeCharcode(text: []const u8, index: *usize) u32 {
-        if (index.* >= text.len) return 0;
+    // /// Decodes the first Unicode code point from UTF-8 string and advances the index
+    // fn decodeCharcode(text: []const u8, index: *usize) u32 {
+    //     if (index.* >= text.len) return 0;
 
-        const first = text[index.*];
+    //     const first = text[index.*];
 
-        // Fast path for ASCII
-        if (first < 128) {
-            index.* += 1;
-            return @as(u32, first);
-        }
+    //     // Fast path for ASCII
+    //     if (first < 128) {
+    //         index.* += 1;
+    //         return @as(u32, first);
+    //     }
 
-        var result: u32 = 0;
-        var size: usize = 0;
+    //     var result: u32 = 0;
+    //     var size: usize = 0;
 
-        if ((first & 0xE0) == 0xC0) { // 110xxxxx
-            result = first & 0x1F;
-            size = 2;
-        } else if ((first & 0xF0) == 0xE0) { // 1110xxxx
-            result = first & 0x0F;
-            size = 3;
-        } else if ((first & 0xF8) == 0xF0) { // 11110xxx
-            result = first & 0x07;
-            size = 4;
-        } else {
-            // Invalid encoding
-            index.* += 1;
-            return 0;
-        }
+    //     if ((first & 0xE0) == 0xC0) { // 110xxxxx
+    //         result = first & 0x1F;
+    //         size = 2;
+    //     } else if ((first & 0xF0) == 0xE0) { // 1110xxxx
+    //         result = first & 0x0F;
+    //         size = 3;
+    //     } else if ((first & 0xF8) == 0xF0) { // 11110xxx
+    //         result = first & 0x07;
+    //         size = 4;
+    //     } else {
+    //         // Invalid encoding
+    //         index.* += 1;
+    //         return 0;
+    //     }
 
-        // if (index.* + size > text.len) {
-        //     index.* += 1;
-        //     return 0;
-        // }
+    //     // if (index.* + size > text.len) {
+    //     //     index.* += 1;
+    //     //     return 0;
+    //     // }
 
-        for (1..size) |i| {
-            const value = text[index.* + i];
-            if ((value & 0xC0) != 0x80) { // 10xxxxxx
-                index.* += 1;
-                return 0;
+    //     for (1..size) |i| {
+    //         const value = text[index.* + i];
+    //         if ((value & 0xC0) != 0x80) { // 10xxxxxx
+    //             index.* += 1;
+    //             return 0;
+    //         }
+    //         result = (result << 6) | (value & 0x3F);
+    //     }
+
+    //     index.* += size;
+    //     return result;
+    // }
+
+    pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8) !void {
+        const original_x = x;
+
+        // glBindVertexArray(self.vao);
+        var vertices = try ArrayList(BufferVertex).initCapacity(self.allocator, 0);
+        var indices = try ArrayList(i32).initCapacity(self.allocator, 0);
+        var previous: ft.UInt = 0;
+
+        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
+            std.log.err("Invalid UTF-8 text: {}", .{err});
+            return;
+        };
+        var iterator = utf8_view.iterator();
+        while (iterator.nextCodepoint()) |codepoint| {
+            if (codepoint == '\r') continue;
+            if (codepoint == '\n') {
+                x = original_x;
+                y -= self.getLineHeight();
+                if (self.hinting) {
+                    y = @round(y);
+                }
+                continue;
             }
-            result = (result << 6) | (value & 0x3F);
-        }
 
-        index.* += size;
-        return result;
+            const glyph = self.glyphs.get(codepoint) orelse self.glyphs.get(0) orelse continue;
+            if (previous != 0 and glyph.index != 0) {
+                const kerning = self.font.face.getKerning(previous, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
+            }
+
+            // Do not emit quad for empty glyphs (whitespace).
+            if (glyph.curve_count > 0) {
+                const d: ft.Pos = @as(ft.Pos, @intFromFloat(self.em_size * self.world_silation));
+
+                const u_0 = @as(f32, @floatFromInt(glyph.bearing_x - d)) / self.em_size;
+                const v_0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height - d)) / self.em_size;
+                const u_1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width + d)) / self.em_size;
+                const v_1 = @as(f32, @floatFromInt(glyph.bearing_y + d)) / self.em_size;
+
+                const x_0 = x + u_0 * self.world_size;
+                const y_0 = y + v_0 * self.world_size;
+                const x_1 = x + u_1 * self.world_size;
+                const y_1 = y + v_1 * self.world_size;
+
+                const base: i32 = @intCast(vertices.items.len);
+                const buffer_index: i32 = @intCast(glyph.buffer_index);
+                try vertices.append(BufferVertex{
+                    .x = x_0,
+                    .y = y_0,
+                    .u = u_0,
+                    .v = v_0,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(BufferVertex{
+                    .x = x_1,
+                    .y = y_1,
+                    .u = u_1,
+                    .v = v_1,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(BufferVertex{
+                    .x = x_0,
+                    .y = y_0,
+                    .u = u_0,
+                    .v = v_0,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(BufferVertex{
+                    .x = x_1,
+                    .y = y_1,
+                    .u = u_1,
+                    .v = v_1,
+                    .buffer_index = buffer_index,
+                });
+                try indices.insertSlice(self.allocator, indices, .{
+                    base + 0, base + 1, base + 2,
+                    base + 2, base + 3, base + 0,
+                });
+            }
+
+            x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
+            previous = glyph.index;
+        }
+        // TODO: bind to buffer data
     }
 
     // /// Add a line of text for rendering with full Unicode support and kerning.
@@ -848,13 +925,13 @@ pub const Renderer = struct {
         return @as(f32, @floatFromInt(space_glyph.advance)) / self.em_size * self.world_size;
     }
 
-    /// Check if a glyph is available for the given character
-    pub fn hasGlyph(self: *Renderer, charcode: u32) bool {
-        return self.glyphs.contains(charcode);
-    }
+    // /// Check if a glyph is available for the given character
+    // pub fn hasGlyph(self: *Renderer, charcode: u32) bool {
+    //     return self.glyphs.contains(charcode);
+    // }
 
     /// Get the line height for the current font
-    pub fn getLineHeight(self: *Renderer) f32 {
+    fn getLineHeight(self: *Renderer) f32 {
         return @as(f32, @floatFromInt(self.font.face.height)) / @as(f32, @floatFromInt(self.font.face.units_per_EM)) * self.world_size;
     }
 };
