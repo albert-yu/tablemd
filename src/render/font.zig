@@ -59,13 +59,13 @@ pub const SetupArgs = struct {
     world_size: f32 = 1.0,
     hinting: bool = false,
 };
+
 const Element = struct {
-    instance_position: [2]f32,
-    glyph_size: [2]f32,
-    vertex_uv: [2]f32,
-    vertex_index: i32,
-    color: sg.Color,
-    pixel_scale: f32,
+    // instance_position: [2]f32,
+    // vertex_uv: [2]f32,
+    // vertex_index: i32,
+    // color: sg.Color,
+    // pixel_scale: f32,
 };
 // const Element = struct {
 //     vertices: [4]BufferVertex,
@@ -100,7 +100,7 @@ const MAX_ELEMENTS = 2048;
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
-    elements: ArrayList(Element),
+    // elements: ArrayList(Element),
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
     em_size: f32,
@@ -119,7 +119,7 @@ pub const Renderer = struct {
         return .{
             .bind = .{},
             .pip = .{},
-            .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
+            // .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
             .load_flags = ft.LOAD_DEFAULT,
             .em_size = 1.0,
@@ -201,11 +201,11 @@ pub const Renderer = struct {
             }),
         });
 
-        // Setup instance buffer for Element data
-        self.bind.vertex_buffers[1] = sg.makeBuffer(.{
-            .usage = .{ .stream_update = true },
-            .size = @sizeOf(Element) * MAX_ELEMENTS,
-        });
+        // // Setup instance buffer for Element data
+        // self.bind.vertex_buffers[1] = sg.makeBuffer(.{
+        //     .usage = .{ .stream_update = true },
+        //     .size = @sizeOf(Element) * MAX_ELEMENTS,
+        // });
 
         // Setup texture buffers for glyph and curve data
         self.bind.images[shd_font.IMG_glyphs_tex] = self.glyph_texture;
@@ -232,7 +232,7 @@ pub const Renderer = struct {
             .layout = init: {
                 var l = sg.VertexLayoutState{};
                 // Set instance buffer step function
-                l.buffers[1].step_func = .PER_INSTANCE;
+                // l.buffers[1].step_func = .PER_INSTANCE;
 
                 // Vertex attribute (per-vertex)
                 l.attrs[shd_font.ATTR_font_position] = .{
@@ -240,38 +240,25 @@ pub const Renderer = struct {
                     .buffer_index = 0,
                     .offset = 0,
                 };
-
-                // Instance attributes (per-instance)
-                l.attrs[shd_font.ATTR_font_instance_position] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "instance_position"),
-                };
-                l.attrs[shd_font.ATTR_font_glyph_size] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "glyph_size"),
-                };
                 l.attrs[shd_font.ATTR_font_vertex_uv] = .{
                     .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "vertex_uv"),
+                    .buffer_index = 0,
+                    // .offset = @offsetOf(Element, "vertex_uv"),
                 };
                 l.attrs[shd_font.ATTR_font_vertex_index] = .{
                     .format = .INT,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "vertex_index"),
+                    .buffer_index = 0,
                 };
-                l.attrs[shd_font.ATTR_font_color] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "color"),
-                };
-                l.attrs[shd_font.ATTR_font_pixel_scale] = .{
-                    .format = .FLOAT,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "pixel_scale"),
-                };
+                // l.attrs[shd_font.ATTR_font_color] = .{
+                //     .format = .FLOAT4,
+                //     .buffer_index = 1,
+                //     .offset = @offsetOf(Element, "color"),
+                // };
+                // l.attrs[shd_font.ATTR_font_pixel_scale] = .{
+                //     .format = .FLOAT,
+                //     .buffer_index = 1,
+                //     .offset = @offsetOf(Element, "pixel_scale"),
+                // };
                 break :init l;
             },
             .index_type = .UINT16,
@@ -461,12 +448,12 @@ pub const Renderer = struct {
         }
     }
 
-    pub fn updateBuffer(self: *Renderer) void {
-        if (self.elements.len == 0) {
-            return;
-        }
-        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.elements.len]));
-    }
+    // pub fn updateBuffer(self: *Renderer) void {
+    //     if (self.elements.len == 0) {
+    //         return;
+    //     }
+    //     sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.elements.len]));
+    // }
 
     fn uploadBuffers(self: *Renderer) !void {
         // Create glyph texture (RG32I format for start/count pairs)
@@ -512,7 +499,8 @@ pub const Renderer = struct {
     }
 
     pub fn clear(self: *Renderer) void {
-        self.elements.clearRetainingCapacity();
+        _ = self;
+        // self.elements.clearRetainingCapacity();
     }
 
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
@@ -616,7 +604,7 @@ pub const Renderer = struct {
     }
 
     pub fn cleanup(self: *Renderer) void {
-        self.elements.deinit(self.allocator);
+        // self.elements.deinit(self.allocator);
         self.buffer_glyphs.deinit(self.allocator);
         self.buffer_curves.deinit(self.allocator);
         self.glyphs.deinit();

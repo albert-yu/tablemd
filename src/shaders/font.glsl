@@ -5,24 +5,20 @@ layout(binding = 0) uniform vs_params {
     mat4 untransform;
 };
 
-in vec2 position;
 
-in vec2 instance_position;
-in vec2 glyph_size;
-in vec2 vertex_uv;
-in int vertex_index;
-in vec4 color;
-in float pixel_scale;
 
-out vec2 uv;
-flat out int buffer_index;
-out vec4 v_color;
+layout (location = 0) in vec2 position;
+layout (location = 1) in vec2 vertex_uv;
+layout (location = 2) in int  vertex_index;
+
+layout (location = 0) out vec2 uv;
+layout (location = 1) flat out int buffer_index;
 
 void main() {
     mat4 t = untransform * zoom * window_scale;
-    vec2 scaled_pos = (position * glyph_size + instance_position) * pixel_scale;
-    gl_Position = t * vec4(scaled_pos, 0.0, 1.0);
-    v_color = color;
+    // vec2 scaled_pos = (position * glyph_size + instance_position) * pixel_scale;
+    gl_Position = t * vec4(position, 0.0, 1.0);
+    // v_color = color;
     uv = vertex_uv;
     buffer_index = vertex_index;
 }
@@ -61,7 +57,7 @@ float antiAliasingWindowSize = 1.0;
 
 in vec2 uv;
 flat in int buffer_index;
-in vec4 v_color;
+// in vec4 v_color;
 
 out vec4 result;
 
@@ -167,7 +163,9 @@ void main() {
     //     alpha *= 0.5;
     // }
 
+
     alpha = clamp(alpha, 0.0, 1.0);
+    vec4 v_color = vec4(1.0, 1.0, 1.0, alpha);
     result = v_color * alpha;
 
     // if (enableControlPointsVisualization) {
