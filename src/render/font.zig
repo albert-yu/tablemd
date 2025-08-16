@@ -15,15 +15,6 @@ pub const BoundingBox = struct {
     max_y: f32,
 };
 
-const Element = struct {
-    instance_position: [2]f32,
-    glyph_size: [2]f32,
-    vertex_uv: [2]f32,
-    vertex_index: i32,
-    color: sg.Color,
-    pixel_scale: f32,
-};
-
 pub const TextElement = struct {
     text: []const u8,
     x: f32,
@@ -68,6 +59,20 @@ pub const SetupArgs = struct {
     world_size: f32 = 1.0,
     hinting: bool = false,
 };
+const Element = struct {
+    instance_position: [2]f32,
+    glyph_size: [2]f32,
+    vertex_uv: [2]f32,
+    vertex_index: i32,
+    color: sg.Color,
+    pixel_scale: f32,
+};
+// const Element = struct {
+//     vertices: [4]BufferVertex,
+//     indices: [6]i32,
+// };
+
+const MAX_ELEMENTS = 2048;
 
 /// High-quality vector font renderer using quadratic Bézier curves.
 /// Supports Unicode text, kerning, and hinting for crisp text rendering.
@@ -199,7 +204,7 @@ pub const Renderer = struct {
         // Setup instance buffer for Element data
         self.bind.vertex_buffers[1] = sg.makeBuffer(.{
             .usage = .{ .stream_update = true },
-            .size = @sizeOf(Element) * 1024, // Max instances
+            .size = @sizeOf(Element) * MAX_ELEMENTS,
         });
 
         // Setup texture buffers for glyph and curve data
@@ -456,6 +461,13 @@ pub const Renderer = struct {
         }
     }
 
+    pub fn updateBuffer(self: *Renderer) void {
+        if (self.elements.len == 0) {
+            return;
+        }
+        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.elements.len]));
+    }
+
     fn uploadBuffers(self: *Renderer) !void {
         // Create glyph texture (RG32I format for start/count pairs)
         var glyph_desc: sg.ImageDesc = .{
@@ -570,38 +582,6 @@ pub const Renderer = struct {
         }
 
         return bb;
-    }
-
-    pub fn prepareGlyphsForText(self: *Renderer, text: []const u8) !void {
-        var changed = false;
-
-        // Decode UTF-8 text
-        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
-            std.log.err("Invalid UTF-8 text: {}", .{err});
-            return;
-        };
-        var iterator = utf8_view.iterator();
-
-        while (iterator.nextCodepoint()) |codepoint| {
-            if (codepoint == '\r' or codepoint == '\n') continue;
-
-            const charcode: u32 = @intCast(codepoint);
-            if (self.glyphs.contains(charcode)) continue;
-
-            const glyph_index = self.font.codepointGlyphIndex(charcode) orelse continue;
-
-            _ = self.font.face.loadGlyph(glyph_index, self.load_flags) catch {
-                std.log.err("[font] error while loading glyph for character {}", .{charcode});
-                continue;
-            };
-
-            try self.buildGlyph(charcode, glyph_index);
-            changed = true;
-        }
-
-        if (changed) {
-            try self.uploadBuffers();
-        }
     }
 
     pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
@@ -730,15 +710,48 @@ pub const Renderer = struct {
     }
 
     pub fn addLine(self: *Renderer, text_element: TextElement) void {
-        _ = self;
-        _ = text_element;
-        // TODO: implement
+        self.prepareGlyphsForText(text_element.text) catch |err| {
+            std.log.err("[font] error while preparing glyphs for text: {}", .{err});
+            return;
+        };
     }
 
     /// Get the advance width for a space character (useful for layout)
     pub fn getSpaceAdvance(self: *Renderer) f32 {
         const space_glyph = self.glyphs.get(32) orelse return 0.0;
         return @as(f32, @floatFromInt(space_glyph.advance)) / self.em_size * self.world_size;
+    }
+
+    fn prepareGlyphsForText(self: *Renderer, text: []const u8) !void {
+        var changed = false;
+
+        // Decode UTF-8 text
+        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
+            std.log.err("Invalid UTF-8 text: {}", .{err});
+            return;
+        };
+        var iterator = utf8_view.iterator();
+
+        while (iterator.nextCodepoint()) |codepoint| {
+            if (codepoint == '\r' or codepoint == '\n') continue;
+
+            const charcode: u32 = @intCast(codepoint);
+            if (self.glyphs.contains(charcode)) continue;
+
+            const glyph_index = self.font.codepointGlyphIndex(charcode) orelse continue;
+
+            _ = self.font.face.loadGlyph(glyph_index, self.load_flags) catch {
+                std.log.err("[font] error while loading glyph for character {}", .{charcode});
+                continue;
+            };
+
+            try self.buildGlyph(charcode, glyph_index);
+            changed = true;
+        }
+
+        if (changed) {
+            try self.uploadBuffers();
+        }
     }
 
     /// Get the line height for the current font
