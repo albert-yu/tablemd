@@ -65,7 +65,7 @@ const BufferVertex = struct {
 };
 
 pub const SetupArgs = struct {
-    world_size: f32 = 16.0,
+    world_size: f32 = 1.0,
     hinting: bool = false,
 };
 
@@ -151,12 +151,15 @@ pub const Renderer = struct {
         }
 
         // Build undefined glyph (index 0)
-        const charcode: u32 = 0;
-        const glyph_index: ft.UInt = 0;
-        _ = face.loadGlyph(glyph_index, self.load_flags) catch {
-            std.log.err("[font] error while loading undefined glyph", .{});
-        };
-        try self.buildGlyph(charcode, glyph_index);
+        {
+            const charcode: u32 = 0;
+            const glyph_index: ft.UInt = 0;
+            _ = face.loadGlyph(glyph_index, self.load_flags) catch {
+                std.log.err("[font] error while loading undefined glyph", .{});
+                // Continue, because we always want an entry for the undefined glyph in our glyphs map!
+            };
+            try self.buildGlyph(charcode, glyph_index);
+        }
 
         // Build glyphs for ASCII printable characters
         var char: u32 = 32;
@@ -286,12 +289,10 @@ pub const Renderer = struct {
     }
 
     fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.UInt) !void {
-        const buffer_glyph = BufferGlyph{
+        var buffer_glyph = BufferGlyph{
             .start = @intCast(self.buffer_curves.items.len),
             .count = 0,
         };
-        const buffer_glyph_index = self.buffer_glyphs.items.len;
-        try self.buffer_glyphs.append(self.allocator, buffer_glyph);
 
         const glyph_slot = self.font.face.face.*.glyph;
         const outline = &glyph_slot.*.outline;
@@ -305,13 +306,16 @@ pub const Renderer = struct {
         }
 
         // Update curve count
-        self.buffer_glyphs.items[buffer_glyph_index].count = @intCast(self.buffer_curves.items.len - @as(usize, @intCast(self.buffer_glyphs.items[buffer_glyph_index].start)));
+        buffer_glyph.count = @intCast(self.buffer_curves.items.len - @as(usize, @intCast(buffer_glyph.start)));
+
+        const buffer_index = self.buffer_glyphs.items.len;
+        try self.buffer_glyphs.append(self.allocator, buffer_glyph);
 
         // Store glyph info
         const glyph = Glyph{
             .index = glyph_index,
-            .buffer_index = @intCast(buffer_glyph_index),
-            .curve_count = self.buffer_glyphs.items[buffer_glyph_index].count,
+            .buffer_index = @intCast(buffer_index),
+            .curve_count = buffer_glyph.count,
             .width = glyph_slot.*.metrics.width,
             .height = glyph_slot.*.metrics.height,
             .bearing_x = glyph_slot.*.metrics.horiBearingX,
