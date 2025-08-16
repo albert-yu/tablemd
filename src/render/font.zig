@@ -326,7 +326,9 @@ pub const Renderer = struct {
     }
 
     fn convertContour(self: *Renderer, outline: *const ft.Outline, first_index: i16, last_index: i16, em_size: f32) !void {
-        if (first_index == last_index) return;
+        if (first_index == last_index) {
+            return;
+        }
 
         var d_index: i16 = 1;
         var actual_first = first_index;
@@ -386,12 +388,12 @@ pub const Renderer = struct {
         var start = first;
         var control = first;
         var previous = first;
-        var previous_tag: u8 = ft.CURVE_TAG_ON;
+        var previous_tag = ft.CURVE_TAG_ON;
 
         var index = actual_first;
         while (index != actual_last + d_index) : (index += d_index) {
             const current = convert(outline.points[@intCast(index)], em_size);
-            const current_tag = outline.tags[@intCast(index)];
+            const current_tag = ft.c.FT_CURVE_TAG(outline.tags[@intCast(index)]);
 
             if (current_tag == ft.CURVE_TAG_CUBIC) {
                 control = previous;
