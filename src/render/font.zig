@@ -510,33 +510,6 @@ pub const Renderer = struct {
         sg.draw(0, 6, @intCast(self.elements.items.len));
     }
 
-    // fn addGlyph(self: *Renderer, charcode: u32, x: f32, y: f32, color: sg.Color) void {
-    //     const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse return;
-
-    //     if (glyph.curve_count == 0) return; // Skip empty glyphs (whitespace)
-
-    //     const dilation: f32 = 0.0; // Can be adjusted for anti-aliasing
-    //     const d = self.em_size * dilation;
-
-    //     const ux0 = (@as(f32, @floatFromInt(glyph.bearing_x)) - d) / self.em_size;
-    //     const vy0 = (@as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) - d) / self.em_size;
-    //     const ux1 = (@as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) + d) / self.em_size;
-    //     const vy1 = (@as(f32, @floatFromInt(glyph.bearing_y)) + d) / self.em_size;
-
-    //     const element = Element{
-    //         .instance_position = .{ x + ux0 * self.world_size, y + vy0 * self.world_size },
-    //         .glyph_size = .{ (ux1 - ux0) * self.world_size, (vy1 - vy0) * self.world_size },
-    //         .vertex_uv = .{ ux0, vy0 },
-    //         .vertex_index = glyph.buffer_index,
-    //         .color = color,
-    //         .pixel_scale = 1.0 / self.world_size,
-    //     };
-
-    //     self.elements.append(self.allocator, element) catch |err| {
-    //         std.log.err("Failed to append glyph element: {}", .{err});
-    //     };
-    // }
-
     fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
         var bb = BoundingBox{
             .min_x = std.math.floatMax(f32),
@@ -670,54 +643,6 @@ pub const Renderer = struct {
         self.font.deinit();
     }
 
-    // /// Decodes the first Unicode code point from UTF-8 string and advances the index
-    // fn decodeCharcode(text: []const u8, index: *usize) u32 {
-    //     if (index.* >= text.len) return 0;
-
-    //     const first = text[index.*];
-
-    //     // Fast path for ASCII
-    //     if (first < 128) {
-    //         index.* += 1;
-    //         return @as(u32, first);
-    //     }
-
-    //     var result: u32 = 0;
-    //     var size: usize = 0;
-
-    //     if ((first & 0xE0) == 0xC0) { // 110xxxxx
-    //         result = first & 0x1F;
-    //         size = 2;
-    //     } else if ((first & 0xF0) == 0xE0) { // 1110xxxx
-    //         result = first & 0x0F;
-    //         size = 3;
-    //     } else if ((first & 0xF8) == 0xF0) { // 11110xxx
-    //         result = first & 0x07;
-    //         size = 4;
-    //     } else {
-    //         // Invalid encoding
-    //         index.* += 1;
-    //         return 0;
-    //     }
-
-    //     // if (index.* + size > text.len) {
-    //     //     index.* += 1;
-    //     //     return 0;
-    //     // }
-
-    //     for (1..size) |i| {
-    //         const value = text[index.* + i];
-    //         if ((value & 0xC0) != 0x80) { // 10xxxxxx
-    //             index.* += 1;
-    //             return 0;
-    //         }
-    //         result = (result << 6) | (value & 0x3F);
-    //     }
-
-    //     index.* += size;
-    //     return result;
-    // }
-
     pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8) !void {
         const original_x = x;
 
@@ -804,120 +729,19 @@ pub const Renderer = struct {
         // TODO: bind to buffer data
     }
 
-    // /// Add a line of text for rendering with full Unicode support and kerning.
-    // /// This method is similar to text.zig addLine but uses vector-based rendering
-    // /// for higher quality output. Supports newlines for multi-line text.
-    // ///
-    // /// Args:
-    // /// - text: UTF-8 encoded text string
-    // /// - x, y: Position in world coordinates
-    // /// - color: Text color
-    // pub fn addLine(self: *Renderer, text_element: TextElement) void {
-    //     const text = text_element.text;
-    //     const x = text_element.x;
-    //     const y = text_element.y;
-    //     const color = text_element.color;
-
-    //     // Prepare all glyphs needed for this text
-    //     self.prepareGlyphsForText(text) catch |err| {
-    //         std.log.err("Failed to prepare glyphs for text: {}", .{err});
-    //         return;
-    //     };
-
-    //     var current_x = x;
-    //     const current_y = y;
-    //     var index: usize = 0;
-    //     var previous_glyph_index: u32 = 0;
-
-    //     while (index < text.len) {
-    //         const charcode = decodeCharcode(text, &index);
-    //         if (charcode == 0) continue;
-
-    //         const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-    //         // Apply kerning
-    //         if (previous_glyph_index != 0 and glyph.index != 0) {
-    //             const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-    //             current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-    //         }
-
-    //         // Add glyph quad if it has curves
-    //         if (glyph.curve_count > 0) {
-    //             self.addGlyph(charcode, current_x, current_y, color);
-    //         }
-
-    //         // Advance cursor
-    //         current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-    //         previous_glyph_index = glyph.index;
-    //     }
-    // }
-
-    // /// Measure the bounding box of text without rendering it.
-    // /// Useful for layout calculations and UI positioning.
-    // ///
-    // /// Returns: BoundingBox with exact bounds of the rendered text
-    // fn measureText(self: *Renderer, text: []const u8, x: f32, y: f32) BoundingBox {
-    //     var bbox = BoundingBox{
-    //         .min_x = std.math.inf(f32),
-    //         .min_y = std.math.inf(f32),
-    //         .max_x = -std.math.inf(f32),
-    //         .max_y = -std.math.inf(f32),
-    //     };
-
-    //     var current_x = x;
-    //     var current_y = y;
-    //     const original_x = x;
-    //     var index: usize = 0;
-    //     var previous_glyph_index: u32 = 0;
-
-    //     while (index < text.len) {
-    //         const charcode = decodeCharcode(text, &index);
-    //         if (charcode == 0) continue;
-
-    //         if (charcode == '\r') continue;
-
-    //         if (charcode == '\n') {
-    //             current_x = original_x;
-    //             const line_height = @as(f32, @floatFromInt(self.font.face.height)) / @as(f32, @floatFromInt(self.font.face.units_per_EM)) * self.world_size;
-    //             current_y -= line_height;
-    //             if (self.hinting) {
-    //                 current_y = @round(current_y);
-    //             }
-    //             continue;
-    //         }
-
-    //         const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-    //         // Apply kerning
-    //         if (previous_glyph_index != 0 and glyph.index != 0) {
-    //             const kerning = self.font.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-    //             current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-    //         }
-
-    //         // Calculate glyph bounds (without dilation for exact bounds)
-    //         const glyph_u0 = @as(f32, @floatFromInt(glyph.bearing_x)) / self.em_size;
-    //         const glyph_v0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) / self.em_size;
-    //         const glyph_u1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) / self.em_size;
-    //         const glyph_v1 = @as(f32, @floatFromInt(glyph.bearing_y)) / self.em_size;
-
-    //         const x0 = current_x + glyph_u0 * self.world_size;
-    //         const y0 = current_y + glyph_v0 * self.world_size;
-    //         const x1 = current_x + glyph_u1 * self.world_size;
-    //         const y1 = current_y + glyph_v1 * self.world_size;
-
-    //         // Update bounding box
-    //         if (x0 < bbox.min_x) bbox.min_x = x0;
-    //         if (y0 < bbox.min_y) bbox.min_y = y0;
-    //         if (x1 > bbox.max_x) bbox.max_x = x1;
-    //         if (y1 > bbox.max_y) bbox.max_y = y1;
-
-    //         // Advance cursor
-    //         current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-    //         previous_glyph_index = glyph.index;
-    //     }
-
-    //     return bbox;
-    // }
+    /// Add a line of text for rendering with full Unicode support and kerning.
+    /// This method is similar to text.zig addLine but uses vector-based rendering
+    /// for higher quality output. Supports newlines for multi-line text.
+    ///
+    /// Args:
+    /// - text: UTF-8 encoded text string
+    /// - x, y: Position in world coordinates
+    /// - color: Text color
+    pub fn addLine(self: *Renderer, text_element: TextElement) void {
+        _ = self;
+        _ = text_element;
+        // TODO: implement
+    }
 
     /// Get the advance width for a space character (useful for layout)
     pub fn getSpaceAdvance(self: *Renderer) f32 {
