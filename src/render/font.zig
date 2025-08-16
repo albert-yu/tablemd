@@ -729,14 +729,6 @@ pub const Renderer = struct {
         // TODO: bind to buffer data
     }
 
-    /// Add a line of text for rendering with full Unicode support and kerning.
-    /// This method is similar to text.zig addLine but uses vector-based rendering
-    /// for higher quality output. Supports newlines for multi-line text.
-    ///
-    /// Args:
-    /// - text: UTF-8 encoded text string
-    /// - x, y: Position in world coordinates
-    /// - color: Text color
     pub fn addLine(self: *Renderer, text_element: TextElement) void {
         _ = self;
         _ = text_element;
@@ -748,11 +740,6 @@ pub const Renderer = struct {
         const space_glyph = self.glyphs.get(32) orelse return 0.0;
         return @as(f32, @floatFromInt(space_glyph.advance)) / self.em_size * self.world_size;
     }
-
-    // /// Check if a glyph is available for the given character
-    // pub fn hasGlyph(self: *Renderer, charcode: u32) bool {
-    //     return self.glyphs.contains(charcode);
-    // }
 
     /// Get the line height for the current font
     fn getLineHeight(self: *Renderer) f32 {
