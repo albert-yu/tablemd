@@ -170,6 +170,14 @@ export fn frame() void {
     }
     state.text_renderer.updateBuffer();
 
+    state.font_renderer.addLine(.{
+        .text = "Hello, world!",
+        .x = 0,
+        .y = 0,
+        .color = theme.DARK_THEME.text_color,
+    });
+    state.font_renderer.updateBuffer();
+
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
     state.pass_action.colors[0] = .{

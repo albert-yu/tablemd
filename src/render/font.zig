@@ -424,12 +424,13 @@ pub const Renderer = struct {
         }
     }
 
-    // pub fn updateBuffer(self: *Renderer) void {
-    //     if (self.elements.len == 0) {
-    //         return;
-    //     }
-    //     sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements[0..self.elements.len]));
-    // }
+    pub fn updateBuffer(self: *Renderer) void {
+        if (self.indices.items.len == 0) {
+            return;
+        }
+        sg.updateBuffer(self.bind.vertex_buffers[0], sg.asRange(self.vertices.items[0..self.vertices.items.len]));
+        sg.updateBuffer(self.bind.index_buffer, sg.asRange(self.indices.items[0..self.indices.items.len]));
+    }
 
     fn uploadBuffers(self: *Renderer) !void {
         // Create glyph texture (RG32I format for start/count pairs)
@@ -580,18 +581,19 @@ pub const Renderer = struct {
     }
 
     pub fn cleanup(self: *Renderer) void {
-        // self.elements.deinit(self.allocator);
         self.buffer_glyphs.deinit(self.allocator);
         self.buffer_curves.deinit(self.allocator);
+        self.indices.deinit(self.allocator);
+        self.vertices.deinit(self.allocator);
         self.glyphs.deinit();
         self.font.deinit();
     }
 
-    fn populateVertexArray(self: *Renderer, x: f32, y: f32, text: []const u8) !void {
-        const original_x = x;
+    fn populateVertexArray(self: *Renderer, x_in: f32, y_in: f32, text: []const u8) !void {
+        const original_x = x_in;
+        var x = x_in;
+        var y = y_in;
 
-        var vertices = self.vertices;
-        var indices = self.indices;
         var previous: ft.UInt = 0;
 
         const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
@@ -618,7 +620,7 @@ pub const Renderer = struct {
 
             // Do not emit quad for empty glyphs (whitespace).
             if (glyph.curve_count > 0) {
-                const d: ft.Pos = @as(ft.Pos, @intFromFloat(self.em_size * self.world_silation));
+                const d: ft.Pos = @as(ft.Pos, @intFromFloat(self.em_size * self.dilation));
 
                 const u_0 = @as(f32, @floatFromInt(glyph.bearing_x - d)) / self.em_size;
                 const v_0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height - d)) / self.em_size;
@@ -630,37 +632,37 @@ pub const Renderer = struct {
                 const x_1 = x + u_1 * self.world_size;
                 const y_1 = y + v_1 * self.world_size;
 
-                const base: i32 = @intCast(vertices.items.len);
+                const base: i32 = @intCast(self.vertices.items.len);
                 const buffer_index: i32 = @intCast(glyph.buffer_index);
-                try vertices.append(BufferVertex{
+                try self.vertices.append(self.allocator, BufferVertex{
                     .x = x_0,
                     .y = y_0,
                     .u = u_0,
                     .v = v_0,
                     .buffer_index = buffer_index,
                 });
-                try vertices.append(BufferVertex{
+                try self.vertices.append(self.allocator, BufferVertex{
                     .x = x_1,
                     .y = y_1,
                     .u = u_1,
                     .v = v_1,
                     .buffer_index = buffer_index,
                 });
-                try vertices.append(BufferVertex{
+                try self.vertices.append(self.allocator, BufferVertex{
                     .x = x_0,
                     .y = y_0,
                     .u = u_0,
                     .v = v_0,
                     .buffer_index = buffer_index,
                 });
-                try vertices.append(BufferVertex{
+                try self.vertices.append(self.allocator, BufferVertex{
                     .x = x_1,
                     .y = y_1,
                     .u = u_1,
                     .v = v_1,
                     .buffer_index = buffer_index,
                 });
-                try indices.insertSlice(self.allocator, indices, .{
+                try self.indices.insertSlice(self.allocator, self.indices.items.len, &[_]i32{
                     base + 0, base + 1, base + 2,
                     base + 2, base + 3, base + 0,
                 });
@@ -676,7 +678,10 @@ pub const Renderer = struct {
             std.log.err("[font] error while preparing glyphs for text: {}", .{err});
             return;
         };
-        self.populateVertexArray(text_element.x, text_element.y, text_element.text);
+        self.populateVertexArray(text_element.x, text_element.y, text_element.text) catch |err| {
+            std.log.err("[font] error while populating vertex array: {}", .{err});
+            return;
+        };
     }
 
     /// Get the advance width for a space character (useful for layout)
@@ -719,6 +724,6 @@ pub const Renderer = struct {
 
     /// Get the line height for the current font
     fn getLineHeight(self: *Renderer) f32 {
-        return @as(f32, @floatFromInt(self.font.face.height)) / @as(f32, @floatFromInt(self.font.face.units_per_EM)) * self.world_size;
+        return @as(f32, @floatFromInt(self.font.face.face.*.height)) / @as(f32, @floatFromInt(self.font.face.face.*.units_per_EM)) * self.world_size;
     }
 };
