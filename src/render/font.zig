@@ -100,7 +100,8 @@ const MAX_ELEMENTS = 2048;
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
-    // elements: ArrayList(Element),
+    vertices: ArrayList(BufferVertex),
+    indices: ArrayList(i32),
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
     em_size: f32,
@@ -119,7 +120,8 @@ pub const Renderer = struct {
         return .{
             .bind = .{},
             .pip = .{},
-            // .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
+            .vertices = ArrayList(BufferVertex).initCapacity(allocator, 0) catch unreachable,
+            .indices = ArrayList(i32).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
             .load_flags = ft.LOAD_DEFAULT,
             .em_size = 1.0,
@@ -182,30 +184,15 @@ pub const Renderer = struct {
 
         try self.uploadBuffers();
 
-        // Setup vertex buffer for quad geometry (position only)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
-            .data = sg.asRange(&[_]f32{
-                0.0, 0.0, // bottom-left
-                1.0, 0.0, // bottom-right
-                0.0, 1.0, // top-left
-                1.0, 1.0, // top-right
-            }),
+            .usage = .{ .stream_update = true },
+            .size = @sizeOf(BufferVertex) * MAX_ELEMENTS,
         });
 
-        // Setup index buffer for quad
         self.bind.index_buffer = sg.makeBuffer(.{
-            .usage = .{ .index_buffer = true },
-            .data = sg.asRange(&[_]u16{
-                0, 1, 2,
-                1, 2, 3,
-            }),
+            .usage = .{ .stream_update = true },
+            .size = @sizeOf(i32) * MAX_ELEMENTS,
         });
-
-        // // Setup instance buffer for Element data
-        // self.bind.vertex_buffers[1] = sg.makeBuffer(.{
-        //     .usage = .{ .stream_update = true },
-        //     .size = @sizeOf(Element) * MAX_ELEMENTS,
-        // });
 
         // Setup texture buffers for glyph and curve data
         self.bind.images[shd_font.IMG_glyphs_tex] = self.glyph_texture;
@@ -231,8 +218,8 @@ pub const Renderer = struct {
             .shader = sg.makeShader(shd_font.fontShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
-                // Set instance buffer step function
-                // l.buffers[1].step_func = .PER_INSTANCE;
+                // TODO: needed?
+                // l.buffers[0].step_func = .PER_INSTANCE;
 
                 // Vertex attribute (per-vertex)
                 l.attrs[shd_font.ATTR_font_position] = .{
@@ -243,22 +230,11 @@ pub const Renderer = struct {
                 l.attrs[shd_font.ATTR_font_vertex_uv] = .{
                     .format = .FLOAT2,
                     .buffer_index = 0,
-                    // .offset = @offsetOf(Element, "vertex_uv"),
                 };
                 l.attrs[shd_font.ATTR_font_vertex_index] = .{
                     .format = .INT,
                     .buffer_index = 0,
                 };
-                // l.attrs[shd_font.ATTR_font_color] = .{
-                //     .format = .FLOAT4,
-                //     .buffer_index = 1,
-                //     .offset = @offsetOf(Element, "color"),
-                // };
-                // l.attrs[shd_font.ATTR_font_pixel_scale] = .{
-                //     .format = .FLOAT,
-                //     .buffer_index = 1,
-                //     .offset = @offsetOf(Element, "pixel_scale"),
-                // };
                 break :init l;
             },
             .index_type = .UINT16,
@@ -499,15 +475,15 @@ pub const Renderer = struct {
     }
 
     pub fn clear(self: *Renderer) void {
-        _ = self;
-        // self.elements.clearRetainingCapacity();
+        self.indices.clearRetainingCapacity();
+        self.vertices.clearRetainingCapacity();
     }
 
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
-        sg.draw(0, 6, @intCast(self.elements.items.len));
+        sg.draw(0, self.indices.items.len, 1);
     }
 
     fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
@@ -611,12 +587,11 @@ pub const Renderer = struct {
         self.font.deinit();
     }
 
-    pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8) !void {
+    fn populateVertexArray(self: *Renderer, x: f32, y: f32, text: []const u8) !void {
         const original_x = x;
 
-        // glBindVertexArray(self.vao);
-        var vertices = try ArrayList(BufferVertex).initCapacity(self.allocator, 0);
-        var indices = try ArrayList(i32).initCapacity(self.allocator, 0);
+        var vertices = self.vertices;
+        var indices = self.indices;
         var previous: ft.UInt = 0;
 
         const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
@@ -694,7 +669,6 @@ pub const Renderer = struct {
             x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
             previous = glyph.index;
         }
-        // TODO: bind to buffer data
     }
 
     pub fn addLine(self: *Renderer, text_element: TextElement) void {
@@ -702,6 +676,7 @@ pub const Renderer = struct {
             std.log.err("[font] error while preparing glyphs for text: {}", .{err});
             return;
         };
+        self.populateVertexArray(text_element.x, text_element.y, text_element.text);
     }
 
     /// Get the advance width for a space character (useful for layout)
