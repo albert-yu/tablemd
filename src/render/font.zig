@@ -60,18 +60,6 @@ pub const SetupArgs = struct {
     hinting: bool = false,
 };
 
-const Element = struct {
-    // instance_position: [2]f32,
-    // vertex_uv: [2]f32,
-    // vertex_index: i32,
-    // color: sg.Color,
-    // pixel_scale: f32,
-};
-// const Element = struct {
-//     vertices: [4]BufferVertex,
-//     indices: [6]i32,
-// };
-
 const MAX_ELEMENTS = 2048;
 
 /// High-quality vector font renderer using quadratic Bézier curves.
