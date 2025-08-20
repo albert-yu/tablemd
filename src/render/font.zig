@@ -178,7 +178,7 @@ pub const Renderer = struct {
         });
 
         self.bind.index_buffer = sg.makeBuffer(.{
-            .usage = .{ .stream_update = true },
+            .usage = .{ .stream_update = true, .index_buffer = true },
             .size = @sizeOf(i32) * MAX_ELEMENTS,
         });
 
@@ -225,7 +225,7 @@ pub const Renderer = struct {
                 };
                 break :init l;
             },
-            .index_type = .UINT16,
+            .index_type = .UINT32,
             .depth = .{
                 .compare = .LESS_EQUAL,
                 .write_enabled = true,
@@ -421,27 +421,40 @@ pub const Renderer = struct {
     }
 
     fn uploadBuffers(self: *Renderer) !void {
+        // Ensure minimum size for glyph texture to avoid validation errors
+        const glyph_count = @max(self.buffer_glyphs.items.len, 1);
+
         // Create glyph texture (RG32I format for start/count pairs)
         var glyph_desc: sg.ImageDesc = .{
             .label = "glyph texture",
-            .width = @intCast(self.buffer_glyphs.items.len),
+            .width = @intCast(glyph_count),
             .height = 1,
-            .pixel_format = .RG32SI,
+            .pixel_format = .RG32F,
             .sample_count = 1,
             .num_mipmaps = 1,
         };
 
         // Convert BufferGlyph to packed format
-        const glyph_data = try self.allocator.alloc([2]i32, self.buffer_glyphs.items.len);
+        const glyph_data = try self.allocator.alloc([2]f32, glyph_count);
         defer self.allocator.free(glyph_data);
-        for (self.buffer_glyphs.items, 0..) |glyph, i| {
-            glyph_data[i] = .{ glyph.start, glyph.count };
+
+        if (self.buffer_glyphs.items.len > 0) {
+            for (self.buffer_glyphs.items, 0..) |glyph, i| {
+                glyph_data[i] = .{ @floatFromInt(glyph.start), @floatFromInt(glyph.count) };
+            }
+        } else {
+            // Fill with default values if no glyphs
+            glyph_data[0] = .{ 0.0, 0.0 };
         }
+
         glyph_desc.data.subimage[0][0] = sg.asRange(glyph_data);
         self.glyph_texture = sg.makeImage(glyph_desc);
 
+        // Ensure minimum size for curve texture
+        const curve_count = @max(self.buffer_curves.items.len, 1);
+        const curve_width = curve_count * 3;
+
         // Create curve texture (RG32F format, 3 points per curve)
-        const curve_width = self.buffer_curves.items.len * 3;
         var curve_desc: sg.ImageDesc = .{
             .label = "curve texture",
             .width = @intCast(curve_width),
@@ -454,11 +467,20 @@ pub const Renderer = struct {
         // Convert BufferCurve to packed format (3 vec2 per curve)
         const curve_data = try self.allocator.alloc([2]f32, curve_width);
         defer self.allocator.free(curve_data);
-        for (self.buffer_curves.items, 0..) |curve, i| {
-            curve_data[i * 3 + 0] = .{ curve.x0, curve.y0 };
-            curve_data[i * 3 + 1] = .{ curve.x1, curve.y1 };
-            curve_data[i * 3 + 2] = .{ curve.x2, curve.y2 };
+
+        if (self.buffer_curves.items.len > 0) {
+            for (self.buffer_curves.items, 0..) |curve, i| {
+                curve_data[i * 3 + 0] = .{ curve.x0, curve.y0 };
+                curve_data[i * 3 + 1] = .{ curve.x1, curve.y1 };
+                curve_data[i * 3 + 2] = .{ curve.x2, curve.y2 };
+            }
+        } else {
+            // Fill with default values if no curves
+            curve_data[0] = .{ 0.0, 0.0 };
+            curve_data[1] = .{ 0.0, 0.0 };
+            curve_data[2] = .{ 0.0, 0.0 };
         }
+
         curve_desc.data.subimage[0][0] = sg.asRange(curve_data);
         self.curve_texture = sg.makeImage(curve_desc);
     }
@@ -472,7 +494,7 @@ pub const Renderer = struct {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
-        sg.draw(0, self.indices.items.len, 1);
+        sg.draw(0, @intCast(self.indices.items.len), 1);
     }
 
     fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {

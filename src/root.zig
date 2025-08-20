@@ -192,6 +192,7 @@ export fn frame() void {
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
     state.text_renderer.renderInPass(vs_range);
+    state.font_renderer.renderInPass(vs_range);
 
     sg.endPass();
     sg.commit();
