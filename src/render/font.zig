@@ -127,7 +127,9 @@ pub const Renderer = struct {
     }
 
     pub fn setup(self: *Renderer, args: SetupArgs) !void {
-        const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
+        // TODO: swap back to SpaceMono
+        // const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
+        const font_data = @embedFile("../fonts/SourceSerifPro-Regular.otf");
         const font = try ft.load(font_data);
         self.font = font;
         self.world_size = args.world_size;
