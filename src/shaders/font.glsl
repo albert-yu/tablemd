@@ -51,9 +51,9 @@ out vec4 result;
 Glyph loadGlyph(int index) {
     Glyph result;
     vec2 texCoord = vec2(float(index) + 0.5, 0.5) / textureSize(sampler2D(glyphs_tex, glyphs_smp), 0);
-    ivec2 data = ivec2(texture(sampler2D(glyphs_tex, glyphs_smp), texCoord).xy * 65535.0);
-    result.start = data.x;
-    result.count = data.y;
+    vec2 data = texture(sampler2D(glyphs_tex, glyphs_smp), texCoord).xy;
+    result.start = int(data.x);
+    result.count = int(data.y);
     return result;
 }
 

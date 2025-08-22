@@ -426,7 +426,7 @@ pub const Renderer = struct {
         // Ensure minimum size for glyph texture to avoid validation errors
         const glyph_count = @max(self.buffer_glyphs.items.len, 1);
 
-        // Create glyph texture (RG32I format for start/count pairs)
+        // Create glyph texture (RG32F format for start/count pairs)
         var glyph_desc: sg.ImageDesc = .{
             .label = "glyph texture",
             .width = @intCast(glyph_count),
