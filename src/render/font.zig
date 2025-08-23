@@ -61,6 +61,7 @@ pub const SetupArgs = struct {
 };
 
 const MAX_ELEMENTS = 2048;
+const MAX_INDICES = MAX_ELEMENTS * 4;
 
 /// High-quality vector font renderer using quadratic Bézier curves.
 /// Supports Unicode text, kerning, and hinting for crisp text rendering.
@@ -88,8 +89,6 @@ const MAX_ELEMENTS = 2048;
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
-    vertices: ArrayList(BufferVertex),
-    indices: ArrayList(i32),
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
     em_size: f32,
@@ -103,13 +102,12 @@ pub const Renderer = struct {
     glyph_texture: sg.Image,
     curve_texture: sg.Image,
     dilation: f32,
+    text_elements: ArrayList(TextElement),
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
             .bind = .{},
             .pip = .{},
-            .vertices = ArrayList(BufferVertex).initCapacity(allocator, 0) catch unreachable,
-            .indices = ArrayList(i32).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
             .load_flags = ft.LOAD_DEFAULT,
             .em_size = 1.0,
@@ -123,6 +121,7 @@ pub const Renderer = struct {
             .glyph_texture = .{},
             .curve_texture = .{},
             .dilation = 0.0,
+            .text_elements = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
         };
     }
 
@@ -180,8 +179,8 @@ pub const Renderer = struct {
         });
 
         self.bind.index_buffer = sg.makeBuffer(.{
-            .usage = .{ .stream_update = true, .index_buffer = true },
-            .size = @sizeOf(i32) * MAX_ELEMENTS,
+            .usage = .{ .index_buffer = true, .stream_update = true },
+            .size = @sizeOf(i32) * MAX_INDICES,
         });
 
         // Setup texture buffers for glyph and curve data
@@ -193,7 +192,6 @@ pub const Renderer = struct {
             .wrap_u = .CLAMP_TO_EDGE,
             .wrap_v = .CLAMP_TO_EDGE,
         });
-
         self.bind.images[shd_font.IMG_curves_tex] = self.curve_texture;
         self.bind.samplers[shd_font.SMP_curves_smp] = sg.makeSampler(.{
             .label = "curve sampler",
@@ -414,12 +412,9 @@ pub const Renderer = struct {
         }
     }
 
+    // TODO: remove this function
     pub fn updateBuffer(self: *Renderer) void {
-        if (self.indices.items.len == 0) {
-            return;
-        }
-        sg.updateBuffer(self.bind.vertex_buffers[0], sg.asRange(self.vertices.items[0..self.vertices.items.len]));
-        sg.updateBuffer(self.bind.index_buffer, sg.asRange(self.indices.items[0..self.indices.items.len]));
+        _ = self;
     }
 
     fn uploadBuffers(self: *Renderer) !void {
@@ -488,15 +483,37 @@ pub const Renderer = struct {
     }
 
     pub fn clear(self: *Renderer) void {
-        self.indices.clearRetainingCapacity();
-        self.vertices.clearRetainingCapacity();
+        self.text_elements.clearRetainingCapacity();
     }
 
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
+
+        var vertices = ArrayList(BufferVertex).initCapacity(self.allocator, 0) catch unreachable;
+        defer vertices.deinit(self.allocator);
+
+        var indices = ArrayList(i32).initCapacity(self.allocator, 0) catch unreachable;
+        defer indices.deinit(self.allocator);
+
+        for (self.text_elements.items) |text_element| {
+            self.populateVertexArray(&vertices, &indices, text_element.x, text_element.y, text_element.text) catch |err| {
+                std.log.err("[font] error while populating vertex array: {}", .{err});
+                continue;
+            };
+        }
+
+        const vertex_data_size = vertices.items.len * @sizeOf(BufferVertex);
+        const index_data_size = indices.items.len * @sizeOf(i32);
+        const max_vertex_size = MAX_ELEMENTS * @sizeOf(BufferVertex);
+        const max_index_size = MAX_INDICES * @sizeOf(i32);
+
+        if (vertex_data_size > max_vertex_size or index_data_size > max_index_size) {
+            std.log.err("[font] vertex or index data size exceeds max size", .{});
+            return;
+        }
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
-        sg.draw(0, @intCast(self.indices.items.len), 1);
+        sg.draw(0, @intCast(indices.items.len), 1);
     }
 
     fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
@@ -595,13 +612,12 @@ pub const Renderer = struct {
     pub fn cleanup(self: *Renderer) void {
         self.buffer_glyphs.deinit(self.allocator);
         self.buffer_curves.deinit(self.allocator);
-        self.indices.deinit(self.allocator);
-        self.vertices.deinit(self.allocator);
         self.glyphs.deinit();
         self.font.deinit();
+        self.text_elements.deinit(self.allocator);
     }
 
-    fn populateVertexArray(self: *Renderer, x_in: f32, y_in: f32, text: []const u8) !void {
+    fn populateVertexArray(self: Renderer, vertices: *ArrayList(BufferVertex), indices: *ArrayList(i32), x_in: f32, y_in: f32, text: []const u8) !void {
         const original_x = x_in;
         var x = x_in;
         var y = y_in;
@@ -644,37 +660,37 @@ pub const Renderer = struct {
                 const x_1 = x + u_1 * self.world_size;
                 const y_1 = y + v_1 * self.world_size;
 
-                const base: i32 = @intCast(self.vertices.items.len);
+                const base: i32 = @intCast(vertices.items.len);
                 const buffer_index: i32 = @intCast(glyph.buffer_index);
-                try self.vertices.append(self.allocator, BufferVertex{
+                try vertices.append(self.allocator, BufferVertex{
                     .x = x_0,
                     .y = y_0,
                     .u = u_0,
                     .v = v_0,
                     .buffer_index = buffer_index,
                 });
-                try self.vertices.append(self.allocator, BufferVertex{
+                try vertices.append(self.allocator, BufferVertex{
                     .x = x_1,
                     .y = y_1,
                     .u = u_1,
                     .v = v_1,
                     .buffer_index = buffer_index,
                 });
-                try self.vertices.append(self.allocator, BufferVertex{
+                try vertices.append(self.allocator, BufferVertex{
                     .x = x_0,
                     .y = y_0,
                     .u = u_0,
                     .v = v_0,
                     .buffer_index = buffer_index,
                 });
-                try self.vertices.append(self.allocator, BufferVertex{
+                try vertices.append(self.allocator, BufferVertex{
                     .x = x_1,
                     .y = y_1,
                     .u = u_1,
                     .v = v_1,
                     .buffer_index = buffer_index,
                 });
-                try self.indices.insertSlice(self.allocator, self.indices.items.len, &[_]i32{
+                try indices.insertSlice(self.allocator, indices.items.len, &[_]i32{
                     base + 0, base + 1, base + 2,
                     base + 2, base + 3, base + 0,
                 });
@@ -686,12 +702,12 @@ pub const Renderer = struct {
     }
 
     pub fn addLine(self: *Renderer, text_element: TextElement) void {
-        self.prepareGlyphsForText(text_element.text) catch |err| {
-            std.log.err("[font] error while preparing glyphs for text: {}", .{err});
+        self.text_elements.append(self.allocator, text_element) catch |err| {
+            std.log.err("[font] error while appending text element: {}", .{err});
             return;
         };
-        self.populateVertexArray(text_element.x, text_element.y, text_element.text) catch |err| {
-            std.log.err("[font] error while populating vertex array: {}", .{err});
+        self.prepareGlyphsForText(text_element.text) catch |err| {
+            std.log.err("[font] error while preparing glyphs for text: {}", .{err});
             return;
         };
     }
@@ -735,7 +751,7 @@ pub const Renderer = struct {
     }
 
     /// Get the line height for the current font
-    fn getLineHeight(self: *Renderer) f32 {
+    fn getLineHeight(self: Renderer) f32 {
         return @as(f32, @floatFromInt(self.font.face.face.*.height)) / @as(f32, @floatFromInt(self.font.face.face.*.units_per_EM)) * self.world_size;
     }
 };
