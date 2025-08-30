@@ -61,7 +61,7 @@ pub const SetupArgs = struct {
 };
 
 const MAX_ELEMENTS = 2048;
-const MAX_INDICES = MAX_ELEMENTS * 4;
+const MAX_INDICES = MAX_ELEMENTS * 6 / 4;
 
 /// High-quality vector font renderer using quadratic Bézier curves.
 /// Supports Unicode text, kerning, and hinting for crisp text rendering.
