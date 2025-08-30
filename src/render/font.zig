@@ -171,7 +171,7 @@ pub const Renderer = struct {
             try self.buildGlyph(char, glyph_idx);
         }
 
-        try self.uploadBuffers();
+        try self.uploadGlyphAndCurvesToTextures();
 
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
             .usage = .{ .stream_update = true },
@@ -417,7 +417,7 @@ pub const Renderer = struct {
         _ = self;
     }
 
-    fn uploadBuffers(self: *Renderer) !void {
+    fn uploadGlyphAndCurvesToTextures(self: *Renderer) !void {
         // Ensure minimum size for glyph texture to avoid validation errors
         const glyph_count = @max(self.buffer_glyphs.items.len, 1);
 
@@ -604,7 +604,7 @@ pub const Renderer = struct {
             try self.buildGlyph(charcode, glyph.index);
         }
 
-        try self.uploadBuffers();
+        try self.uploadGlyphAndCurvesToTextures();
     }
 
     pub fn cleanup(self: *Renderer) void {
@@ -744,7 +744,7 @@ pub const Renderer = struct {
         }
 
         if (changed) {
-            try self.uploadBuffers();
+            try self.uploadGlyphAndCurvesToTextures();
         }
     }
 
