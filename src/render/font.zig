@@ -416,6 +416,9 @@ pub const Renderer = struct {
     }
 
     fn uploadGlyphsAndCurvesToTextures(self: *Renderer) !void {
+        sg.destroyImage(self.glyph_texture);
+        sg.destroyImage(self.curve_texture);
+
         // Ensure minimum size for glyph texture to avoid validation errors
         const glyph_count = @max(self.buffer_glyphs.items.len, 1);
 
@@ -444,6 +447,7 @@ pub const Renderer = struct {
 
         glyph_desc.data.subimage[0][0] = sg.asRange(glyph_data);
         self.glyph_texture = sg.makeImage(glyph_desc);
+        self.bind.images[shd_font.IMG_glyphs_tex] = self.glyph_texture;
 
         // Ensure minimum size for curve texture
         const curve_count = @max(self.buffer_curves.items.len, 1);
@@ -478,6 +482,7 @@ pub const Renderer = struct {
 
         curve_desc.data.subimage[0][0] = sg.asRange(curve_data);
         self.curve_texture = sg.makeImage(curve_desc);
+        self.bind.images[shd_font.IMG_curves_tex] = self.curve_texture;
     }
 
     pub fn clear(self: *Renderer) void {
