@@ -204,8 +204,6 @@ pub const Renderer = struct {
             .shader = sg.makeShader(shd_font.fontShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
-                // TODO: needed?
-                // l.buffers[0].step_func = .PER_INSTANCE;
 
                 // Vertex attribute (per-vertex)
                 l.attrs[shd_font.ATTR_font_position] = .{
