@@ -17,7 +17,7 @@ layout (location = 1) flat out int buffer_index;
 void main() {
     mat4 t = untransform * zoom * window_scale;
     // vec2 scaled_pos = (position * glyph_size + instance_position) * pixel_scale;
-    gl_Position = t * vec4(position, 0.0, 1.0);
+    gl_Position = t * vec4(position.x, -position.y, 0.0, 1.0);
     // v_color = color;
     uv = vertex_uv;
     buffer_index = vertex_index;
