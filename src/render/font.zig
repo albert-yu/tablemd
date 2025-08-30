@@ -507,11 +507,6 @@ pub const Renderer = struct {
         const max_vertex_size = MAX_ELEMENTS * @sizeOf(BufferVertex);
         const max_index_size = MAX_INDICES * @sizeOf(i32);
 
-        // print first five vertices
-        for (vertices.items[0..5], 0..) |v, i| {
-            std.log.info("i:{} vertex: {d} {d} {d} {d} {d}", .{ i, v.x, v.y, v.u, v.v, v.buffer_index });
-        }
-
         if (vertex_data_size > max_vertex_size or index_data_size > max_index_size) {
             std.log.err("[font] vertex or index data size exceeds max size", .{});
             return;
