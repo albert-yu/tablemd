@@ -410,7 +410,7 @@ fn handleZoom(delta: f32, p: Vec2) void {
     const new_k = clamp(
         curr_k * std.math.pow(f32, 2, delta),
         0.25,
-        5.0,
+        10.0,
     );
     const inv_p = invert(p);
     const translated = translate(new_k, p, inv_p);
