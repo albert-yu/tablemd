@@ -56,7 +56,7 @@ const BufferVertex = struct {
 };
 
 pub const SetupArgs = struct {
-    world_size: f32 = 1.0,
+    world_size: f32 = 0.05,
     hinting: bool = false,
 };
 
