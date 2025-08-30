@@ -38,7 +38,7 @@ web (WebAssembly) platforms.
 - **Rendering system**: Modular renderer architecture in `src/render/`
   - `dot_grid.zig` - Grid background renderer
   - `rect.zig` - Rectangle/shape renderer
-  - `text.zig` - Text rendering with TrueType font support
+  - `font.zig` - Text rendering with FreeType under the hood
 - **Graphics**: Uses Sokol for cross-platform graphics (OpenGL/WebGL/Metal/D3D11)
 - **Shaders**: GLSL shaders in `src/shaders/` compiled via sokol-shdc
 - **Math**: Uses zm library for vector/matrix operations

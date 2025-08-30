@@ -2,10 +2,10 @@ const std = @import("std");
 const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const rect = @import("rect.zig");
-const text = @import("text.zig");
+const font = @import("font.zig");
 
 const RectElement = rect.RectElement;
-const TextElement = text.TextElement;
+const TextElement = font.TextElement;
 
 pub const Scene = struct {
     rects: ArrayList(RectElement),

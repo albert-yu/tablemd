@@ -485,6 +485,9 @@ pub const Renderer = struct {
     }
 
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+        if (self.text_elements.items.len == 0) {
+            return;
+        }
         sg.applyPipeline(self.pip);
 
         var vertices = ArrayList(BufferVertex).initCapacity(self.allocator, 0) catch unreachable;
@@ -704,7 +707,8 @@ pub const Renderer = struct {
         self.text_elements.append(self.allocator, .{
             .text = text_element.text,
             .x = text_element.x,
-            .y = text_element.y + manual_adjust_y,
+            // flip y-axis
+            .y = -text_element.y + manual_adjust_y,
             .color = text_element.color,
         }) catch |err| {
             std.log.err("[font] error while appending text element: {}", .{err});
