@@ -412,7 +412,8 @@ pub const Renderer = struct {
         }
     }
 
-    // TODO: remove this function
+    /// Function currently is a no-op, since we
+    /// are not using instanced rendering.
     pub fn updateBuffer(self: *Renderer) void {
         _ = self;
     }
