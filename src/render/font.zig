@@ -634,8 +634,6 @@ pub const Renderer = struct {
             return;
         };
         var iterator = utf8_view.iterator();
-        std.log.info("em_size: {}", .{self.em_size});
-        std.log.info("dilation: {}", .{self.dilation});
         while (iterator.nextCodepoint()) |codepoint| {
             if (codepoint == '\r') continue;
             if (codepoint == '\n') {
@@ -678,15 +676,8 @@ pub const Renderer = struct {
                 });
                 try vertices.append(self.allocator, BufferVertex{
                     .x = x_1,
-                    .y = y_1,
-                    .u = u_1,
-                    .v = v_1,
-                    .buffer_index = buffer_index,
-                });
-                try vertices.append(self.allocator, BufferVertex{
-                    .x = x_0,
                     .y = y_0,
-                    .u = u_0,
+                    .u = u_1,
                     .v = v_0,
                     .buffer_index = buffer_index,
                 });
@@ -694,6 +685,13 @@ pub const Renderer = struct {
                     .x = x_1,
                     .y = y_1,
                     .u = u_1,
+                    .v = v_1,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(self.allocator, BufferVertex{
+                    .x = x_0,
+                    .y = y_1,
+                    .u = u_0,
                     .v = v_1,
                     .buffer_index = buffer_index,
                 });
