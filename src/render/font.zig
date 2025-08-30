@@ -506,6 +506,9 @@ pub const Renderer = struct {
             std.log.err("[font] vertex or index data size exceeds max size", .{});
             return;
         }
+        sg.updateBuffer(self.bind.vertex_buffers[0], sg.asRange(vertices.items));
+        sg.updateBuffer(self.bind.index_buffer, sg.asRange(indices.items));
+
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
         sg.draw(0, @intCast(indices.items.len), 1);
