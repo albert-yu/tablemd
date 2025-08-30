@@ -502,12 +502,7 @@ pub const Renderer = struct {
             };
         }
 
-        const vertex_data_size = vertices.items.len * @sizeOf(BufferVertex);
-        const index_data_size = indices.items.len * @sizeOf(i32);
-        const max_vertex_size = MAX_ELEMENTS * @sizeOf(BufferVertex);
-        const max_index_size = MAX_INDICES * @sizeOf(i32);
-
-        if (vertex_data_size > max_vertex_size or index_data_size > max_index_size) {
+        if (vertices.items.len > MAX_ELEMENTS or indices.items.len > MAX_INDICES) {
             std.log.err("[font] vertex or index data size exceeds max size", .{});
             return;
         }
