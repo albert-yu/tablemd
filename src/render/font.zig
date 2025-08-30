@@ -8,24 +8,29 @@ const ft = @import("freetype");
 
 const sg = sokol.gfx;
 
-const Element = struct {
-    instance_position: [2]f32,
-    glyph_size: [2]f32,
-    vertex_uv: [2]f32,
-    vertex_index: i32,
+pub const BoundingBox = struct {
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+};
+
+pub const TextElement = struct {
+    text: []const u8,
+    x: f32,
+    y: f32,
     color: sg.Color,
-    pixel_scale: f32,
 };
 
 const Glyph = struct {
-    index: ft.uint,
+    index: ft.UInt,
     buffer_index: i32,
     curve_count: i32,
-    width: ft.pos,
-    height: ft.pos,
-    bearing_x: ft.pos,
-    bearing_y: ft.pos,
-    advance: ft.pos,
+    width: ft.Pos,
+    height: ft.Pos,
+    bearing_x: ft.Pos,
+    bearing_y: ft.Pos,
+    advance: ft.Pos,
 };
 
 const BufferGlyph = struct {
@@ -51,10 +56,12 @@ const BufferVertex = struct {
 };
 
 pub const SetupArgs = struct {
-    face: ft.Face,
-    world_size: f32 = 1.0,
+    world_size: f32 = 0.025,
     hinting: bool = false,
 };
+
+const MAX_ELEMENTS = 2048;
+const MAX_INDICES = MAX_ELEMENTS * 6 / 4;
 
 /// High-quality vector font renderer using quadratic Bézier curves.
 /// Supports Unicode text, kerning, and hinting for crisp text rendering.
@@ -66,7 +73,6 @@ pub const SetupArgs = struct {
 ///
 /// // Setup with a FreeType font face
 /// const setup_args = font.SetupArgs{
-///     .face = my_font_face,
 ///     .world_size = 16.0, // Font size in pixels
 ///     .hinting = true,    // Enable for crisp pixel-aligned text
 /// };
@@ -83,11 +89,10 @@ pub const SetupArgs = struct {
 pub const Renderer = struct {
     bind: sg.Bindings,
     pip: sg.Pipeline,
-    elements: ArrayList(Element),
     kerning_mode: ft.KerningMode,
     load_flags: ft.LoadFlags,
     em_size: f32,
-    face: ft.Face,
+    font: ft.Font,
     world_size: f32,
     hinting: bool,
     buffer_glyphs: ArrayList(BufferGlyph),
@@ -97,59 +102,66 @@ pub const Renderer = struct {
     glyph_texture: sg.Image,
     curve_texture: sg.Image,
     dilation: f32,
+    text_elements: ArrayList(TextElement),
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
             .bind = .{},
             .pip = .{},
-            .elements = ArrayList(Element).initCapacity(allocator, 0) catch unreachable,
             .kerning_mode = .default,
-            .load_flags = .default,
+            .load_flags = ft.LOAD_DEFAULT,
             .em_size = 1.0,
-            .face = undefined,
+            .font = undefined,
             .world_size = 1.0,
             .hinting = false,
-            .buffer_glyphs = ArrayList(BufferGlyph){},
-            .buffer_curves = ArrayList(BufferCurve){},
+            .buffer_glyphs = ArrayList(BufferGlyph).initCapacity(allocator, 0) catch unreachable,
+            .buffer_curves = ArrayList(BufferCurve).initCapacity(allocator, 0) catch unreachable,
             .glyphs = std.HashMap(u32, Glyph, std.hash_map.AutoContext(u32), std.hash_map.default_max_load_percentage).init(allocator),
             .allocator = allocator,
             .glyph_texture = .{},
             .curve_texture = .{},
-            .dilation = 0.0,
+            .dilation = 0.1,
+            .text_elements = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
         };
     }
 
-    pub fn setup(self: *Renderer, args: SetupArgs) !void {
-        self.face = args.face;
+    pub fn setup(self: *Renderer, args: SetupArgs) !f32 {
+        const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
+        const font = try ft.load(font_data);
+        self.font = font;
         self.world_size = args.world_size;
         self.hinting = args.hinting;
+        var face = self.font.face;
 
         if (args.hinting) {
-            self.load_flags = .no_bitmap;
+            self.load_flags = ft.LOAD_NO_BITMAP;
             self.kerning_mode = .default;
             self.em_size = args.world_size * 64.0;
-            try args.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(args.world_size))));
+            try face.setPixelSizes(0, @as(ft.UInt, @intFromFloat(@ceil(args.world_size))));
         } else {
-            self.load_flags = .no_scale | .no_hinting | .no_bitmap;
+            self.load_flags = ft.LOAD_NO_SCALE | ft.LOAD_NO_HINTING | ft.LOAD_NO_BITMAP;
             self.kerning_mode = .unscaled;
-            self.em_size = @as(f32, @floatFromInt(args.face.face.*.units_per_EM));
+            self.em_size = @as(f32, @floatFromInt(face.face.*.units_per_EM));
         }
 
         // Build undefined glyph (index 0)
-        const charcode: u32 = 0;
-        const glyph_index: ft.uint = 0;
-        _ = args.face.loadGlyph(glyph_index, self.load_flags) catch {
-            std.log.err("[font] error while loading undefined glyph", .{});
-        };
-        try self.buildGlyph(charcode, glyph_index);
+        {
+            const charcode: u32 = 0;
+            const glyph_index: ft.UInt = 0;
+            _ = face.loadGlyph(glyph_index, self.load_flags) catch {
+                std.log.err("[font] error while loading undefined glyph", .{});
+                // Continue, because we always want an entry for the undefined glyph in our glyphs map!
+            };
+            try self.buildGlyph(charcode, glyph_index);
+        }
 
         // Build glyphs for ASCII printable characters
         var char: u32 = 32;
         while (char < 128) : (char += 1) {
-            const glyph_idx = args.face.getCharIndex(char);
+            const glyph_idx = face.getGlyphIndex(char);
             if (glyph_idx == 0) continue;
 
-            _ = args.face.loadGlyph(glyph_idx, self.load_flags) catch {
+            _ = self.font.face.loadGlyph(glyph_idx, self.load_flags) catch {
                 std.log.err("[font] error while loading glyph for character {}", .{char});
                 continue;
             };
@@ -157,31 +169,16 @@ pub const Renderer = struct {
             try self.buildGlyph(char, glyph_idx);
         }
 
-        try self.uploadBuffers();
+        try self.uploadGlyphsAndCurvesToTextures();
 
-        // Setup vertex buffer for quad geometry (position only)
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
-            .data = sg.asRange(&[_]f32{
-                0.0, 0.0, // bottom-left
-                1.0, 0.0, // bottom-right
-                0.0, 1.0, // top-left
-                1.0, 1.0, // top-right
-            }),
-        });
-
-        // Setup index buffer for quad
-        self.bind.index_buffer = sg.makeBuffer(.{
-            .usage = .{ .index_buffer = true },
-            .data = sg.asRange(&[_]u16{
-                0, 1, 2,
-                1, 2, 3,
-            }),
-        });
-
-        // Setup instance buffer for Element data
-        self.bind.vertex_buffers[1] = sg.makeBuffer(.{
             .usage = .{ .stream_update = true },
-            .size = @sizeOf(Element) * 1024, // Max instances
+            .size = @sizeOf(BufferVertex) * MAX_ELEMENTS,
+        });
+
+        self.bind.index_buffer = sg.makeBuffer(.{
+            .usage = .{ .index_buffer = true, .stream_update = true },
+            .size = @sizeOf(i32) * MAX_INDICES,
         });
 
         // Setup texture buffers for glyph and curve data
@@ -193,7 +190,6 @@ pub const Renderer = struct {
             .wrap_u = .CLAMP_TO_EDGE,
             .wrap_v = .CLAMP_TO_EDGE,
         });
-
         self.bind.images[shd_font.IMG_curves_tex] = self.curve_texture;
         self.bind.samplers[shd_font.SMP_curves_smp] = sg.makeSampler(.{
             .label = "curve sampler",
@@ -208,8 +204,6 @@ pub const Renderer = struct {
             .shader = sg.makeShader(shd_font.fontShaderDesc(sg.queryBackend())),
             .layout = init: {
                 var l = sg.VertexLayoutState{};
-                // Set instance buffer step function
-                l.buffers[1].step_func = .PER_INSTANCE;
 
                 // Vertex attribute (per-vertex)
                 l.attrs[shd_font.ATTR_font_position] = .{
@@ -217,41 +211,17 @@ pub const Renderer = struct {
                     .buffer_index = 0,
                     .offset = 0,
                 };
-
-                // Instance attributes (per-instance)
-                l.attrs[shd_font.ATTR_font_instance_position] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "instance_position"),
-                };
-                l.attrs[shd_font.ATTR_font_glyph_size] = .{
-                    .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "glyph_size"),
-                };
                 l.attrs[shd_font.ATTR_font_vertex_uv] = .{
                     .format = .FLOAT2,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "vertex_uv"),
+                    .buffer_index = 0,
                 };
                 l.attrs[shd_font.ATTR_font_vertex_index] = .{
-                    .format = .SINT32,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "vertex_index"),
-                };
-                l.attrs[shd_font.ATTR_font_color] = .{
-                    .format = .FLOAT4,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "color"),
-                };
-                l.attrs[shd_font.ATTR_font_pixel_scale] = .{
-                    .format = .FLOAT,
-                    .buffer_index = 1,
-                    .offset = @offsetOf(Element, "pixel_scale"),
+                    .format = .INT,
+                    .buffer_index = 0,
                 };
                 break :init l;
             },
-            .index_type = .UINT16,
+            .index_type = .UINT32,
             .depth = .{
                 .compare = .LESS_EQUAL,
                 .write_enabled = true,
@@ -268,17 +238,16 @@ pub const Renderer = struct {
         };
 
         self.pip = sg.makePipeline(pip_desc);
+        return self.getSpaceAdvance();
     }
 
-    fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.uint) !void {
-        const buffer_glyph = BufferGlyph{
+    fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.UInt) !void {
+        var buffer_glyph = BufferGlyph{
             .start = @intCast(self.buffer_curves.items.len),
             .count = 0,
         };
-        const buffer_glyph_index = self.buffer_glyphs.items.len;
-        try self.buffer_glyphs.append(buffer_glyph);
 
-        const glyph_slot = self.face.face.*.glyph;
+        const glyph_slot = self.font.face.face.*.glyph;
         const outline = &glyph_slot.*.outline;
 
         // Convert contours to quadratic bezier curves
@@ -290,13 +259,16 @@ pub const Renderer = struct {
         }
 
         // Update curve count
-        self.buffer_glyphs.items[buffer_glyph_index].count = @intCast(self.buffer_curves.items.len - self.buffer_glyphs.items[buffer_glyph_index].start);
+        buffer_glyph.count = @intCast(self.buffer_curves.items.len - @as(usize, @intCast(buffer_glyph.start)));
+
+        const buffer_index = self.buffer_glyphs.items.len;
+        try self.buffer_glyphs.append(self.allocator, buffer_glyph);
 
         // Store glyph info
         const glyph = Glyph{
             .index = glyph_index,
-            .buffer_index = @intCast(buffer_glyph_index),
-            .curve_count = self.buffer_glyphs.items[buffer_glyph_index].count,
+            .buffer_index = @intCast(buffer_index),
+            .curve_count = buffer_glyph.count,
             .width = glyph_slot.*.metrics.width,
             .height = glyph_slot.*.metrics.height,
             .bearing_x = glyph_slot.*.metrics.horiBearingX,
@@ -307,7 +279,9 @@ pub const Renderer = struct {
     }
 
     fn convertContour(self: *Renderer, outline: *const ft.Outline, first_index: i16, last_index: i16, em_size: f32) !void {
-        if (first_index == last_index) return;
+        if (first_index == last_index) {
+            return;
+        }
 
         var d_index: i16 = 1;
         var actual_first = first_index;
@@ -367,12 +341,12 @@ pub const Renderer = struct {
         var start = first;
         var control = first;
         var previous = first;
-        var previous_tag: u8 = ft.CURVE_TAG_ON;
+        var previous_tag = ft.CURVE_TAG_ON;
 
         var index = actual_first;
         while (index != actual_last + d_index) : (index += d_index) {
             const current = convert(outline.points[@intCast(index)], em_size);
-            const current_tag = outline.tags[@intCast(index)] & ft.CURVE_TAG_MASK;
+            const current_tag = ft.c.FT_CURVE_TAG(outline.tags[@intCast(index)]);
 
             if (current_tag == ft.CURVE_TAG_CUBIC) {
                 control = previous;
@@ -388,14 +362,14 @@ pub const Renderer = struct {
                     const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
                     const d = make_midpoint(c0, c1);
 
-                    try self.buffer_curves.append(make_curve(b0, c0, d));
-                    try self.buffer_curves.append(make_curve(d, c1, b3));
+                    try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
+                    try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
                 } else if (previous_tag == ft.CURVE_TAG_ON) {
                     // Linear segment
-                    try self.buffer_curves.append(make_curve(previous, make_midpoint(previous, current), current));
+                    try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, current), current));
                 } else {
                     // Regular bezier curve
-                    try self.buffer_curves.append(make_curve(start, previous, current));
+                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, current));
                 }
                 start = current;
                 control = current;
@@ -405,7 +379,7 @@ pub const Renderer = struct {
                 } else {
                     // Create virtual on point
                     const mid = make_midpoint(previous, current);
-                    try self.buffer_curves.append(make_curve(start, previous, mid));
+                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, mid));
                     start = mid;
                     control = mid;
                 }
@@ -425,38 +399,57 @@ pub const Renderer = struct {
             const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
             const d = make_midpoint(c0, c1);
 
-            try self.buffer_curves.append(make_curve(b0, c0, d));
-            try self.buffer_curves.append(make_curve(d, c1, b3));
+            try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
+            try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
         } else if (previous_tag == ft.CURVE_TAG_ON) {
             // Linear segment
-            try self.buffer_curves.append(make_curve(previous, make_midpoint(previous, first), first));
+            try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, first), first));
         } else {
-            try self.buffer_curves.append(make_curve(start, previous, first));
+            try self.buffer_curves.append(self.allocator, make_curve(start, previous, first));
         }
     }
 
-    fn uploadBuffers(self: *Renderer) !void {
-        // Create glyph texture (RG32I format for start/count pairs)
+    /// Function currently is a no-op, since we
+    /// are not using instanced rendering.
+    pub fn updateBuffer(self: *Renderer) void {
+        _ = self;
+    }
+
+    fn uploadGlyphsAndCurvesToTextures(self: *Renderer) !void {
+        // Ensure minimum size for glyph texture to avoid validation errors
+        const glyph_count = @max(self.buffer_glyphs.items.len, 1);
+
+        // Create glyph texture (RG32F format for start/count pairs)
         var glyph_desc: sg.ImageDesc = .{
             .label = "glyph texture",
-            .width = @intCast(self.buffer_glyphs.items.len),
+            .width = @intCast(glyph_count),
             .height = 1,
-            .pixel_format = .RG32SI,
+            .pixel_format = .RG32F,
             .sample_count = 1,
             .num_mipmaps = 1,
         };
 
         // Convert BufferGlyph to packed format
-        const glyph_data = try self.allocator.alloc([2]i32, self.buffer_glyphs.items.len);
+        const glyph_data = try self.allocator.alloc([2]f32, glyph_count);
         defer self.allocator.free(glyph_data);
-        for (self.buffer_glyphs.items, 0..) |glyph, i| {
-            glyph_data[i] = .{ glyph.start, glyph.count };
+
+        if (self.buffer_glyphs.items.len > 0) {
+            for (self.buffer_glyphs.items, 0..) |glyph, i| {
+                glyph_data[i] = .{ @floatFromInt(glyph.start), @floatFromInt(glyph.count) };
+            }
+        } else {
+            // Fill with default values if no glyphs
+            glyph_data[0] = .{ 0.0, 0.0 };
         }
+
         glyph_desc.data.subimage[0][0] = sg.asRange(glyph_data);
         self.glyph_texture = sg.makeImage(glyph_desc);
 
+        // Ensure minimum size for curve texture
+        const curve_count = @max(self.buffer_curves.items.len, 1);
+        const curve_width = curve_count * 3;
+
         // Create curve texture (RG32F format, 3 points per curve)
-        const curve_width = self.buffer_curves.items.len * 3;
         var curve_desc: sg.ImageDesc = .{
             .label = "curve texture",
             .width = @intCast(curve_width),
@@ -469,145 +462,60 @@ pub const Renderer = struct {
         // Convert BufferCurve to packed format (3 vec2 per curve)
         const curve_data = try self.allocator.alloc([2]f32, curve_width);
         defer self.allocator.free(curve_data);
-        for (self.buffer_curves.items, 0..) |curve, i| {
-            curve_data[i * 3 + 0] = .{ curve.x0, curve.y0 };
-            curve_data[i * 3 + 1] = .{ curve.x1, curve.y1 };
-            curve_data[i * 3 + 2] = .{ curve.x2, curve.y2 };
+
+        if (self.buffer_curves.items.len > 0) {
+            for (self.buffer_curves.items, 0..) |curve, i| {
+                curve_data[i * 3 + 0] = .{ curve.x0, curve.y0 };
+                curve_data[i * 3 + 1] = .{ curve.x1, curve.y1 };
+                curve_data[i * 3 + 2] = .{ curve.x2, curve.y2 };
+            }
+        } else {
+            // Fill with default values if no curves
+            curve_data[0] = .{ 0.0, 0.0 };
+            curve_data[1] = .{ 0.0, 0.0 };
+            curve_data[2] = .{ 0.0, 0.0 };
         }
+
         curve_desc.data.subimage[0][0] = sg.asRange(curve_data);
         self.curve_texture = sg.makeImage(curve_desc);
     }
 
-    pub fn updateBuffer(self: Renderer) void {
-        if (self.elements.items.len == 0) {
-            return;
-        }
-        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.elements.items));
-    }
-
     pub fn clear(self: *Renderer) void {
-        self.elements.clearRetainingCapacity();
+        self.text_elements.clearRetainingCapacity();
     }
 
     pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+        if (self.text_elements.items.len == 0) {
+            return;
+        }
         sg.applyPipeline(self.pip);
+
+        var vertices = ArrayList(BufferVertex).initCapacity(self.allocator, 0) catch unreachable;
+        defer vertices.deinit(self.allocator);
+
+        var indices = ArrayList(i32).initCapacity(self.allocator, 0) catch unreachable;
+        defer indices.deinit(self.allocator);
+
+        for (self.text_elements.items) |text_element| {
+            self.populateVertexArray(&vertices, &indices, text_element.x, text_element.y, text_element.text) catch |err| {
+                std.log.err("[font] error while populating vertex array: {}", .{err});
+                continue;
+            };
+        }
+
+        if (vertices.items.len > MAX_ELEMENTS or indices.items.len > MAX_INDICES) {
+            std.log.err("[font] vertex or index data size exceeds max size", .{});
+            return;
+        }
+        sg.updateBuffer(self.bind.vertex_buffers[0], sg.asRange(vertices.items));
+        sg.updateBuffer(self.bind.index_buffer, sg.asRange(indices.items));
+
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
-        sg.draw(0, 6, @intCast(self.elements.items.len));
+        sg.draw(0, @intCast(indices.items.len), 1);
     }
 
-    /// Setup shader uniforms for drawing (matches C++ drawSetup method)
-    pub fn drawSetup(self: *Renderer) void {
-        // Bindings are already set up in renderInPass, but this method
-        // provides C++ API compatibility for advanced users who want
-        // to manually control the render pipeline
-        sg.applyPipeline(self.pip);
-        sg.applyBindings(self.bind);
-    }
-
-    pub fn addGlyph(self: *Renderer, charcode: u32, x: f32, y: f32, color: sg.Color) void {
-        const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse return;
-
-        if (glyph.curve_count == 0) return; // Skip empty glyphs (whitespace)
-
-        const dilation: f32 = 0.0; // Can be adjusted for anti-aliasing
-        const d = self.em_size * dilation;
-
-        const ux0 = (@as(f32, @floatFromInt(glyph.bearing_x)) - d) / self.em_size;
-        const vy0 = (@as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) - d) / self.em_size;
-        const ux1 = (@as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) + d) / self.em_size;
-        const vy1 = (@as(f32, @floatFromInt(glyph.bearing_y)) + d) / self.em_size;
-
-        const element = Element{
-            .instance_position = .{ x + ux0 * self.world_size, y + vy0 * self.world_size },
-            .glyph_size = .{ (ux1 - ux0) * self.world_size, (vy1 - vy0) * self.world_size },
-            .vertex_uv = .{ ux0, vy0 },
-            .vertex_index = glyph.buffer_index,
-            .color = color,
-            .pixel_scale = 1.0 / self.world_size,
-        };
-
-        self.elements.append(self.allocator, element) catch |err| {
-            std.log.err("Failed to append glyph element: {}", .{err});
-        };
-    }
-
-    /// Draw text at a specific position with custom color (convenience method)
-    pub fn draw(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) void {
-        self.addLine(text, x, y, color);
-    }
-
-    /// Draw text and return the advance width (useful for layout calculations)
-    pub fn drawAndMeasure(self: *Renderer, x: f32, y: f32, text: []const u8, color: sg.Color) f32 {
-        var current_x = x;
-        var previous_glyph: ft.uint = 0;
-
-        // Decode UTF-8 text
-        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
-            std.log.err("Invalid UTF-8 text: {}", .{err});
-            return current_x;
-        };
-        var iterator = utf8_view.iterator();
-
-        while (iterator.nextCodepoint()) |codepoint| {
-            if (codepoint == '\r') continue;
-            if (codepoint == '\n') {
-                // Handle newlines if needed
-                continue;
-            }
-
-            const charcode: u32 = @intCast(codepoint);
-            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-            // Apply kerning if available
-            if (previous_glyph != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-            }
-
-            self.addGlyph(charcode, current_x, y, color);
-            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-            previous_glyph = glyph.index;
-        }
-
-        return current_x;
-    }
-
-    pub const TextElement = struct {
-        text: []const u8,
-        x: f32,
-        y: f32,
-        color: sg.Color,
-
-        /// Create a TextElement with white color as default
-        pub fn init(text: []const u8, x: f32, y: f32) TextElement {
-            return TextElement{
-                .text = text,
-                .x = x,
-                .y = y,
-                .color = sg.Color{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 },
-            };
-        }
-
-        /// Create a TextElement with custom color
-        pub fn initWithColor(text: []const u8, x: f32, y: f32, color: sg.Color) TextElement {
-            return TextElement{
-                .text = text,
-                .x = x,
-                .y = y,
-                .color = color,
-            };
-        }
-    };
-
-    pub const BoundingBox = struct {
-        min_x: f32,
-        min_y: f32,
-        max_x: f32,
-        max_y: f32,
-    };
-
-    pub fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
+    fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
         var bb = BoundingBox{
             .min_x = std.math.floatMax(f32),
             .min_y = std.math.floatMax(f32),
@@ -615,8 +523,8 @@ pub const Renderer = struct {
             .max_y = -std.math.floatMax(f32),
         };
 
-        var current_x = x;
-        var previous_glyph: ft.uint = 0;
+        const original_x = x;
+        var previous: ft.UInt = 0;
 
         // Decode UTF-8 text
         const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
@@ -629,6 +537,11 @@ pub const Renderer = struct {
             if (codepoint == '\r') continue;
             if (codepoint == '\n') {
                 // Handle newlines if needed
+                x = original_x;
+                y -= self.getLineHeight();
+                if (self.hinting) {
+                    y = @round(y);
+                }
                 continue;
             }
 
@@ -636,35 +549,184 @@ pub const Renderer = struct {
             const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
 
             // Apply kerning if available
-            if (previous_glyph != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
+            if (previous != 0 and glyph.index != 0) {
+                const kerning = self.font.face.getKerning(previous, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
             }
 
             // Calculate glyph bounds (without dilation for exact measurement)
-            const ux0 = @as(f32, @floatFromInt(glyph.bearing_x)) / self.em_size;
-            const vy0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) / self.em_size;
-            const ux1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) / self.em_size;
-            const vy1 = @as(f32, @floatFromInt(glyph.bearing_y)) / self.em_size;
+            const u_0 = @as(f32, @floatFromInt(glyph.bearing_x)) / self.em_size;
+            const v_0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) / self.em_size;
+            const u_1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) / self.em_size;
+            const v_1 = @as(f32, @floatFromInt(glyph.bearing_y)) / self.em_size;
 
-            const x0 = current_x + ux0 * self.world_size;
-            const y0 = y + vy0 * self.world_size;
-            const x1 = current_x + ux1 * self.world_size;
-            const y1 = y + vy1 * self.world_size;
+            const x_0 = original_x + u_0 * self.world_size;
+            const y_0 = y + v_0 * self.world_size;
+            const x_1 = original_x + u_1 * self.world_size;
+            const y_1 = y + v_1 * self.world_size;
 
-            if (x0 < bb.min_x) bb.min_x = x0;
-            if (y0 < bb.min_y) bb.min_y = y0;
-            if (x1 > bb.max_x) bb.max_x = x1;
-            if (y1 > bb.max_y) bb.max_y = y1;
+            if (x_0 < bb.min_x) bb.min_x = x_0;
+            if (y_0 < bb.min_y) bb.min_y = y_0;
+            if (x_1 > bb.max_x) bb.max_x = x_1;
+            if (y_1 > bb.max_y) bb.max_y = y_1;
 
-            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-            previous_glyph = glyph.index;
+            x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
+            previous = glyph.index;
         }
 
         return bb;
     }
 
-    pub fn prepareGlyphsForText(self: *Renderer, text: []const u8) !void {
+    pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
+        if (world_size == self.world_size) return;
+        self.world_size = world_size;
+
+        if (!self.hinting) return;
+
+        // Rebuild buffers for hinting
+        self.em_size = world_size * 64.0;
+        _ = self.font.face.setPixelSizes(0, @as(ft.UInt, @intFromFloat(@ceil(world_size)))) catch {
+            std.log.err("[font] error while setting pixel size", .{});
+        };
+
+        self.buffer_glyphs.clearRetainingCapacity();
+        self.buffer_curves.clearRetainingCapacity();
+
+        var iterator = self.glyphs.iterator();
+        while (iterator.next()) |entry| {
+            const charcode = entry.key_ptr.*;
+            const glyph = entry.value_ptr.*;
+
+            _ = self.font.face.loadGlyph(glyph.index, self.load_flags) catch {
+                std.log.err("[font] error while reloading glyph for character {}", .{charcode});
+                continue;
+            };
+
+            try self.buildGlyph(charcode, glyph.index);
+        }
+
+        try self.uploadGlyphsAndCurvesToTextures();
+    }
+
+    pub fn cleanup(self: *Renderer) void {
+        self.buffer_glyphs.deinit(self.allocator);
+        self.buffer_curves.deinit(self.allocator);
+        self.glyphs.deinit();
+        self.font.deinit();
+        self.text_elements.deinit(self.allocator);
+    }
+
+    fn populateVertexArray(self: Renderer, vertices: *ArrayList(BufferVertex), indices: *ArrayList(i32), x_in: f32, y_in: f32, text: []const u8) !void {
+        const original_x = x_in;
+        var x = x_in;
+        var y = y_in;
+
+        var previous: ft.UInt = 0;
+
+        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
+            std.log.err("Invalid UTF-8 text: {}", .{err});
+            return;
+        };
+        var iterator = utf8_view.iterator();
+        while (iterator.nextCodepoint()) |codepoint| {
+            if (codepoint == '\r') continue;
+            if (codepoint == '\n') {
+                x = original_x;
+                y -= self.getLineHeight();
+                if (self.hinting) {
+                    y = @round(y);
+                }
+                continue;
+            }
+
+            const glyph = self.glyphs.get(codepoint) orelse self.glyphs.get(0) orelse continue;
+            if (previous != 0 and glyph.index != 0) {
+                const kerning = self.font.face.getKerning(previous, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
+                x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
+            }
+
+            // Do not emit quad for empty glyphs (whitespace).
+            if (glyph.curve_count > 0) {
+                const d: ft.Pos = @as(ft.Pos, @intFromFloat(self.em_size * self.dilation));
+
+                const u_0 = @as(f32, @floatFromInt(glyph.bearing_x - d)) / self.em_size;
+                const v_0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height - d)) / self.em_size;
+                const u_1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width + d)) / self.em_size;
+                const v_1 = @as(f32, @floatFromInt(glyph.bearing_y + d)) / self.em_size;
+
+                const x_0 = x + u_0 * self.world_size;
+                const y_0 = y + v_0 * self.world_size;
+                const x_1 = x + u_1 * self.world_size;
+                const y_1 = y + v_1 * self.world_size;
+
+                const base: i32 = @intCast(vertices.items.len);
+                const buffer_index: i32 = @intCast(glyph.buffer_index);
+                try vertices.append(self.allocator, BufferVertex{
+                    .x = x_0,
+                    .y = y_0,
+                    .u = u_0,
+                    .v = v_0,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(self.allocator, BufferVertex{
+                    .x = x_1,
+                    .y = y_0,
+                    .u = u_1,
+                    .v = v_0,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(self.allocator, BufferVertex{
+                    .x = x_1,
+                    .y = y_1,
+                    .u = u_1,
+                    .v = v_1,
+                    .buffer_index = buffer_index,
+                });
+                try vertices.append(self.allocator, BufferVertex{
+                    .x = x_0,
+                    .y = y_1,
+                    .u = u_0,
+                    .v = v_1,
+                    .buffer_index = buffer_index,
+                });
+                try indices.insertSlice(self.allocator, indices.items.len, &[_]i32{
+                    base + 0, base + 1, base + 2,
+                    base + 2, base + 3, base + 0,
+                });
+            }
+
+            x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
+            previous = glyph.index;
+        }
+    }
+
+    pub fn addLine(self: *Renderer, text_element: TextElement) void {
+        // This adjustment is to make sure the text doesn't bleed
+        // down into the next row
+        const manual_adjust_y = self.getLineHeight() * 0.2;
+        self.text_elements.append(self.allocator, .{
+            .text = text_element.text,
+            .x = text_element.x,
+            // flip y-axis
+            .y = -text_element.y + manual_adjust_y,
+            .color = text_element.color,
+        }) catch |err| {
+            std.log.err("[font] error while appending text element: {}", .{err});
+            return;
+        };
+        self.prepareGlyphsForText(text_element.text) catch |err| {
+            std.log.err("[font] error while preparing glyphs for text: {}", .{err});
+            return;
+        };
+    }
+
+    /// Get the advance width for a space character (useful for layout)
+    pub fn getSpaceAdvance(self: *Renderer) f32 {
+        const space_glyph = self.glyphs.get(32) orelse return 0.0;
+        return @as(f32, @floatFromInt(space_glyph.advance)) / self.em_size * self.world_size;
+    }
+
+    fn prepareGlyphsForText(self: *Renderer, text: []const u8) !void {
         var changed = false;
 
         // Decode UTF-8 text
@@ -680,10 +742,9 @@ pub const Renderer = struct {
             const charcode: u32 = @intCast(codepoint);
             if (self.glyphs.contains(charcode)) continue;
 
-            const glyph_index = self.face.getCharIndex(charcode);
-            if (glyph_index == 0) continue;
+            const glyph_index = self.font.codepointGlyphIndex(charcode) orelse continue;
 
-            _ = self.face.loadGlyph(glyph_index, self.load_flags) catch {
+            _ = self.font.face.loadGlyph(glyph_index, self.load_flags) catch {
                 std.log.err("[font] error while loading glyph for character {}", .{charcode});
                 continue;
             };
@@ -693,235 +754,12 @@ pub const Renderer = struct {
         }
 
         if (changed) {
-            try self.uploadBuffers();
+            try self.uploadGlyphsAndCurvesToTextures();
         }
-    }
-
-    pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
-        if (world_size == self.world_size) return;
-        self.world_size = world_size;
-
-        if (!self.hinting) return;
-
-        // Rebuild buffers for hinting
-        self.em_size = world_size * 64.0;
-        _ = self.face.setPixelSizes(0, @as(ft.uint, @intFromFloat(@ceil(world_size)))) catch {
-            std.log.err("[font] error while setting pixel size", .{});
-        };
-
-        self.buffer_glyphs.clearRetainingCapacity();
-        self.buffer_curves.clearRetainingCapacity();
-
-        var iterator = self.glyphs.iterator();
-        while (iterator.next()) |entry| {
-            const charcode = entry.key_ptr.*;
-            const glyph = entry.value_ptr.*;
-
-            _ = self.face.loadGlyph(glyph.index, self.load_flags) catch {
-                std.log.err("[font] error while reloading glyph for character {}", .{charcode});
-                continue;
-            };
-
-            try self.buildGlyph(charcode, glyph.index);
-        }
-
-        try self.uploadBuffers();
-    }
-
-    pub fn cleanup(self: *Renderer) void {
-        self.elements.deinit(self.allocator);
-        self.buffer_glyphs.deinit(self.allocator);
-        self.buffer_curves.deinit(self.allocator);
-        self.glyphs.deinit();
-    }
-
-    /// Decodes the first Unicode code point from UTF-8 string and advances the index
-    fn decodeCharcode(text: []const u8, index: *usize) u32 {
-        if (index.* >= text.len) return 0;
-
-        const first = text[index.*];
-
-        // Fast path for ASCII
-        if (first < 128) {
-            index.* += 1;
-            return @as(u32, first);
-        }
-
-        var result: u32 = 0;
-        var size: usize = 0;
-
-        if ((first & 0xE0) == 0xC0) { // 110xxxxx
-            result = first & 0x1F;
-            size = 2;
-        } else if ((first & 0xF0) == 0xE0) { // 1110xxxx
-            result = first & 0x0F;
-            size = 3;
-        } else if ((first & 0xF8) == 0xF0) { // 11110xxx
-            result = first & 0x07;
-            size = 4;
-        } else {
-            // Invalid encoding
-            index.* += 1;
-            return 0;
-        }
-
-        if (index.* + size > text.len) {
-            index.* += 1;
-            return 0;
-        }
-
-        for (1..size) |i| {
-            const value = text[index.* + i];
-            if ((value & 0xC0) != 0x80) { // 10xxxxxx
-                index.* += 1;
-                return 0;
-            }
-            result = (result << 6) | (value & 0x3F);
-        }
-
-        index.* += size;
-        return result;
-    }
-
-    /// Add a line of text for rendering with full Unicode support and kerning.
-    /// This method is similar to text.zig addLine but uses vector-based rendering
-    /// for higher quality output. Supports newlines for multi-line text.
-    ///
-    /// Args:
-    /// - text: UTF-8 encoded text string
-    /// - x, y: Position in world coordinates
-    /// - color: Text color
-    pub fn addLine(self: *Renderer, text: []const u8, x: f32, y: f32, color: sg.Color) void {
-        // Prepare all glyphs needed for this text
-        self.prepareGlyphsForText(text) catch return;
-
-        var current_x = x;
-        var current_y = y;
-        const original_x = x;
-        var index: usize = 0;
-        var previous_glyph_index: u32 = 0;
-
-        while (index < text.len) {
-            const charcode = decodeCharcode(text, &index);
-            if (charcode == 0) continue;
-
-            if (charcode == '\r') continue;
-
-            if (charcode == '\n') {
-                current_x = original_x;
-                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
-                current_y -= line_height;
-                if (self.hinting) {
-                    current_y = @round(current_y);
-                }
-                continue;
-            }
-
-            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-            // Apply kerning
-            if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-            }
-
-            // Add glyph quad if it has curves
-            if (glyph.curve_count > 0) {
-                self.addGlyph(charcode, current_x, current_y, color);
-            }
-
-            // Advance cursor
-            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-            previous_glyph_index = glyph.index;
-        }
-    }
-
-    /// Measure the bounding box of text without rendering it.
-    /// Useful for layout calculations and UI positioning.
-    ///
-    /// Returns: BoundingBox with exact bounds of the rendered text
-    pub fn measureText(self: *Renderer, text: []const u8, x: f32, y: f32) BoundingBox {
-        var bbox = BoundingBox{
-            .min_x = std.math.inf(f32),
-            .min_y = std.math.inf(f32),
-            .max_x = -std.math.inf(f32),
-            .max_y = -std.math.inf(f32),
-        };
-
-        var current_x = x;
-        var current_y = y;
-        const original_x = x;
-        var index: usize = 0;
-        var previous_glyph_index: u32 = 0;
-
-        while (index < text.len) {
-            const charcode = decodeCharcode(text, &index);
-            if (charcode == 0) continue;
-
-            if (charcode == '\r') continue;
-
-            if (charcode == '\n') {
-                current_x = original_x;
-                const line_height = @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
-                current_y -= line_height;
-                if (self.hinting) {
-                    current_y = @round(current_y);
-                }
-                continue;
-            }
-
-            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-            // Apply kerning
-            if (previous_glyph_index != 0 and glyph.index != 0) {
-                const kerning = self.face.getKerning(previous_glyph_index, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-                current_x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-            }
-
-            // Calculate glyph bounds (without dilation for exact bounds)
-            const glyph_u0 = @as(f32, @floatFromInt(glyph.bearing_x)) / self.em_size;
-            const glyph_v0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) / self.em_size;
-            const glyph_u1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) / self.em_size;
-            const glyph_v1 = @as(f32, @floatFromInt(glyph.bearing_y)) / self.em_size;
-
-            const x0 = current_x + glyph_u0 * self.world_size;
-            const y0 = current_y + glyph_v0 * self.world_size;
-            const x1 = current_x + glyph_u1 * self.world_size;
-            const y1 = current_y + glyph_v1 * self.world_size;
-
-            // Update bounding box
-            if (x0 < bbox.min_x) bbox.min_x = x0;
-            if (y0 < bbox.min_y) bbox.min_y = y0;
-            if (x1 > bbox.max_x) bbox.max_x = x1;
-            if (y1 > bbox.max_y) bbox.max_y = y1;
-
-            // Advance cursor
-            current_x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-            previous_glyph_index = glyph.index;
-        }
-
-        return bbox;
-    }
-
-    /// Get the advance width for a space character (useful for layout)
-    pub fn getSpaceAdvance(self: *Renderer) f32 {
-        const space_glyph = self.glyphs.get(32) orelse return 0.0;
-        return @as(f32, @floatFromInt(space_glyph.advance)) / self.em_size * self.world_size;
-    }
-
-    /// Check if a glyph is available for the given character
-    pub fn hasGlyph(self: *Renderer, charcode: u32) bool {
-        return self.glyphs.contains(charcode);
     }
 
     /// Get the line height for the current font
-    pub fn getLineHeight(self: *Renderer) f32 {
-        return @as(f32, @floatFromInt(self.face.height)) / @as(f32, @floatFromInt(self.face.units_per_EM)) * self.world_size;
-    }
-
-    /// Convenience method that matches text.zig API for easy migration.
-    /// Use this if you want to switch from bitmap text rendering to vector text.
-    pub fn addTextElement(self: *Renderer, element: TextElement) void {
-        self.addLine(element.text, element.x, element.y, element.color);
+    fn getLineHeight(self: Renderer) f32 {
+        return @as(f32, @floatFromInt(self.font.face.face.*.height)) / @as(f32, @floatFromInt(self.font.face.face.*.units_per_EM)) * self.world_size;
     }
 };

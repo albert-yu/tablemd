@@ -9,8 +9,20 @@ pub const c = @cImport({
     @cInclude("freetype/ftoutln.h");
 });
 
-pub const uint = c.FT_UInt;
-pub const pos = c.FT_Pos;
+pub const UInt = c.FT_UInt;
+pub const Pos = c.FT_Pos;
+
+// Type aliases
+pub const Outline = c.FT_Outline;
+pub const Vector = c.FT_Vector;
+
+// Outline flags
+pub const OUTLINE_REVERSE_FILL = c.FT_OUTLINE_REVERSE_FILL;
+
+// Curve tags
+pub const CURVE_TAG_ON = c.FT_CURVE_TAG_ON;
+pub const CURVE_TAG_CUBIC = c.FT_CURVE_TAG_CUBIC;
+pub const CURVE_TAG_CONIC = c.FT_CURVE_TAG_CONIC;
 
 pub const KerningMode = enum(c.enum_FT_Kerning_Mode_) {
     default = c.FT_KERNING_DEFAULT,
@@ -18,23 +30,23 @@ pub const KerningMode = enum(c.enum_FT_Kerning_Mode_) {
     unscaled = c.FT_KERNING_UNSCALED,
 };
 
-pub const LoadFlags = enum(c_long) {
-    default = c.FT_LOAD_DEFAULT,
-    no_scale = c.FT_LOAD_NO_SCALE,
-    no_hinting = c.FT_LOAD_NO_HINTING,
-    render = c.FT_LOAD_RENDER,
-    no_bitmap = c.FT_LOAD_NO_BITMAP,
-    vertical_layout = c.FT_LOAD_VERTICAL_LAYOUT,
-    force_autohint = c.FT_LOAD_FORCE_AUTOHINT,
-    crop_bitmap = c.FT_LOAD_CROP_BITMAP,
-    pedantic = c.FT_LOAD_PEDANTIC,
-    ignore_global_advance_width = c.FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH,
-    no_recurse = c.FT_LOAD_NO_RECURSE,
-    ignore_transform = c.FT_LOAD_IGNORE_TRANSFORM,
-    monochrome = c.FT_LOAD_MONOCHROME,
-    linear_design = c.FT_LOAD_LINEAR_DESIGN,
-    no_autohint = c.FT_LOAD_NO_AUTOHINT,
-};
+pub const LoadFlags = c_int;
+
+pub const LOAD_DEFAULT = c.FT_LOAD_DEFAULT;
+pub const LOAD_NO_SCALE = c.FT_LOAD_NO_SCALE;
+pub const LOAD_NO_HINTING = c.FT_LOAD_NO_HINTING;
+pub const LOAD_RENDER = c.FT_LOAD_RENDER;
+pub const LOAD_NO_BITMAP = c.FT_LOAD_NO_BITMAP;
+pub const LOAD_VERTICAL_LAYOUT = c.FT_LOAD_VERTICAL_LAYOUT;
+pub const LOAD_FORCE_AUTOHINT = c.FT_LOAD_FORCE_AUTOHINT;
+pub const LOAD_CROP_BITMAP = c.FT_LOAD_CROP_BITMAP;
+pub const LOAD_PEDANTIC = c.FT_LOAD_PEDANTIC;
+pub const LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH = c.FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH;
+pub const LOAD_NO_RECURSE = c.FT_LOAD_NO_RECURSE;
+pub const LOAD_IGNORE_TRANSFORM = c.FT_LOAD_IGNORE_TRANSFORM;
+pub const LOAD_MONOCHROME = c.FT_LOAD_MONOCHROME;
+pub const LOAD_LINEAR_DESIGN = c.FT_LOAD_LINEAR_DESIGN;
+pub const LOAD_NO_AUTOHINT = c.FT_LOAD_NO_AUTOHINT;
 
 pub const FreeTypeError = error{
     InitError,
@@ -45,6 +57,7 @@ pub const FreeTypeError = error{
     GetGlyphError,
     OutOfMemory,
     OutlineError,
+    GetKerningError,
 };
 
 /// Outline point types
@@ -126,6 +139,12 @@ pub const Face = struct {
         }
     }
 
+    pub fn loadGlyph(self: Face, glyph_index: u32, load_flags: i32) FreeTypeError!void {
+        if (c.FT_Load_Glyph(self.face, glyph_index, load_flags) != 0) {
+            return FreeTypeError.LoadGlyphError;
+        }
+    }
+
     pub fn renderGlyph(self: Face, render_mode: c.FT_Render_Mode) FreeTypeError!void {
         if (c.FT_Render_Glyph(self.face.*.glyph, render_mode) != 0) {
             return FreeTypeError.RenderGlyphError;
@@ -134,6 +153,14 @@ pub const Face = struct {
 
     pub fn getGlyphIndex(self: Face, char_code: u32) u32 {
         return c.FT_Get_Char_Index(self.face, char_code);
+    }
+
+    pub fn getKerning(self: Face, left_glyph: u32, right_glyph: u32, kern_mode: KerningMode) FreeTypeError!Vector {
+        var kerning: Vector = undefined;
+        if (c.FT_Get_Kerning(self.face, left_glyph, right_glyph, @intFromEnum(kern_mode), &kerning) != 0) {
+            return FreeTypeError.GetKerningError;
+        }
+        return kerning;
     }
 
     /// Returns glyph bitmap data

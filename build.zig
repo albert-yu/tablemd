@@ -88,14 +88,6 @@ pub fn build(b: *Build) !void {
                 }),
             },
             .{
-                .name = "text_shader",
-                .module = try createShaderModule(b, dep_sokol, .{
-                    .module_name = "text_shader",
-                    .input_file = "src/shaders/text.glsl",
-                    .output_file = "text_shader.zig",
-                }),
-            },
-            .{
                 .name = "font_shader",
                 .module = try createShaderModule(b, dep_sokol, .{
                     .module_name = "font_shader",
