@@ -56,7 +56,7 @@ const BufferVertex = struct {
 };
 
 pub const SetupArgs = struct {
-    world_size: f32 = 0.05,
+    world_size: f32 = 0.025,
     hinting: bool = false,
 };
 
@@ -238,8 +238,7 @@ pub const Renderer = struct {
         };
 
         self.pip = sg.makePipeline(pip_desc);
-        const advance_width = self.glyphs.get(32).?.advance;
-        return @as(f32, @floatFromInt(advance_width)) / self.em_size * self.world_size;
+        return self.getSpaceAdvance();
     }
 
     fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.UInt) !void {
@@ -699,7 +698,15 @@ pub const Renderer = struct {
     }
 
     pub fn addLine(self: *Renderer, text_element: TextElement) void {
-        self.text_elements.append(self.allocator, text_element) catch |err| {
+        // This adjustment is to make sure the text doesn't bleed
+        // down into the next row
+        const manual_adjust_y = self.getLineHeight() * 0.2;
+        self.text_elements.append(self.allocator, .{
+            .text = text_element.text,
+            .x = text_element.x,
+            .y = text_element.y + manual_adjust_y,
+            .color = text_element.color,
+        }) catch |err| {
             std.log.err("[font] error while appending text element: {}", .{err});
             return;
         };
