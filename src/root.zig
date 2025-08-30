@@ -109,7 +109,9 @@ export fn init() void {
 
     // text renderer
     state.font_renderer = FontRenderer.new(state.allocator);
-    const text_width = state.font_renderer.setup(.{}) catch |err| {
+    const text_width = state.font_renderer.setup(.{
+        .color = theme.DARK_THEME.text_color,
+    }) catch |err| {
         std.log.err("Failed to setup font renderer: {}", .{err});
         return;
     };

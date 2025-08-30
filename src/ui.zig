@@ -5,7 +5,6 @@ const ArrayList = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
-const font = @import("render/font.zig");
 const Vec2 = @import("zm").Vec2f;
 const sapp = sokol.app;
 const sg = sokol.gfx;
@@ -15,7 +14,6 @@ const scene_mod = @import("render/scene.zig");
 const theme = @import("theme.zig");
 
 const RectElement = rect.RectElement;
-const TextElement = font.TextElement;
 const Size2D = grid.Size;
 
 const GRID_N = grid.GRID_N;

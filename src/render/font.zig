@@ -19,7 +19,6 @@ pub const TextElement = struct {
     text: []const u8,
     x: f32,
     y: f32,
-    color: sg.Color,
 };
 
 const Glyph = struct {
@@ -57,7 +56,14 @@ const BufferVertex = struct {
 
 pub const SetupArgs = struct {
     world_size: f32 = 0.025,
+    /// WARNING: do not use this for now, it's broken
     hinting: bool = false,
+    color: sg.Color = .{
+        .r = 1,
+        .g = 1,
+        .b = 1,
+        .a = 1,
+    },
 };
 
 const MAX_ELEMENTS = 2048;
@@ -74,12 +80,13 @@ const MAX_INDICES = MAX_ELEMENTS * 6 / 4;
 /// // Setup with a FreeType font face
 /// const setup_args = font.SetupArgs{
 ///     .world_size = 16.0, // Font size in pixels
-///     .hinting = true,    // Enable for crisp pixel-aligned text
+///     .hinting = false,
+///     .color = .{ .r = 1, .g = 1, .b = 1, .a = 1 },
 /// };
 /// try font_renderer.setup(setup_args);
 ///
 /// // Render text
-/// font_renderer.addLine("Hello, World!", 100.0, 200.0, sg.Color{ .r = 1, .g = 1, .b = 1, .a = 1 });
+/// font_renderer.addLine("Hello, World!", x, y);
 /// font_renderer.updateBuffer();
 ///
 /// // In render loop
@@ -103,6 +110,7 @@ pub const Renderer = struct {
     curve_texture: sg.Image,
     dilation: f32,
     text_elements: ArrayList(TextElement),
+    color: sg.Color,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
@@ -122,6 +130,7 @@ pub const Renderer = struct {
             .curve_texture = .{},
             .dilation = 0.1,
             .text_elements = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
+            .color = .{},
         };
     }
 
@@ -131,6 +140,7 @@ pub const Renderer = struct {
         self.font = font;
         self.world_size = args.world_size;
         self.hinting = args.hinting;
+        self.color = args.color;
         var face = self.font.face;
 
         if (args.hinting) {
@@ -517,7 +527,14 @@ pub const Renderer = struct {
 
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
+        sg.applyUniforms(shd_font.UB_fs_params, self.getColorFsParams());
         sg.draw(0, @intCast(indices.items.len), 1);
+    }
+
+    fn getColorFsParams(self: Renderer) sg.Range {
+        return sg.asRange(&.{
+            .text_color = self.color,
+        });
     }
 
     pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
@@ -652,7 +669,6 @@ pub const Renderer = struct {
             .x = text_element.x,
             // flip y-axis
             .y = -text_element.y + manual_adjust_y,
-            .color = text_element.color,
         }) catch |err| {
             std.log.err("[font] error while appending text element: {}", .{err});
             return;

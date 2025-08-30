@@ -5,7 +5,9 @@ layout(binding = 0) uniform vs_params {
     mat4 untransform;
 };
 
-
+layout(binding = 1) uniform fs_params {
+    vec4 text_color;
+};
 
 layout (location = 0) in vec2 position;
 layout (location = 1) in vec2 vertex_uv;
@@ -13,6 +15,7 @@ layout (location = 2) in int  vertex_index;
 
 layout (location = 0) out vec2 uv;
 layout (location = 1) flat out int buffer_index;
+layout (location = 2) out vec4 v_color;
 
 void main() {
     mat4 t = untransform * zoom * window_scale;
@@ -21,6 +24,7 @@ void main() {
     // v_color = color;
     uv = vertex_uv;
     buffer_index = vertex_index;
+    v_color = text_color;
 }
 @end
 
@@ -44,7 +48,7 @@ layout(binding=1) uniform sampler curves_smp;
 
 in vec2 uv;
 flat in int buffer_index;
-// in vec4 v_color;
+in vec4 v_color;
 
 out vec4 result;
 
@@ -164,8 +168,8 @@ void main() {
 
 
     alpha = clamp(alpha, 0.0, 1.0);
-    vec4 v_color = vec4(1.0, 1.0, 1.0, alpha);
-    result = v_color * alpha;
+    vec4 color = vec4(v_color.rgb, alpha);
+    result = color * alpha;
 
     if (enableControlPointsVisualization) {
         // Visualize control points.
