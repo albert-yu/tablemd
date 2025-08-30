@@ -515,68 +515,6 @@ pub const Renderer = struct {
         sg.draw(0, @intCast(indices.items.len), 1);
     }
 
-    fn measure(self: *Renderer, x: f32, y: f32, text: []const u8) BoundingBox {
-        var bb = BoundingBox{
-            .min_x = std.math.floatMax(f32),
-            .min_y = std.math.floatMax(f32),
-            .max_x = -std.math.floatMax(f32),
-            .max_y = -std.math.floatMax(f32),
-        };
-
-        const original_x = x;
-        var previous: ft.UInt = 0;
-
-        // Decode UTF-8 text
-        const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
-            std.log.err("Invalid UTF-8 text: {}", .{err});
-            return bb;
-        };
-        var iterator = utf8_view.iterator();
-
-        while (iterator.nextCodepoint()) |codepoint| {
-            if (codepoint == '\r') continue;
-            if (codepoint == '\n') {
-                // Handle newlines if needed
-                x = original_x;
-                y -= self.getLineHeight();
-                if (self.hinting) {
-                    y = @round(y);
-                }
-                continue;
-            }
-
-            const charcode: u32 = @intCast(codepoint);
-            const glyph = self.glyphs.get(charcode) orelse self.glyphs.get(0) orelse continue;
-
-            // Apply kerning if available
-            if (previous != 0 and glyph.index != 0) {
-                const kerning = self.font.face.getKerning(previous, glyph.index, self.kerning_mode) catch ft.Vector{ .x = 0, .y = 0 };
-                x += @as(f32, @floatFromInt(kerning.x)) / self.em_size * self.world_size;
-            }
-
-            // Calculate glyph bounds (without dilation for exact measurement)
-            const u_0 = @as(f32, @floatFromInt(glyph.bearing_x)) / self.em_size;
-            const v_0 = @as(f32, @floatFromInt(glyph.bearing_y - glyph.height)) / self.em_size;
-            const u_1 = @as(f32, @floatFromInt(glyph.bearing_x + glyph.width)) / self.em_size;
-            const v_1 = @as(f32, @floatFromInt(glyph.bearing_y)) / self.em_size;
-
-            const x_0 = original_x + u_0 * self.world_size;
-            const y_0 = y + v_0 * self.world_size;
-            const x_1 = original_x + u_1 * self.world_size;
-            const y_1 = y + v_1 * self.world_size;
-
-            if (x_0 < bb.min_x) bb.min_x = x_0;
-            if (y_0 < bb.min_y) bb.min_y = y_0;
-            if (x_1 > bb.max_x) bb.max_x = x_1;
-            if (y_1 > bb.max_y) bb.max_y = y_1;
-
-            x += @as(f32, @floatFromInt(glyph.advance)) / self.em_size * self.world_size;
-            previous = glyph.index;
-        }
-
-        return bb;
-    }
-
     pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
         if (world_size == self.world_size) return;
         self.world_size = world_size;
