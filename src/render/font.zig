@@ -125,7 +125,7 @@ pub const Renderer = struct {
         };
     }
 
-    pub fn setup(self: *Renderer, args: SetupArgs) !void {
+    pub fn setup(self: *Renderer, args: SetupArgs) !f32 {
         const font_data = @embedFile("../fonts/SpaceMono-Regular.ttf");
         const font = try ft.load(font_data);
         self.font = font;
@@ -238,6 +238,8 @@ pub const Renderer = struct {
         };
 
         self.pip = sg.makePipeline(pip_desc);
+        const advance_width = self.glyphs.get(32).?.advance;
+        return @as(f32, @floatFromInt(advance_width)) / self.em_size * self.world_size;
     }
 
     fn buildGlyph(self: *Renderer, charcode: u32, glyph_index: ft.UInt) !void {

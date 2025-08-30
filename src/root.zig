@@ -112,12 +112,12 @@ export fn init() void {
     // text renderer
     // TODO: replace with font renderer
     state.text_renderer = TextRenderer.new(state.allocator);
-    const text_width = state.text_renderer.setup() catch |err| {
+    _ = state.text_renderer.setup() catch |err| {
         std.log.err("Failed to setup text renderer: {}", .{err});
         return;
     };
     state.font_renderer = FontRenderer.new(state.allocator);
-    state.font_renderer.setup(.{}) catch |err| {
+    const text_width = state.font_renderer.setup(.{}) catch |err| {
         std.log.err("Failed to setup font renderer: {}", .{err});
         return;
     };
@@ -166,7 +166,13 @@ export fn frame() void {
     }
     state.rect_renderer.updateBuffer();
     for (state.scene.texts.items) |text| {
-        state.text_renderer.addLine(text);
+        // state.text_renderer.addLine(text);
+        state.font_renderer.addLine(.{
+            .text = text.text,
+            .x = text.x,
+            .y = -text.y,
+            .color = text.color,
+        });
     }
     state.text_renderer.updateBuffer();
 
