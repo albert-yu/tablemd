@@ -19,11 +19,11 @@ ensure_minisign() {
         case "$OS" in
             Linux*)
                 if command_exists apt-get; then
-                    sudo apt-get update && sudo apt-get install -y minisign
+                    apt-get update && apt-get install -y minisign
                 elif command_exists yum; then
-                    sudo yum install -y minisign
+                    yum install -y minisign
                 elif command_exists pacman; then
-                    sudo pacman -S --noconfirm minisign
+                    pacman -S --noconfirm minisign
                 else
                     echo "❌ Cannot install minisign automatically on this Linux distribution" >&2
                     echo "Please install minisign manually and re-run this script" >&2
