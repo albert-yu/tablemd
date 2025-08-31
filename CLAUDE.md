@@ -7,8 +7,9 @@ when working with code in this repository.
 
 TableMD is a simple markdown table editor built in Zig
 using the Sokol graphics library. It's designed for fast
-startup time and ease of use, targeting both native and
-web (WebAssembly) platforms.
+startup time and ease of use. It is primarily intended to
+run in the browser, but it can be built for native for ease
+of debugging.
 
 ## Development Commands
 
@@ -46,8 +47,7 @@ web (WebAssembly) platforms.
 ### Key Dependencies
 
 - **Sokol**: Cross-platform graphics/app framework
-- **TrueType**: Font loading and text rendering
-- **zigimg**: Image loading support
+- **FreeType (vendored)**: Font loading and rendering
 - **zm**: Math library for vectors and matrices
 
 ### Coordinate System & Interaction
@@ -69,7 +69,7 @@ web (WebAssembly) platforms.
 The application supports basic table editing functionality:
 
 - Add/remove cells
-- Edit ASCII text
+- Edit UTF-8 text
 - Extend tables by editing adjacent cells
 - Paste text from clipboard
 - Pan/zoom
