@@ -496,14 +496,20 @@ pub const Renderer = struct {
 
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
-        sg.applyUniforms(shd_font.UB_fs_params, self.getColorFsParams());
+        const fs_params = self.getColorFsParams();
+        sg.applyUniforms(shd_font.UB_fs_params, sg.asRange(&fs_params));
         sg.draw(0, @intCast(indices.items.len), 1);
     }
 
-    fn getColorFsParams(self: Renderer) sg.Range {
-        return sg.asRange(&.{
-            .text_color = self.color,
-        });
+    fn getColorFsParams(self: Renderer) shd_font.FsParams {
+        return .{
+            .text_color = [_]f32{
+                self.color.r,
+                self.color.g,
+                self.color.b,
+                self.color.a,
+            },
+        };
     }
 
     pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
