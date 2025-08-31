@@ -19,7 +19,6 @@ pub const TextElement = struct {
     text: []const u8,
     x: f32,
     y: f32,
-    color: sg.Color,
 };
 
 const Glyph = struct {
@@ -57,7 +56,14 @@ const BufferVertex = struct {
 
 pub const SetupArgs = struct {
     world_size: f32 = 0.025,
+    /// WARNING: do not use this for now, it's broken
     hinting: bool = false,
+    color: sg.Color = .{
+        .r = 1,
+        .g = 1,
+        .b = 1,
+        .a = 1,
+    },
 };
 
 const MAX_ELEMENTS = 2048;
@@ -74,12 +80,13 @@ const MAX_INDICES = MAX_ELEMENTS * 6 / 4;
 /// // Setup with a FreeType font face
 /// const setup_args = font.SetupArgs{
 ///     .world_size = 16.0, // Font size in pixels
-///     .hinting = true,    // Enable for crisp pixel-aligned text
+///     .hinting = false,
+///     .color = .{ .r = 1, .g = 1, .b = 1, .a = 1 },
 /// };
 /// try font_renderer.setup(setup_args);
 ///
 /// // Render text
-/// font_renderer.addLine("Hello, World!", 100.0, 200.0, sg.Color{ .r = 1, .g = 1, .b = 1, .a = 1 });
+/// font_renderer.addLine("Hello, World!", x, y);
 /// font_renderer.updateBuffer();
 ///
 /// // In render loop
@@ -103,6 +110,7 @@ pub const Renderer = struct {
     curve_texture: sg.Image,
     dilation: f32,
     text_elements: ArrayList(TextElement),
+    color: sg.Color,
 
     pub fn new(allocator: std.mem.Allocator) Renderer {
         return .{
@@ -122,6 +130,7 @@ pub const Renderer = struct {
             .curve_texture = .{},
             .dilation = 0.1,
             .text_elements = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
+            .color = .{},
         };
     }
 
@@ -131,6 +140,7 @@ pub const Renderer = struct {
         self.font = font;
         self.world_size = args.world_size;
         self.hinting = args.hinting;
+        self.color = args.color;
         var face = self.font.face;
 
         if (args.hinting) {
@@ -294,34 +304,6 @@ pub const Renderer = struct {
             d_index = -1;
         }
 
-        const convert = struct {
-            fn call(v: ft.Vector, em: f32) [2]f32 {
-                return .{
-                    @as(f32, @floatFromInt(v.x)) / em,
-                    @as(f32, @floatFromInt(v.y)) / em,
-                };
-            }
-        }.call;
-
-        const make_midpoint = struct {
-            fn call(a: [2]f32, b: [2]f32) [2]f32 {
-                return .{ 0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]) };
-            }
-        }.call;
-
-        const make_curve = struct {
-            fn call(p0: [2]f32, p1: [2]f32, p2: [2]f32) BufferCurve {
-                return BufferCurve{
-                    .x0 = p0[0],
-                    .y0 = p0[1],
-                    .x1 = p1[0],
-                    .y1 = p1[1],
-                    .x2 = p2[0],
-                    .y2 = p2[1],
-                };
-            }
-        }.call;
-
         // Find a point that is on the curve
         var first: [2]f32 = undefined;
         const first_on_curve = (outline.tags[@intCast(actual_first)] & ft.CURVE_TAG_ON) != 0;
@@ -334,7 +316,7 @@ pub const Renderer = struct {
                 first = convert(outline.points[@intCast(actual_last)], em_size);
                 actual_last -= d_index;
             } else {
-                first = make_midpoint(convert(outline.points[@intCast(actual_first)], em_size), convert(outline.points[@intCast(actual_last)], em_size));
+                first = makeMidpoint(convert(outline.points[@intCast(actual_first)], em_size), convert(outline.points[@intCast(actual_last)], em_size));
             }
         }
 
@@ -360,16 +342,16 @@ pub const Renderer = struct {
 
                     const c0 = .{ b0[0] + 0.75 * (b1[0] - b0[0]), b0[1] + 0.75 * (b1[1] - b0[1]) };
                     const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
-                    const d = make_midpoint(c0, c1);
+                    const d = makeMidpoint(c0, c1);
 
-                    try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
-                    try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
+                    try self.buffer_curves.append(self.allocator, makeCurve(b0, c0, d));
+                    try self.buffer_curves.append(self.allocator, makeCurve(d, c1, b3));
                 } else if (previous_tag == ft.CURVE_TAG_ON) {
                     // Linear segment
-                    try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, current), current));
+                    try self.buffer_curves.append(self.allocator, makeCurve(previous, makeMidpoint(previous, current), current));
                 } else {
                     // Regular bezier curve
-                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, current));
+                    try self.buffer_curves.append(self.allocator, makeCurve(start, previous, current));
                 }
                 start = current;
                 control = current;
@@ -378,8 +360,8 @@ pub const Renderer = struct {
                     // Wait for third point
                 } else {
                     // Create virtual on point
-                    const mid = make_midpoint(previous, current);
-                    try self.buffer_curves.append(self.allocator, make_curve(start, previous, mid));
+                    const mid = makeMidpoint(previous, current);
+                    try self.buffer_curves.append(self.allocator, makeCurve(start, previous, mid));
                     start = mid;
                     control = mid;
                 }
@@ -397,15 +379,15 @@ pub const Renderer = struct {
 
             const c0 = .{ b0[0] + 0.75 * (b1[0] - b0[0]), b0[1] + 0.75 * (b1[1] - b0[1]) };
             const c1 = .{ b3[0] + 0.75 * (b2[0] - b3[0]), b3[1] + 0.75 * (b2[1] - b3[1]) };
-            const d = make_midpoint(c0, c1);
+            const d = makeMidpoint(c0, c1);
 
-            try self.buffer_curves.append(self.allocator, make_curve(b0, c0, d));
-            try self.buffer_curves.append(self.allocator, make_curve(d, c1, b3));
+            try self.buffer_curves.append(self.allocator, makeCurve(b0, c0, d));
+            try self.buffer_curves.append(self.allocator, makeCurve(d, c1, b3));
         } else if (previous_tag == ft.CURVE_TAG_ON) {
             // Linear segment
-            try self.buffer_curves.append(self.allocator, make_curve(previous, make_midpoint(previous, first), first));
+            try self.buffer_curves.append(self.allocator, makeCurve(previous, makeMidpoint(previous, first), first));
         } else {
-            try self.buffer_curves.append(self.allocator, make_curve(start, previous, first));
+            try self.buffer_curves.append(self.allocator, makeCurve(start, previous, first));
         }
     }
 
@@ -517,7 +499,14 @@ pub const Renderer = struct {
 
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
+        sg.applyUniforms(shd_font.UB_fs_params, self.getColorFsParams());
         sg.draw(0, @intCast(indices.items.len), 1);
+    }
+
+    fn getColorFsParams(self: Renderer) sg.Range {
+        return sg.asRange(&.{
+            .text_color = self.color,
+        });
     }
 
     pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
@@ -652,7 +641,6 @@ pub const Renderer = struct {
             .x = text_element.x,
             // flip y-axis
             .y = -text_element.y + manual_adjust_y,
-            .color = text_element.color,
         }) catch |err| {
             std.log.err("[font] error while appending text element: {}", .{err});
             return;
@@ -706,3 +694,25 @@ pub const Renderer = struct {
         return @as(f32, @floatFromInt(self.font.face.face.*.height)) / @as(f32, @floatFromInt(self.font.face.face.*.units_per_EM)) * self.world_size;
     }
 };
+
+fn convert(v: ft.Vector, em: f32) [2]f32 {
+    return .{
+        @as(f32, @floatFromInt(v.x)) / em,
+        @as(f32, @floatFromInt(v.y)) / em,
+    };
+}
+
+fn makeMidpoint(a: [2]f32, b: [2]f32) [2]f32 {
+    return .{ 0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]) };
+}
+
+fn makeCurve(p0: [2]f32, p1: [2]f32, p2: [2]f32) BufferCurve {
+    return BufferCurve{
+        .x0 = p0[0],
+        .y0 = p0[1],
+        .x1 = p1[0],
+        .y1 = p1[1],
+        .x2 = p2[0],
+        .y2 = p2[1],
+    };
+}
