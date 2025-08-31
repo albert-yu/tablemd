@@ -54,16 +54,13 @@ const BufferVertex = struct {
     buffer_index: i32,
 };
 
+const WHITE = sg.Color{ .r = 1, .g = 1, .b = 1, .a = 1 };
+
 pub const SetupArgs = struct {
     world_size: f32 = 0.025,
     /// WARNING: do not use this for now, it's broken
     hinting: bool = false,
-    color: sg.Color = .{
-        .r = 1,
-        .g = 1,
-        .b = 1,
-        .a = 1,
-    },
+    color: sg.Color = WHITE,
 };
 
 const MAX_ELEMENTS = 2048;
@@ -130,7 +127,7 @@ pub const Renderer = struct {
             .curve_texture = .{},
             .dilation = 0.1,
             .text_elements = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
-            .color = .{},
+            .color = WHITE,
         };
     }
 
@@ -499,14 +496,20 @@ pub const Renderer = struct {
 
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
-        sg.applyUniforms(shd_font.UB_fs_params, self.getColorFsParams());
+        const fs_params = self.getColorFsParams();
+        sg.applyUniforms(shd_font.UB_fs_params, sg.asRange(&fs_params));
         sg.draw(0, @intCast(indices.items.len), 1);
     }
 
-    fn getColorFsParams(self: Renderer) sg.Range {
-        return sg.asRange(&.{
-            .text_color = self.color,
-        });
+    fn getColorFsParams(self: Renderer) shd_font.FsParams {
+        return .{
+            .text_color = [_]f32{
+                self.color.r,
+                self.color.g,
+                self.color.b,
+                self.color.a,
+            },
+        };
     }
 
     pub fn setWorldSize(self: *Renderer, world_size: f32) !void {
