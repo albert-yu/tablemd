@@ -75,8 +75,11 @@ pub const Cell = struct {
         var grid_height: usize = 1;
         var width: f32 = 0.0;
         var curr_line_width: f32 = 0.0;
-        for (self.value.items) |char| {
-            if (char == '\n') {
+
+        // Iterate through UTF-8 codepoints instead of bytes
+        var utf8_iterator = std.unicode.Utf8Iterator{ .bytes = self.value.items, .i = 0 };
+        while (utf8_iterator.nextCodepoint()) |codepoint| {
+            if (codepoint == '\n') {
                 width = @max(width, curr_line_width);
                 curr_line_width = 0.0;
                 grid_height += 1;
@@ -349,7 +352,8 @@ pub const Table = struct {
         for (self.columns.items, 0..) |column, col_idx| {
             var max_width: usize = 0;
             for (column.data.items) |cell| {
-                max_width = @max(max_width, cell.value.items.len);
+                const char_count = std.unicode.utf8CountCodepoints(cell.value.items) catch cell.value.items.len;
+                max_width = @max(max_width, char_count);
             }
             column_widths[col_idx] = max_width;
         }
@@ -371,7 +375,8 @@ pub const Table = struct {
                 try result.appendSlice(allocator, cell_value);
 
                 // Add padding to align columns
-                const padding_needed = column_widths[col_idx] - cell_value.len;
+                const char_count = std.unicode.utf8CountCodepoints(cell_value) catch cell_value.len;
+                const padding_needed = column_widths[col_idx] - char_count;
                 for (0..padding_needed) |_| {
                     try result.append(allocator, ' ');
                 }
