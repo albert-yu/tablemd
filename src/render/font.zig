@@ -54,16 +54,13 @@ const BufferVertex = struct {
     buffer_index: i32,
 };
 
+const WHITE = sg.Color{ .r = 1, .g = 1, .b = 1, .a = 1 };
+
 pub const SetupArgs = struct {
     world_size: f32 = 0.025,
     /// WARNING: do not use this for now, it's broken
     hinting: bool = false,
-    color: sg.Color = .{
-        .r = 1,
-        .g = 1,
-        .b = 1,
-        .a = 1,
-    },
+    color: sg.Color = WHITE,
 };
 
 const MAX_ELEMENTS = 2048;
@@ -130,7 +127,7 @@ pub const Renderer = struct {
             .curve_texture = .{},
             .dilation = 0.1,
             .text_elements = ArrayList(TextElement).initCapacity(allocator, 0) catch unreachable,
-            .color = .{},
+            .color = WHITE,
         };
     }
 
