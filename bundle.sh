@@ -9,49 +9,49 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to install jq if not available
-ensure_jq() {
-    if ! command_exists jq; then
-        echo "📦 Installing jq for JSON parsing..."
+# Function to install minisign if not available
+ensure_minisign() {
+    if ! command_exists minisign; then
+        echo "📦 Installing minisign for signature verification..."
 
-        # Detect OS and install jq
+        # Detect OS and install minisign
         OS=$(uname -s)
         case "$OS" in
             Linux*)
                 if command_exists apt-get; then
-                    sudo apt-get update && sudo apt-get install -y jq
+                    sudo apt-get update && sudo apt-get install -y minisign
                 elif command_exists yum; then
-                    sudo yum install -y jq
+                    sudo yum install -y minisign
                 elif command_exists pacman; then
-                    sudo pacman -S --noconfirm jq
+                    sudo pacman -S --noconfirm minisign
                 else
-                    echo "❌ Cannot install jq automatically on this Linux distribution" >&2
-                    echo "Please install jq manually and re-run this script" >&2
+                    echo "❌ Cannot install minisign automatically on this Linux distribution" >&2
+                    echo "Please install minisign manually and re-run this script" >&2
                     exit 1
                 fi
                 ;;
             Darwin*)
                 if command_exists brew; then
-                    brew install jq
+                    brew install minisign
                 else
-                    echo "❌ Please install Homebrew or jq manually" >&2
+                    echo "❌ Please install Homebrew or minisign manually" >&2
                     exit 1
                 fi
                 ;;
             *)
-                echo "❌ Cannot install jq automatically on $OS" >&2
-                echo "Please install jq manually and re-run this script" >&2
+                echo "❌ Cannot install minisign automatically on $OS" >&2
+                echo "Please install minisign manually and re-run this script" >&2
                 exit 1
                 ;;
         esac
 
-        # Verify jq is now available
-        if ! command_exists jq; then
-            echo "❌ Failed to install jq" >&2
+        # Verify minisign is now available
+        if ! command_exists minisign; then
+            echo "❌ Failed to install minisign" >&2
             exit 1
         fi
 
-        echo "✅ jq installed successfully"
+        echo "✅ minisign installed successfully"
     fi
 }
 
@@ -88,29 +88,27 @@ detect_platform() {
     esac
 }
 
-# Function to verify SHA256 checksum
-verify_sha256() {
-    local file="$1"
-    local expected_sha="$2"
+# Function to verify minisign signature
+verify_minisign() {
+    local tarball="$1"
+    local signature="$2"
+    local pubkey="$3"
 
-    if command_exists sha256sum; then
-        actual_sha=$(sha256sum "$file" | cut -d' ' -f1)
-    elif command_exists shasum; then
-        actual_sha=$(shasum -a 256 "$file" | cut -d' ' -f1)
-    else
-        echo "❌ No SHA256 utility found (sha256sum or shasum)" >&2
-        return 1
-    fi
-
-    if [ "$actual_sha" = "$expected_sha" ]; then
-        echo "✅ SHA256 checksum verified: $expected_sha"
+    echo "🔐 Verifying minisign signature..."
+ 
+    if minisign -V -m "$tarball" -s "$signature" -P "$pubkey" >/dev/null 2>&1; then
+        echo "✅ Minisign signature verified successfully"
         return 0
     else
-        echo "❌ SHA256 checksum mismatch!"
-        echo "   Expected: $expected_sha"
-        echo "   Actual:   $actual_sha"
+        echo "❌ Minisign signature verification failed!"
         return 1
     fi
+}
+
+# Function to shuffle lines from input
+shuffle_lines() {
+    local input="$1"
+    echo "$input" | shuf 2>/dev/null || echo "$input" | perl -MList::Util=shuffle -e 'print shuffle(<STDIN>);' 2>/dev/null || echo "$input"
 }
 
 # Function to map platform to Zig platform string
@@ -127,65 +125,71 @@ map_to_zig_platform() {
     esac
 }
 
-# Function to install Zig using official download index
+# Function to install Zig using community mirrors and minisign verification
 install_zig() {
-    echo "📦 Installing Zig with checksum verification..."
+    echo "📦 Installing Zig with minisign signature verification..."
 
     PLATFORM=$(detect_platform)
     ZIG_PLATFORM=$(map_to_zig_platform "$PLATFORM")
     ZIG_VERSION="0.14.1"
     ZIG_DIR="$HOME/.local/zig"
 
-    # Fetch download index
-    echo "🌐 Fetching Zig download index..."
-    INDEX_JSON=$(curl -s "https://ziglang.org/download/index.json")
-    if [ $? -ne 0 ] || [ -z "$INDEX_JSON" ]; then
-        echo "❌ Failed to fetch Zig download index" >&2
+    # Zig's official public key for minisign verification
+    PUBKEY="RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U"
+
+    # Construct tarball name
+    TARBALL_NAME="zig-$ZIG_PLATFORM-$ZIG_VERSION.tar.xz"
+
+    # Fetch community mirrors list
+    echo "🌐 Fetching community mirrors..."
+    MIRRORS=$(curl -s "https://ziglang.org/download/community-mirrors.txt")
+    if [ $? -ne 0 ] || [ -z "$MIRRORS" ]; then
+        echo "❌ Failed to fetch community mirrors list" >&2
         exit 1
     fi
 
-    # Extract download information using jq
-    echo "🔍 Parsing download information with jq..."
+    # Shuffle mirrors for load balancing
+    echo "🔀 Shuffling mirrors for load balancing..."
+    SHUFFLED_MIRRORS=$(shuffle_lines "$MIRRORS")
 
-    # Check if version exists
-    if ! echo "$INDEX_JSON" | jq -e ".\"$ZIG_VERSION\"" >/dev/null 2>&1; then
-        echo "❌ Version $ZIG_VERSION not found in download index" >&2
-        exit 1
-    fi
+    # Try each mirror in shuffled order
+    SUCCESS=false
+    for MIRROR_URL in $SHUFFLED_MIRRORS; do
+        # Skip empty lines
+        [ -z "$MIRROR_URL" ] && continue
 
-    # Check if platform exists for this version
-    if ! echo "$INDEX_JSON" | jq -e ".\"$ZIG_VERSION\".\"$ZIG_PLATFORM\"" >/dev/null 2>&1; then
-        echo "❌ Platform $ZIG_PLATFORM not found for version $ZIG_VERSION" >&2
-        exit 1
-    fi
+        echo "📥 Trying mirror: $MIRROR_URL"
 
-    # Extract tarball URL and shasum using jq
-    TARBALL_URL=$(echo "$INDEX_JSON" | jq -r ".\"$ZIG_VERSION\".\"$ZIG_PLATFORM\".tarball")
-    EXPECTED_SHA=$(echo "$INDEX_JSON" | jq -r ".\"$ZIG_VERSION\".\"$ZIG_PLATFORM\".shasum")
+        # Download tarball with source parameter
+        TARBALL_URL="${MIRROR_URL}/${TARBALL_NAME}?source=tablemd_automation"
+        if curl -L "$TARBALL_URL" -o "/tmp/$TARBALL_NAME" --connect-timeout 10 --max-time 60; then
+            echo "✅ Downloaded tarball from $MIRROR_URL"
 
-    if [ -z "$TARBALL_URL" ] || [ -z "$EXPECTED_SHA" ]; then
-        echo "❌ Failed to extract download URL or checksum from index" >&2
-        exit 1
-    fi
+            # Download signature
+            SIGNATURE_URL="${MIRROR_URL}/${TARBALL_NAME}.minisig?source=tablemd_automation"
+            if curl -L "$SIGNATURE_URL" -o "/tmp/$TARBALL_NAME.minisig" --connect-timeout 10 --max-time 30; then
+                echo "✅ Downloaded signature from $MIRROR_URL"
 
-    echo "📥 Downloading Zig from: $TARBALL_URL"
+                # Verify signature
+                if verify_minisign "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig" "$PUBKEY"; then
+                    echo "✅ Signature verification passed for $MIRROR_URL"
+                    SUCCESS=true
+                    break
+                else
+                    echo "❌ Signature verification failed for $MIRROR_URL, trying next mirror..."
+                    rm -f "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig"
+                fi
+            else
+                echo "❌ Failed to download signature from $MIRROR_URL, trying next mirror..."
+                rm -f "/tmp/$TARBALL_NAME"
+            fi
+        else
+            echo "❌ Failed to download tarball from $MIRROR_URL, trying next mirror..."
+        fi
+    done
 
-    # Extract filename from URL
-    TARBALL_NAME=$(basename "$TARBALL_URL")
-
-    # Download tarball
-    if ! curl -L "$TARBALL_URL" -o "/tmp/$TARBALL_NAME"; then
-        echo "❌ Failed to download Zig tarball" >&2
-        exit 1
-    fi
-
-    echo "✅ Downloaded Zig tarball"
-
-    # Verify checksum
-    echo "🔐 Verifying SHA256 checksum..."
-    if ! verify_sha256 "/tmp/$TARBALL_NAME" "$EXPECTED_SHA"; then
-        echo "❌ Checksum verification failed" >&2
-        rm -f "/tmp/$TARBALL_NAME"
+    if [ "$SUCCESS" = false ]; then
+        echo "❌ Failed to download and verify Zig from any mirror" >&2
         exit 1
     fi
 
@@ -202,7 +206,7 @@ install_zig() {
     fi
 
     # Clean up
-    rm -f "/tmp/$TARBALL_NAME"
+    rm -f "/tmp/$TARBALL_NAME" "/tmp/$TARBALL_NAME.minisig"
 
     # Add to PATH for this session
     export PATH="$ZIG_DIR:$PATH"
@@ -217,8 +221,8 @@ if command_exists zig; then
     zig version
 else
     echo "❌ Zig not found, installing..."
-    # Ensure jq is available for JSON parsing
-    ensure_jq
+    # Ensure minisign is available for signature verification
+    ensure_minisign
 
     install_zig
 fi
