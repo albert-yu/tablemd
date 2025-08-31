@@ -168,8 +168,7 @@ void main() {
 
 
     alpha = clamp(alpha, 0.0, 1.0);
-    vec4 color = vec4(v_color.rgb, alpha);
-    result = color * alpha;
+    result = vec4(v_color.rgb, alpha);
 
     if (enableControlPointsVisualization) {
         // Visualize control points.
