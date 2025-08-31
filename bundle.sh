@@ -12,38 +12,12 @@ command_exists() {
 # Function to install minisign if not available
 ensure_minisign() {
     if ! command_exists minisign; then
-        echo "📦 Installing minisign for signature verification..."
+        echo "📦 Installing minisign via npm..."
 
-        # Detect OS and install minisign
-        OS=$(uname -s)
-        case "$OS" in
-            Linux*)
-                if command_exists apt-get; then
-                    apt-get update && apt-get install -y minisign
-                elif command_exists yum; then
-                    yum install -y minisign
-                elif command_exists pacman; then
-                    pacman -S --noconfirm minisign
-                else
-                    echo "❌ Cannot install minisign automatically on this Linux distribution" >&2
-                    echo "Please install minisign manually and re-run this script" >&2
-                    exit 1
-                fi
-                ;;
-            Darwin*)
-                if command_exists brew; then
-                    brew install minisign
-                else
-                    echo "❌ Please install Homebrew or minisign manually" >&2
-                    exit 1
-                fi
-                ;;
-            *)
-                echo "❌ Cannot install minisign automatically on $OS" >&2
-                echo "Please install minisign manually and re-run this script" >&2
-                exit 1
-                ;;
-        esac
+        if ! npm install -g minisign; then
+            echo "❌ Failed to install minisign via npm" >&2
+            exit 1
+        fi
 
         # Verify minisign is now available
         if ! command_exists minisign; then
