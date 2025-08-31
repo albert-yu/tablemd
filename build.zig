@@ -27,10 +27,6 @@ pub fn build(b: *Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const dep_zigimg = b.dependency("zigimg", .{
-        .target = target,
-        .optimize = optimize,
-    });
 
     const mod_markdown = b.createModule(.{
         .root_source_file = b.path("vendor/markdown/markdown.zig"),
@@ -58,10 +54,6 @@ pub fn build(b: *Build) !void {
             .{
                 .name = "zm",
                 .module = dep_zm.module("zm"),
-            },
-            .{
-                .name = "zigimg",
-                .module = dep_zigimg.module("zigimg"),
             },
             .{
                 .name = "freetype",

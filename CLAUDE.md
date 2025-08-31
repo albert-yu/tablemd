@@ -47,7 +47,6 @@ web (WebAssembly) platforms.
 
 - **Sokol**: Cross-platform graphics/app framework
 - **TrueType**: Font loading and text rendering
-- **zigimg**: Image loading support
 - **zm**: Math library for vectors and matrices
 
 ### Coordinate System & Interaction
