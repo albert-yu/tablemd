@@ -56,12 +56,11 @@ pub const MatchingRow = struct {
 
 pub const Cell = struct {
     value: ArrayList(u8),
-    column: *Column,
 
-    pub fn init(allocator: Allocator, content: []const u8, column: *Column) !Cell {
+    pub fn init(allocator: Allocator, content: []const u8) !Cell {
         var value = try ArrayList(u8).initCapacity(allocator, content.len);
         value.appendSlice(allocator, content) catch unreachable;
-        return Cell{ .value = value, .column = column };
+        return Cell{ .value = value };
     }
 
     pub fn deinit(self: *Cell, allocator: Allocator) void {
@@ -145,12 +144,10 @@ pub fn divCeil(top: f32, bottom: f32) f32 {
 
 pub const Column = struct {
     data: ArrayList(Cell),
-    table: *Table,
 
-    pub fn init(allocator: Allocator, table: *Table) Column {
+    pub fn init(allocator: Allocator) Column {
         return Column{
             .data = ArrayList(Cell).initCapacity(allocator, 0) catch unreachable,
-            .table = table,
         };
     }
 
@@ -162,7 +159,7 @@ pub const Column = struct {
     }
 
     pub fn addCell(self: *Column, allocator: Allocator, content: []const u8) !void {
-        const cell = try Cell.init(allocator, content, self);
+        const cell = try Cell.init(allocator, content);
         try self.data.append(allocator, cell);
     }
 
@@ -240,7 +237,7 @@ pub const Table = struct {
 
     pub fn addColumn(self: *Table, allocator: Allocator) !*Column {
         const column = try allocator.create(Column);
-        column.* = Column.init(allocator, self);
+        column.* = Column.init(allocator);
         for (0..self.rows()) |_| {
             try column.addCell(allocator, "");
         }
@@ -254,7 +251,7 @@ pub const Table = struct {
         }
 
         const column = try allocator.create(Column);
-        column.* = Column.init(allocator, self);
+        column.* = Column.init(allocator);
         for (0..self.rows()) |_| {
             try column.addCell(allocator, "");
         }
@@ -274,7 +271,7 @@ pub const Table = struct {
         }
 
         for (self.columns.items) |column| {
-            const cell = try Cell.init(allocator, "", column);
+            const cell = try Cell.init(allocator, "");
             try column.data.insert(allocator, index, cell);
         }
     }
@@ -571,7 +568,7 @@ pub const Table = struct {
         // Read each column
         for (0..num_columns) |_| {
             const column = try allocator.create(Column);
-            column.* = Column.init(allocator, &table);
+            column.* = Column.init(allocator);
 
             // Read number of cells
             const num_cells = try reader.readInt(usize, .little);
@@ -585,7 +582,7 @@ pub const Table = struct {
                 const value_data = try allocator.alloc(u8, value_len);
                 _ = try reader.readAll(value_data);
 
-                const cell = try Cell.init(allocator, value_data, column);
+                const cell = try Cell.init(allocator, value_data);
                 try column.data.append(allocator, cell);
 
                 allocator.free(value_data);
