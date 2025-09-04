@@ -224,7 +224,9 @@ pub const UI = struct {
         // Find table index
         const table_idx = for (self.tables.items, 0..) |t, idx| {
             if (t == table) break idx;
-        } else unreachable;
+        } else {
+            return error.TableNotFound;
+        };
 
         switch (direction) {
             .right => {
