@@ -887,9 +887,8 @@ pub const UI = struct {
     }
 
     fn moveToNextRow(self: *UI, allocator: Allocator, cell_index: CellIndex) ?Cursor {
-        const cell = self.getCellFromIndex(cell_index) orelse return null;
-        const column = cell.column;
-        const table = column.table;
+        const table = self.tables.items[cell_index.table_index];
+        const column = table.columns.items[cell_index.column_index];
 
         const current_row_index = cell_index.row_index;
 
@@ -1020,16 +1019,14 @@ pub const UI = struct {
                     // do nothing for now
                 },
                 .cell => |cell_pos| {
-                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
                     if (self.moveToNextRow(allocator, cell_pos.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
                     }
                 },
                 .text => |text_pos| {
-                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[text_pos.cell_index.table_index];
                     if (self.moveToNextRow(allocator, text_pos.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
