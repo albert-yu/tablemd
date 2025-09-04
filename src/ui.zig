@@ -91,11 +91,13 @@ pub const Cursor = union(CursorType) {
             },
             .cell => |cell_info| blk: {
                 if (ui.getCellFromIndex(cell_info.cell_index)) |cell| {
+                    const table = ui.tables.items[cell_info.cell_index.table_index];
+                    const column = table.columns.items[cell_info.cell_index.column_index];
                     break :blk .{
                         .color = color,
                         .x = cell_info.pos[0],
                         .y = cell_info.pos[1],
-                        .width = cell.column.size(units).width,
+                        .width = column.size(units).width,
                         .height = cell.size(units).height,
                         .corners = corners,
                         .sigma = 1e-6,
@@ -224,7 +226,9 @@ pub const UI = struct {
         // Find table index
         const table_idx = for (self.tables.items, 0..) |t, idx| {
             if (t == table) break idx;
-        } else unreachable;
+        } else {
+            return error.TableNotFound;
+        };
 
         switch (direction) {
             .right => {
@@ -400,7 +404,8 @@ pub const UI = struct {
                 },
                 .cell => |cell_pos| {
                     const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const curr_table_width = cell.column.table.gridSize(self.units).width;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
+                    const curr_table_width = table.gridSize(self.units).width;
                     // clear the current text
                     cell.value.clearRetainingCapacity();
                     var utf8_bytes: [4]u8 = undefined;
@@ -408,7 +413,7 @@ pub const UI = struct {
                     for (utf8_bytes[0..utf8_len]) |byte| {
                         try cell.value.append(allocator, byte);
                     }
-                    const new_table_width = cell.column.table.gridSize(self.units).width;
+                    const new_table_width = table.gridSize(self.units).width;
                     const padding = self.units.paddingLeft();
                     self.active_cursor = .{
                         .text = .{
@@ -418,19 +423,20 @@ pub const UI = struct {
                         },
                     };
                     if (new_table_width > curr_table_width) {
-                        self.shiftTablesRight(cell.column.table, new_table_width - curr_table_width);
+                        self.shiftTablesRight(table, new_table_width - curr_table_width);
                     }
                 },
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
-                    const curr_table_width = cell.column.table.gridSize(self.units).width;
+                    const table = self.tables.items[text_pos.cell_index.table_index];
+                    const curr_table_width = table.gridSize(self.units).width;
                     var utf8_bytes: [4]u8 = undefined;
                     const utf8_len = std.unicode.utf8Encode(@intCast(char_code), &utf8_bytes) catch return;
                     const new_offset = text_pos.char_offset;
                     for (utf8_bytes[0..utf8_len], 0..) |byte, i| {
                         try cell.value.insert(allocator, new_offset + i, byte);
                     }
-                    const new_table_width = cell.column.table.gridSize(self.units).width;
+                    const new_table_width = table.gridSize(self.units).width;
                     const new_x = text_pos.pos[0] + self.units.text.width;
                     self.active_cursor = .{
                         .text = .{
@@ -440,7 +446,7 @@ pub const UI = struct {
                         },
                     };
                     if (new_table_width > curr_table_width) {
-                        self.shiftTablesRight(cell.column.table, new_table_width - curr_table_width);
+                        self.shiftTablesRight(table, new_table_width - curr_table_width);
                     }
                 },
             }
@@ -530,7 +536,8 @@ pub const UI = struct {
                 },
                 .cell => |cell_pos| {
                     const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const curr_table_size = cell.column.table.gridSize(self.units);
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
+                    const curr_table_size = table.gridSize(self.units);
                     // Replace entire cell content
                     cell.value.clearRetainingCapacity();
                     for (clipboard_text) |char| {
@@ -539,7 +546,7 @@ pub const UI = struct {
                     // Move cursor to text mode at the end of pasted content
                     const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
                     const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
-                    const new_table_size = cell.column.table.gridSize(self.units);
+                    const new_table_size = table.gridSize(self.units);
                     const padding = self.units.paddingLeft();
                     self.active_cursor = .{
                         .text = .{
@@ -549,22 +556,23 @@ pub const UI = struct {
                         },
                     };
                     if (new_table_size.width > curr_table_size.width) {
-                        self.shiftTablesRight(cell.column.table, new_table_size.width - curr_table_size.width);
+                        self.shiftTablesRight(table, new_table_size.width - curr_table_size.width);
                     }
                     if (new_table_size.height > curr_table_size.height) {
-                        self.shiftTablesDown(cell.column.table, new_table_size.height - curr_table_size.height);
+                        self.shiftTablesDown(table, new_table_size.height - curr_table_size.height);
                     }
                 },
                 .text => |text_pos| {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
-                    const curr_table_size = cell.column.table.gridSize(self.units);
+                    const table = self.tables.items[text_pos.cell_index.table_index];
+                    const curr_table_size = table.gridSize(self.units);
                     // Insert clipboard text at current cursor position
                     var insert_pos = text_pos.char_offset;
                     for (clipboard_text) |char| {
                         try cell.value.insert(allocator, insert_pos, char);
                         insert_pos += 1;
                     }
-                    const new_table_size = cell.column.table.gridSize(self.units);
+                    const new_table_size = table.gridSize(self.units);
                     const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
                     const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
                     const new_x = text_pos.pos[0] + text_width_offset;
@@ -576,10 +584,10 @@ pub const UI = struct {
                         },
                     };
                     if (new_table_size.width > curr_table_size.width) {
-                        self.shiftTablesRight(cell.column.table, new_table_size.width - curr_table_size.width);
+                        self.shiftTablesRight(table, new_table_size.width - curr_table_size.width);
                     }
                     if (new_table_size.height > curr_table_size.height) {
-                        self.shiftTablesDown(cell.column.table, new_table_size.height - curr_table_size.height);
+                        self.shiftTablesDown(table, new_table_size.height - curr_table_size.height);
                     }
                 },
             }
@@ -594,8 +602,7 @@ pub const UI = struct {
                     // when colliding with an existing table
                 },
                 .cell => |cell_pos| {
-                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
                     const current_col = cell_pos.cell_index.column_index;
 
                     // Check if we're at the leftmost column
@@ -662,8 +669,7 @@ pub const UI = struct {
                     // No-op for empty cursor
                 },
                 .cell => |cell_pos| {
-                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
                     const current_col = cell_pos.cell_index.column_index;
 
                     // Check if we're at the rightmost column
@@ -732,8 +738,7 @@ pub const UI = struct {
                     // No-op for empty cursor
                 },
                 .cell => |cell_pos| {
-                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
                     const current_row = cell_pos.cell_index.row_index;
 
                     // Check if we're at the topmost row
@@ -811,8 +816,7 @@ pub const UI = struct {
                     // No-op for empty cursor
                 },
                 .cell => |cell_pos| {
-                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
                     const current_row = cell_pos.cell_index.row_index;
 
                     // Check if we're at the bottommost row
@@ -885,9 +889,8 @@ pub const UI = struct {
     }
 
     fn moveToNextRow(self: *UI, allocator: Allocator, cell_index: CellIndex) ?Cursor {
-        const cell = self.getCellFromIndex(cell_index) orelse return null;
-        const column = cell.column;
-        const table = column.table;
+        const table = self.tables.items[cell_index.table_index];
+        const column = table.columns.items[cell_index.column_index];
 
         const current_row_index = cell_index.row_index;
 
@@ -934,8 +937,7 @@ pub const UI = struct {
     }
 
     fn tabToNextColumn(self: *UI, cell_index: CellIndex) void {
-        const cell = self.getCellFromIndex(cell_index) orelse return;
-        const table = cell.column.table;
+        const table = self.tables.items[cell_index.table_index];
         const current_col = cell_index.column_index;
 
         // Check if we're at the rightmost column
@@ -1018,16 +1020,14 @@ pub const UI = struct {
                     // do nothing for now
                 },
                 .cell => |cell_pos| {
-                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[cell_pos.cell_index.table_index];
                     if (self.moveToNextRow(allocator, cell_pos.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
                     }
                 },
                 .text => |text_pos| {
-                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
-                    const table = cell.column.table;
+                    const table = self.tables.items[text_pos.cell_index.table_index];
                     if (self.moveToNextRow(allocator, text_pos.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
@@ -1075,8 +1075,9 @@ pub const UI = struct {
                     const table_idx = text_pos.cell_index.table_index;
                     const column_idx = text_pos.cell_index.column_index;
                     const table = self.tables.items[table_idx];
+                    const column = table.columns.items[column_idx];
                     // Check if column now has zero width
-                    if (cell.column.gridSize(self.units).width == 0) {
+                    if (column.gridSize(self.units).width == 0) {
                         // Delete the column and set cursor to null
                         table.removeColumn(allocator, column_idx);
                         self.active_cursor = null;
