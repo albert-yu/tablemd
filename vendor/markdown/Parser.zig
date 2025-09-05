@@ -86,7 +86,23 @@ const Block = struct {
             continuation_indent: usize,
         },
         table: struct {
-            column_alignments: std.BoundedArray(Node.TableCellAlignment, max_table_columns) = .{},
+            column_alignments: struct {
+                buffer: [max_table_columns]Node.TableCellAlignment = [_]Node.TableCellAlignment{.unset} ** max_table_columns,
+                len: usize = 0,
+
+                fn appendAssumeCapacity(self: *@This(), item: Node.TableCellAlignment) void {
+                    self.buffer[self.len] = item;
+                    self.len += 1;
+                }
+
+                fn get(self: *const @This(), index: usize) Node.TableCellAlignment {
+                    return self.buffer[index];
+                }
+
+                fn slice(self: *const @This()) []const Node.TableCellAlignment {
+                    return self.buffer[0..self.len];
+                }
+            } = .{},
         },
         heading: struct {
             /// Between 1 and 6, inclusive.
@@ -354,7 +370,23 @@ const BlockStart = struct {
             continuation_indent: usize,
         },
         table_row: struct {
-            cells: std.BoundedArray([]const u8, max_table_columns),
+            cells: struct {
+                buffer: [max_table_columns][]const u8 = [_][]const u8{""} ** max_table_columns,
+                len: usize = 0,
+
+                fn appendAssumeCapacity(self: *@This(), item: []const u8) void {
+                    self.buffer[self.len] = item;
+                    self.len += 1;
+                }
+
+                fn get(self: *const @This(), index: usize) []const u8 {
+                    return self.buffer[index];
+                }
+
+                fn slice(self: *const @This()) []const []const u8 {
+                    return self.buffer[0..self.len];
+                }
+            },
         },
         heading: struct {
             /// Between 1 and 6, inclusive.
@@ -431,8 +463,14 @@ fn appendBlockStart(p: *Parser, block_start: BlockStart) !void {
 
         const current_row = p.scratch_extra.items.len - p.pending_blocks.getLast().extra_start;
         if (current_row <= 1) {
-            if (parseTableHeaderDelimiter(block_start.data.table_row.cells)) |alignments| {
-                p.pending_blocks.items[p.pending_blocks.items.len - 1].data.table.column_alignments = alignments;
+            if (parseTableHeaderDelimiter(.{
+                .buffer = block_start.data.table_row.cells.buffer,
+                .len = block_start.data.table_row.cells.len,
+            })) |alignments| {
+                p.pending_blocks.items[p.pending_blocks.items.len - 1].data.table.column_alignments = .{
+                    .buffer = alignments.buffer,
+                    .len = alignments.len,
+                };
                 if (current_row == 1) {
                     // We need to go back and mark the header row and its column
                     // alignments.
@@ -523,7 +561,10 @@ fn startBlock(p: *Parser, line: []const u8) !?BlockStart {
         return .{
             .tag = .table_row,
             .data = .{ .table_row = .{
-                .cells = table_row.cells,
+                .cells = .{
+                    .buffer = table_row.cells.buffer,
+                    .len = table_row.cells.len,
+                },
             } },
             .rest = "",
         };
@@ -606,7 +647,23 @@ fn startListItem(unindented_line: []const u8) ?ListItemStart {
 }
 
 const TableRowStart = struct {
-    cells: std.BoundedArray([]const u8, max_table_columns),
+    cells: struct {
+        buffer: [max_table_columns][]const u8 = [_][]const u8{""} ** max_table_columns,
+        len: usize = 0,
+
+        fn appendAssumeCapacity(self: *@This(), item: []const u8) void {
+            self.buffer[self.len] = item;
+            self.len += 1;
+        }
+
+        fn get(self: *const @This(), index: usize) []const u8 {
+            return self.buffer[index];
+        }
+
+        fn slice(self: *const @This()) []const []const u8 {
+            return self.buffer[0..self.len];
+        }
+    },
 };
 
 fn startTableRow(unindented_line: []const u8) ?TableRowStart {
@@ -615,7 +672,23 @@ fn startTableRow(unindented_line: []const u8) ?TableRowStart {
         mem.endsWith(u8, unindented_line, "\\|") or
         !mem.endsWith(u8, unindented_line, "|")) return null;
 
-    var cells: std.BoundedArray([]const u8, max_table_columns) = .{};
+    var cells: struct {
+        buffer: [max_table_columns][]const u8 = [_][]const u8{""} ** max_table_columns,
+        len: usize = 0,
+
+        fn appendAssumeCapacity(self: *@This(), item: []const u8) void {
+            self.buffer[self.len] = item;
+            self.len += 1;
+        }
+
+        fn get(self: *const @This(), index: usize) []const u8 {
+            return self.buffer[index];
+        }
+
+        fn slice(self: *const @This()) []const []const u8 {
+            return self.buffer[0..self.len];
+        }
+    } = .{};
     const table_row_content = unindented_line[1 .. unindented_line.len - 1];
     var cell_start: usize = 0;
     var i: usize = 0;
@@ -623,7 +696,7 @@ fn startTableRow(unindented_line: []const u8) ?TableRowStart {
         switch (table_row_content[i]) {
             '\\' => i += 1,
             '|' => {
-                cells.append(table_row_content[cell_start..i]) catch return null;
+                cells.appendAssumeCapacity(table_row_content[cell_start..i]);
                 cell_start = i + 1;
             },
             '`' => {
@@ -641,20 +714,74 @@ fn startTableRow(unindented_line: []const u8) ?TableRowStart {
             else => {},
         }
     }
-    cells.append(table_row_content[cell_start..]) catch return null;
+    cells.appendAssumeCapacity(table_row_content[cell_start..]);
 
-    return .{ .cells = cells };
+    return .{ .cells = .{
+        .buffer = cells.buffer,
+        .len = cells.len,
+    } };
 }
 
 fn parseTableHeaderDelimiter(
-    row_cells: std.BoundedArray([]const u8, max_table_columns),
-) ?std.BoundedArray(Node.TableCellAlignment, max_table_columns) {
-    var alignments: std.BoundedArray(Node.TableCellAlignment, max_table_columns) = .{};
+    row_cells: struct {
+        buffer: [max_table_columns][]const u8 = [_][]const u8{""} ** max_table_columns,
+        len: usize = 0,
+
+        fn appendAssumeCapacity(self: *@This(), item: []const u8) void {
+            self.buffer[self.len] = item;
+            self.len += 1;
+        }
+
+        fn get(self: *const @This(), index: usize) []const u8 {
+            return self.buffer[index];
+        }
+
+        fn slice(self: *const @This()) []const []const u8 {
+            return self.buffer[0..self.len];
+        }
+    },
+) ?struct {
+    buffer: [max_table_columns]Node.TableCellAlignment = [_]Node.TableCellAlignment{.unset} ** max_table_columns,
+    len: usize = 0,
+
+    fn appendAssumeCapacity(self: *@This(), item: Node.TableCellAlignment) void {
+        self.buffer[self.len] = item;
+        self.len += 1;
+    }
+
+    fn get(self: *const @This(), index: usize) Node.TableCellAlignment {
+        return self.buffer[index];
+    }
+
+    fn slice(self: *const @This()) []const Node.TableCellAlignment {
+        return self.buffer[0..self.len];
+    }
+} {
+    var alignments: struct {
+        buffer: [max_table_columns]Node.TableCellAlignment = [_]Node.TableCellAlignment{.unset} ** max_table_columns,
+        len: usize = 0,
+
+        fn appendAssumeCapacity(self: *@This(), item: Node.TableCellAlignment) void {
+            self.buffer[self.len] = item;
+            self.len += 1;
+        }
+
+        fn get(self: *const @This(), index: usize) Node.TableCellAlignment {
+            return self.buffer[index];
+        }
+
+        fn slice(self: *const @This()) []const Node.TableCellAlignment {
+            return self.buffer[0..self.len];
+        }
+    } = .{};
     for (row_cells.slice()) |content| {
         const alignment = parseTableHeaderDelimiterCell(content) orelse return null;
         alignments.appendAssumeCapacity(alignment);
     }
-    return alignments;
+    return .{
+        .buffer = alignments.buffer,
+        .len = alignments.len,
+    };
 }
 
 fn parseTableHeaderDelimiterCell(content: []const u8) ?Node.TableCellAlignment {

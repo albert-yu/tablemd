@@ -524,9 +524,9 @@ pub const Table = struct {
     }
 
     pub fn serialize(self: Table, allocator: Allocator) ![]u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
-        var writer = buffer.writer();
+        var buffer = try ArrayList(u8).initCapacity(allocator, 0);
+        defer buffer.deinit(allocator);
+        var writer = buffer.writer(allocator);
 
         // Write table position
         try writer.writeInt(usize, self.position.left, .little);
@@ -548,7 +548,7 @@ pub const Table = struct {
             }
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn deserialize(allocator: Allocator, data: []const u8) !Table {

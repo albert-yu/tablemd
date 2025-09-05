@@ -16,11 +16,17 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     const target = options.target;
     const optimize = options.optimize;
 
-    // Create FreeType static library
-    const lib = b.addStaticLibrary(.{
-        .name = "freetype",
+    // Create empty module for C library
+    const mod = b.createModule(.{
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
+    });
+
+    // Create FreeType static library
+    const lib = b.addLibrary(.{
+        .name = "freetype",
+        .root_module = mod,
     });
 
     // Add include directories
@@ -28,14 +34,13 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     lib.addIncludePath(b.path("vendor/freetype/src"));
 
     // Common compilation flags
-    var c_flags = std.ArrayList([]const u8).init(b.allocator);
-    try c_flags.appendSlice(&.{
+    const c_flags = &[_][]const u8{
         "-DFT2_BUILD_LIBRARY",
         "-DFT_CONFIG_OPTION_ERROR_STRINGS",
         "-DFT_CONFIG_OPTION_NO_ASSEMBLER",
         "-DFT_CONFIG_OPTION_DISABLE_STREAM_SUPPORT",
         "-std=c99",
-    });
+    };
 
     // For WASM builds, add Emscripten system include path
     if (target.result.cpu.arch.isWasm()) {
@@ -56,7 +61,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     for (freetype_sources) |source| {
         lib.addCSourceFile(.{
             .file = b.path(source),
-            .flags = c_flags.items,
+            .flags = c_flags,
         });
     }
 
@@ -64,7 +69,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     if (target.result.cpu.arch.isWasm()) {
         lib.addCSourceFile(.{
             .file = b.path("vendor/freetype/setjmp_stub.c"),
-            .flags = c_flags.items,
+            .flags = c_flags,
         });
     }
 
