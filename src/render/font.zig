@@ -2,7 +2,7 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const shd_font = @import("font_shader");
-const ArrayList = std.ArrayListUnmanaged;
+const ArrayList = std.ArrayList;
 
 const ft = @import("freetype");
 

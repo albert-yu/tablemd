@@ -1,5 +1,5 @@
 const std = @import("std");
-const ArrayList = std.ArrayListUnmanaged;
+const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const scene_mod = @import("render/scene.zig");

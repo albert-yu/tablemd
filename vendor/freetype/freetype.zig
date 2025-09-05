@@ -407,7 +407,7 @@ pub const Font = struct {
     pub fn glyphBitmap(
         self: Font,
         allocator: std.mem.Allocator,
-        buffer: *std.ArrayListUnmanaged(u8),
+        buffer: *std.ArrayList(u8),
         glyph_index: u32,
         _: f32, // scale_x - not used in FreeType, size is set via setPixelHeight
         _: f32, // scale_y - not used in FreeType, size is set via setPixelHeight

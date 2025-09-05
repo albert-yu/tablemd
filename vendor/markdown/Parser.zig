@@ -31,11 +31,11 @@ const ExtraData = Document.ExtraData;
 const StringIndex = Document.StringIndex;
 
 nodes: Node.List = .{},
-extra: std.ArrayListUnmanaged(u32) = .{},
-scratch_extra: std.ArrayListUnmanaged(u32) = .{},
-string_bytes: std.ArrayListUnmanaged(u8) = .{},
-scratch_string: std.ArrayListUnmanaged(u8) = .{},
-pending_blocks: std.ArrayListUnmanaged(Block) = .{},
+extra: std.ArrayList(u32) = .{},
+scratch_extra: std.ArrayList(u32) = .{},
+string_bytes: std.ArrayList(u8) = .{},
+scratch_string: std.ArrayList(u8) = .{},
+pending_blocks: std.ArrayList(Block) = .{},
 allocator: Allocator,
 
 const Parser = @This();
@@ -961,8 +961,8 @@ const InlineParser = struct {
     parent: *Parser,
     content: []const u8,
     pos: usize = 0,
-    pending_inlines: std.ArrayListUnmanaged(PendingInline) = .{},
-    completed_inlines: std.ArrayListUnmanaged(CompletedInline) = .{},
+    pending_inlines: std.ArrayList(PendingInline) = .{},
+    completed_inlines: std.ArrayList(CompletedInline) = .{},
 
     const PendingInline = struct {
         tag: Tag,

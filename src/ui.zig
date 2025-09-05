@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
-const ArrayList = std.ArrayListUnmanaged;
+const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
@@ -468,7 +468,7 @@ pub const UI = struct {
     }
 
     pub fn handleCopy(self: *UI, allocator: Allocator) ![]const u8 {
-        var str_builder = try std.ArrayList(u8).initCapacity(allocator, 0);
+        var str_builder = try ArrayList(u8).initCapacity(allocator, 0);
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {},
@@ -1396,7 +1396,7 @@ pub const UI = struct {
     }
 
     pub fn serializeTables(self: *UI, allocator: Allocator) ![]u8 {
-        var buffer = try std.ArrayList(u8).initCapacity(allocator, 0);
+        var buffer = try ArrayList(u8).initCapacity(allocator, 0);
         defer buffer.deinit(allocator);
         var writer = buffer.writer(allocator);
 
