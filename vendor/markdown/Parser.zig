@@ -31,11 +31,11 @@ const ExtraData = Document.ExtraData;
 const StringIndex = Document.StringIndex;
 
 nodes: Node.List = .{},
-extra: std.ArrayListUnmanaged(u32) = .{},
-scratch_extra: std.ArrayListUnmanaged(u32) = .{},
-string_bytes: std.ArrayListUnmanaged(u8) = .{},
-scratch_string: std.ArrayListUnmanaged(u8) = .{},
-pending_blocks: std.ArrayListUnmanaged(Block) = .{},
+extra: std.ArrayList(u32) = .{},
+scratch_extra: std.ArrayList(u32) = .{},
+string_bytes: std.ArrayList(u8) = .{},
+scratch_string: std.ArrayList(u8) = .{},
+pending_blocks: std.ArrayList(Block) = .{},
 allocator: Allocator,
 
 const Parser = @This();
@@ -44,6 +44,36 @@ const Parser = @This();
 /// table-related metadata maintained by the parser does not require dynamic
 /// memory allocation.
 const max_table_columns = 128;
+
+/// A generic bounded array type for fixed-capacity collections used in table parsing.
+fn BoundedArray(comptime T: type, comptime capacity: usize) type {
+    return struct {
+        buffer: [capacity]T,
+        len: usize = 0,
+
+        const Self = @This();
+
+        fn init(default_value: T) Self {
+            return .{
+                .buffer = [_]T{default_value} ** capacity,
+                .len = 0,
+            };
+        }
+
+        fn appendAssumeCapacity(self: *Self, item: T) void {
+            self.buffer[self.len] = item;
+            self.len += 1;
+        }
+
+        fn get(self: *const Self, index: usize) T {
+            return self.buffer[index];
+        }
+
+        fn slice(self: *const Self) []const T {
+            return self.buffer[0..self.len];
+        }
+    };
+}
 
 /// A block element which is still receiving children.
 const Block = struct {
@@ -86,7 +116,7 @@ const Block = struct {
             continuation_indent: usize,
         },
         table: struct {
-            column_alignments: std.BoundedArray(Node.TableCellAlignment, max_table_columns) = .{},
+            column_alignments: BoundedArray(Node.TableCellAlignment, max_table_columns) = BoundedArray(Node.TableCellAlignment, max_table_columns).init(.unset),
         },
         heading: struct {
             /// Between 1 and 6, inclusive.
@@ -354,7 +384,7 @@ const BlockStart = struct {
             continuation_indent: usize,
         },
         table_row: struct {
-            cells: std.BoundedArray([]const u8, max_table_columns),
+            cells: BoundedArray([]const u8, max_table_columns),
         },
         heading: struct {
             /// Between 1 and 6, inclusive.
@@ -422,7 +452,7 @@ fn appendBlockStart(p: *Parser, block_start: BlockStart) !void {
             try p.pending_blocks.append(p.allocator, .{
                 .tag = .table,
                 .data = .{ .table = .{
-                    .column_alignments = .{},
+                    .column_alignments = BoundedArray(Node.TableCellAlignment, max_table_columns).init(.unset),
                 } },
                 .string_start = p.scratch_string.items.len,
                 .extra_start = p.scratch_extra.items.len,
@@ -431,7 +461,10 @@ fn appendBlockStart(p: *Parser, block_start: BlockStart) !void {
 
         const current_row = p.scratch_extra.items.len - p.pending_blocks.getLast().extra_start;
         if (current_row <= 1) {
-            if (parseTableHeaderDelimiter(block_start.data.table_row.cells)) |alignments| {
+            if (parseTableHeaderDelimiter(.{
+                .buffer = block_start.data.table_row.cells.buffer,
+                .len = block_start.data.table_row.cells.len,
+            })) |alignments| {
                 p.pending_blocks.items[p.pending_blocks.items.len - 1].data.table.column_alignments = alignments;
                 if (current_row == 1) {
                     // We need to go back and mark the header row and its column
@@ -439,7 +472,7 @@ fn appendBlockStart(p: *Parser, block_start: BlockStart) !void {
                     const datas = p.nodes.items(.data);
                     const header_data = datas[p.scratch_extra.getLast()];
                     for (p.extraChildren(header_data.container.children), 0..) |header_cell, i| {
-                        const alignment = if (i < alignments.len) alignments.buffer[i] else .unset;
+                        const alignment = if (i < alignments.len) alignments.get(i) else .unset;
                         const cell_data = &datas[@intFromEnum(header_cell)].table_cell;
                         cell_data.info.alignment = alignment;
                         cell_data.info.header = true;
@@ -606,7 +639,7 @@ fn startListItem(unindented_line: []const u8) ?ListItemStart {
 }
 
 const TableRowStart = struct {
-    cells: std.BoundedArray([]const u8, max_table_columns),
+    cells: BoundedArray([]const u8, max_table_columns),
 };
 
 fn startTableRow(unindented_line: []const u8) ?TableRowStart {
@@ -615,7 +648,7 @@ fn startTableRow(unindented_line: []const u8) ?TableRowStart {
         mem.endsWith(u8, unindented_line, "\\|") or
         !mem.endsWith(u8, unindented_line, "|")) return null;
 
-    var cells: std.BoundedArray([]const u8, max_table_columns) = .{};
+    var cells: BoundedArray([]const u8, max_table_columns) = BoundedArray([]const u8, max_table_columns).init("");
     const table_row_content = unindented_line[1 .. unindented_line.len - 1];
     var cell_start: usize = 0;
     var i: usize = 0;
@@ -623,7 +656,7 @@ fn startTableRow(unindented_line: []const u8) ?TableRowStart {
         switch (table_row_content[i]) {
             '\\' => i += 1,
             '|' => {
-                cells.append(table_row_content[cell_start..i]) catch return null;
+                cells.appendAssumeCapacity(table_row_content[cell_start..i]);
                 cell_start = i + 1;
             },
             '`' => {
@@ -641,15 +674,15 @@ fn startTableRow(unindented_line: []const u8) ?TableRowStart {
             else => {},
         }
     }
-    cells.append(table_row_content[cell_start..]) catch return null;
+    cells.appendAssumeCapacity(table_row_content[cell_start..]);
 
     return .{ .cells = cells };
 }
 
 fn parseTableHeaderDelimiter(
-    row_cells: std.BoundedArray([]const u8, max_table_columns),
-) ?std.BoundedArray(Node.TableCellAlignment, max_table_columns) {
-    var alignments: std.BoundedArray(Node.TableCellAlignment, max_table_columns) = .{};
+    row_cells: BoundedArray([]const u8, max_table_columns),
+) ?BoundedArray(Node.TableCellAlignment, max_table_columns) {
+    var alignments: BoundedArray(Node.TableCellAlignment, max_table_columns) = BoundedArray(Node.TableCellAlignment, max_table_columns).init(.unset);
     for (row_cells.slice()) |content| {
         const alignment = parseTableHeaderDelimiterCell(content) orelse return null;
         alignments.appendAssumeCapacity(alignment);
@@ -928,8 +961,8 @@ const InlineParser = struct {
     parent: *Parser,
     content: []const u8,
     pos: usize = 0,
-    pending_inlines: std.ArrayListUnmanaged(PendingInline) = .{},
-    completed_inlines: std.ArrayListUnmanaged(CompletedInline) = .{},
+    pending_inlines: std.ArrayList(PendingInline) = .{},
+    completed_inlines: std.ArrayList(CompletedInline) = .{},
 
     const PendingInline = struct {
         tag: Tag,

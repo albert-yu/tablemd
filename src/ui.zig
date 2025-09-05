@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const sokol = @import("sokol");
-const ArrayList = std.ArrayListUnmanaged;
+const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const grid = @import("render/dot_grid.zig");
 const rect = @import("render/rect.zig");
@@ -468,19 +468,19 @@ pub const UI = struct {
     }
 
     pub fn handleCopy(self: *UI, allocator: Allocator) ![]const u8 {
-        var str_builder = std.ArrayList(u8).init(allocator);
+        var str_builder = try ArrayList(u8).initCapacity(allocator, 0);
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {},
                 .cell => |cell_pos| {
                     const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return error.CellNotFound;
                     const cell_content = cell.value.items;
-                    try str_builder.appendSlice(cell_content);
+                    try str_builder.appendSlice(allocator, cell_content);
                 },
                 .text => {},
             }
         }
-        return str_builder.toOwnedSlice();
+        return str_builder.toOwnedSlice(allocator);
     }
 
     pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) !void {
@@ -1396,9 +1396,9 @@ pub const UI = struct {
     }
 
     pub fn serializeTables(self: *UI, allocator: Allocator) ![]u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
-        var writer = buffer.writer();
+        var buffer = try ArrayList(u8).initCapacity(allocator, 0);
+        defer buffer.deinit(allocator);
+        var writer = buffer.writer(allocator);
 
         // Write number of tables
         try writer.writeInt(usize, self.tables.items.len, .little);
@@ -1413,7 +1413,7 @@ pub const UI = struct {
             try writer.writeAll(table_data);
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     /// This will clear existing tables and deserialize the provided data

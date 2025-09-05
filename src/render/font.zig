@@ -2,7 +2,7 @@
 const std = @import("std");
 const sokol = @import("sokol");
 const shd_font = @import("font_shader");
-const ArrayList = std.ArrayListUnmanaged;
+const ArrayList = std.ArrayList;
 
 const ft = @import("freetype");
 
@@ -169,7 +169,7 @@ pub const Renderer = struct {
             if (glyph_idx == 0) continue;
 
             _ = self.font.face.loadGlyph(glyph_idx, self.load_flags) catch {
-                std.log.err("[font] error while loading glyph for character {}", .{char});
+                std.log.err("[font] error while loading glyph for character {any}", .{char});
                 continue;
             };
 
@@ -189,7 +189,7 @@ pub const Renderer = struct {
         });
 
         // Setup texture buffers for glyph and curve data
-        self.bind.images[shd_font.IMG_glyphs_tex] = self.glyph_texture;
+        self.bind.views[shd_font.VIEW_glyphs_tex] = sg.makeView(.{ .texture = .{ .image = self.glyph_texture } });
         self.bind.samplers[shd_font.SMP_glyphs_smp] = sg.makeSampler(.{
             .label = "glyph sampler",
             .min_filter = .NEAREST,
@@ -197,7 +197,7 @@ pub const Renderer = struct {
             .wrap_u = .CLAMP_TO_EDGE,
             .wrap_v = .CLAMP_TO_EDGE,
         });
-        self.bind.images[shd_font.IMG_curves_tex] = self.curve_texture;
+        self.bind.views[shd_font.VIEW_curves_tex] = sg.makeView(.{ .texture = .{ .image = self.curve_texture } });
         self.bind.samplers[shd_font.SMP_curves_smp] = sg.makeSampler(.{
             .label = "curve sampler",
             .min_filter = .NEAREST,
@@ -426,7 +426,7 @@ pub const Renderer = struct {
 
         glyph_desc.data.subimage[0][0] = sg.asRange(glyph_data);
         self.glyph_texture = sg.makeImage(glyph_desc);
-        self.bind.images[shd_font.IMG_glyphs_tex] = self.glyph_texture;
+        self.bind.views[shd_font.VIEW_glyphs_tex] = sg.makeView(.{ .texture = .{ .image = self.glyph_texture } });
 
         // Ensure minimum size for curve texture
         const curve_count = @max(self.buffer_curves.items.len, 1);
@@ -461,7 +461,7 @@ pub const Renderer = struct {
 
         curve_desc.data.subimage[0][0] = sg.asRange(curve_data);
         self.curve_texture = sg.makeImage(curve_desc);
-        self.bind.images[shd_font.IMG_curves_tex] = self.curve_texture;
+        self.bind.views[shd_font.VIEW_curves_tex] = sg.makeView(.{ .texture = .{ .image = self.curve_texture } });
     }
 
     pub fn clear(self: *Renderer) void {
@@ -482,7 +482,7 @@ pub const Renderer = struct {
 
         for (self.text_elements.items) |text_element| {
             self.populateVertexArray(&vertices, &indices, text_element.x, text_element.y, text_element.text) catch |err| {
-                std.log.err("[font] error while populating vertex array: {}", .{err});
+                std.log.err("[font] error while populating vertex array: {any}", .{err});
                 continue;
             };
         }
@@ -533,7 +533,7 @@ pub const Renderer = struct {
             const glyph = entry.value_ptr.*;
 
             _ = self.font.face.loadGlyph(glyph.index, self.load_flags) catch {
-                std.log.err("[font] error while reloading glyph for character {}", .{charcode});
+                std.log.err("[font] error while reloading glyph for character {any}", .{charcode});
                 continue;
             };
 
@@ -559,7 +559,7 @@ pub const Renderer = struct {
         var previous: ft.UInt = 0;
 
         const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
-            std.log.err("Invalid UTF-8 text: {}", .{err});
+            std.log.err("Invalid UTF-8 text: {any}", .{err});
             return;
         };
         var iterator = utf8_view.iterator();
@@ -645,11 +645,11 @@ pub const Renderer = struct {
             // flip y-axis
             .y = -text_element.y + manual_adjust_y,
         }) catch |err| {
-            std.log.err("[font] error while appending text element: {}", .{err});
+            std.log.err("[font] error while appending text element: {any}", .{err});
             return;
         };
         self.prepareGlyphsForText(text_element.text) catch |err| {
-            std.log.err("[font] error while preparing glyphs for text: {}", .{err});
+            std.log.err("[font] error while preparing glyphs for text: {any}", .{err});
             return;
         };
     }
@@ -665,7 +665,7 @@ pub const Renderer = struct {
 
         // Decode UTF-8 text
         const utf8_view = std.unicode.Utf8View.init(text) catch |err| {
-            std.log.err("Invalid UTF-8 text: {}", .{err});
+            std.log.err("Invalid UTF-8 text: {any}", .{err});
             return;
         };
         var iterator = utf8_view.iterator();
@@ -679,7 +679,7 @@ pub const Renderer = struct {
             const glyph_index = self.font.codepointGlyphIndex(charcode) orelse continue;
 
             _ = self.font.face.loadGlyph(glyph_index, self.load_flags) catch {
-                std.log.err("[font] error while loading glyph for character {}", .{charcode});
+                std.log.err("[font] error while loading glyph for character {any}", .{charcode});
                 continue;
             };
 

@@ -112,7 +112,7 @@ export fn init() void {
     const text_width = state.font_renderer.setup(.{
         .color = theme.DARK_THEME.text_color,
     }) catch |err| {
-        std.log.err("Failed to setup font renderer: {}", .{err});
+        std.log.err("Failed to setup font renderer: {any}", .{err});
         return;
     };
     state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
@@ -153,7 +153,7 @@ export fn frame() void {
 
     clear();
     state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
-        std.log.err("Failed to add UI to scene: {}", .{err});
+        std.log.err("Failed to add UI to scene: {any}", .{err});
     };
     for (state.scene.rects.items) |rect| {
         state.rect_renderer.add(rect);
@@ -218,7 +218,7 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
     const text = std.mem.span(text_ptr);
     if (text.len > 0) {
         state.ui.handlePaste(state.allocator, text) catch |err| {
-            std.log.err("Failed to handle paste: {}", .{err});
+            std.log.err("Failed to handle paste: {any}", .{err});
             return;
         };
         updateTableFromCursorState();
@@ -229,7 +229,7 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
 export fn handle_deserialize(data_ptr: [*]const u8, data_len: usize) void {
     const data_slice = data_ptr[0..data_len];
     state.ui.deserializeTables(state.allocator, data_slice) catch |err| {
-        std.log.err("Failed to deserialize tables: {}", .{err});
+        std.log.err("Failed to deserialize tables: {any}", .{err});
         return;
     };
     updateTableFromCursorState();
@@ -238,7 +238,7 @@ export fn handle_deserialize(data_ptr: [*]const u8, data_len: usize) void {
 /// JS world requests a serialized version of the current UI
 export fn request_serialize() void {
     const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
-        std.log.err("Failed to serialize tables: {}", .{err});
+        std.log.err("Failed to serialize tables: {any}", .{err});
         return;
     };
     sendSerializedTables(serialized_tables);
@@ -352,7 +352,7 @@ export fn input(ev: ?*const sapp.Event) void {
                         return;
                     };
                     defer state.allocator.free(s);
-                    const null_terminated = std.fmt.allocPrintZ(state.allocator, "{s}", .{s}) catch {
+                    const null_terminated = state.allocator.dupeZ(u8, s) catch {
                         return;
                     };
                     defer state.allocator.free(null_terminated);
@@ -391,7 +391,7 @@ fn updateTableFromCursorState() void {
         };
         if (table) |tbl| {
             sendTableToDOM(tbl) catch |err| {
-                std.log.err("Failed to send table to DOM: {}", .{err});
+                std.log.err("Failed to send table to DOM: {any}", .{err});
             };
         }
     } else {
@@ -569,10 +569,10 @@ fn markdownToHtml(md: []const u8) ![]const u8 {
     var doc = try parser.endInput();
     defer doc.deinit(state.allocator);
 
-    var html_str = std.ArrayList(u8).init(state.allocator);
-    defer html_str.deinit();
-    try doc.render(html_str.writer());
-    return html_str.toOwnedSlice();
+    var html_str = try std.ArrayList(u8).initCapacity(state.allocator, 0);
+    defer html_str.deinit(state.allocator);
+    try doc.render(html_str.writer(state.allocator));
+    return html_str.toOwnedSlice(state.allocator);
 }
 
 fn handleTouchEnded(event: *const sapp.Event) bool {

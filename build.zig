@@ -124,7 +124,7 @@ fn buildNative(b: *Build, opts: Options) !void {
 
 // for web builds, the Zig code needs to be built into a library and linked with the Emscripten linker
 fn buildWeb(b: *Build, opts: Options) !void {
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "root",
         .root_module = opts.mod,
     });
@@ -153,7 +153,7 @@ fn buildWeb(b: *Build, opts: Options) !void {
         .use_filesystem = false,
         .shell_file_path = b.path("src/web/shell.html"),
         .extra_args = &.{
-            "-sUSE_OFFSET_CONVERTER",
+            // "-sUSE_OFFSET_CONVERTER",
             "-sALLOW_MEMORY_GROWTH=1",
             // Need to include Sokol's original entry point (main),
             // because specifying this flag overrides the original
@@ -195,7 +195,7 @@ fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !freetype_build.EmsdkCach
     var cache_init: ?*Build.Step.Run = null;
     var dir = std.fs.openDirAbsolute(
         include_path.getPath(b),
-        std.fs.Dir.OpenDirOptions{
+        .{
             .access_sub_paths = true,
             .no_follow = true,
         },
