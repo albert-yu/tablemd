@@ -1011,7 +1011,7 @@ pub const UI = struct {
 
     pub fn handleEnter(self: *UI, allocator: Allocator, modifiers: u32) void {
         if (modifiers & sapp.modifier_shift != 0) {
-            // TODO: handle shift+enter to insert new line
+            self.insertNewline(allocator);
             return;
         }
         if (self.active_cursor) |cursor| {
@@ -1032,6 +1032,46 @@ pub const UI = struct {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
                     }
+                },
+            }
+        }
+    }
+
+    fn insertNewline(self: *UI, allocator: Allocator) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // do nothing for now
+                },
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    // Insert newline at the beginning of the cell
+                    cell.value.insert(allocator, 0, '\n') catch return;
+
+                    // Move cursor to text position after the newline
+                    const padding = self.units.paddingLeft();
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = cell_pos.cell_index,
+                            .pos = Vec2{ cell_pos.pos[0] + padding, cell_pos.pos[1] + self.units.text.height },
+                            .char_offset = 1, // After the newline character
+                        },
+                    };
+                },
+                .text => |text_pos| {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    // Insert newline at current cursor position
+                    cell.value.insert(allocator, text_pos.char_offset, '\n') catch return;
+
+                    // Move cursor to the next line, at the beginning
+                    const padding = self.units.paddingLeft();
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = text_pos.cell_index,
+                            .pos = Vec2{ self.getCellLeftPosition(text_pos.cell_index) + padding, text_pos.pos[1] + self.units.text.height },
+                            .char_offset = text_pos.char_offset + 1, // After the newline character
+                        },
+                    };
                 },
             }
         }
@@ -1108,6 +1148,16 @@ pub const UI = struct {
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.hover_cursor_color));
         }
+    }
+
+    fn getCellLeftPosition(self: *UI, cell_index: CellIndex) f32 {
+        const table = self.tables.items[cell_index.table_index];
+        const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+        var cell_left_x = table_start_x;
+        for (0..cell_index.column_index) |col_idx| {
+            cell_left_x += table.columns.items[col_idx].size(self.units).width;
+        }
+        return cell_left_x;
     }
 
     fn getCursor(self: *UI, p: Vec2) Cursor {
