@@ -347,12 +347,14 @@ export fn input(ev: ?*const sapp.Event) void {
             const ctrl_or_cmd = event.modifiers & sapp.modifier_super != 0 or event.modifiers & sapp.modifier_ctrl != 0;
             if (ctrl_or_cmd) {
                 if (event.char_code == 'c') {
-                    const s = state.ui.handleCopy(state.allocator) catch {
-                        std.log.err("Failed to copy text", .{});
+                    const s = state.ui.handleCopy(state.allocator) catch |err| {
+                        std.log.err("Failed to copy text: {any}", .{err});
                         return;
                     };
                     defer state.allocator.free(s);
-                    const null_terminated = state.allocator.dupeZ(u8, s) catch {
+                    const null_terminated = state.allocator.dupeZ(u8, s) catch |err| {
+                        state.allocator.free(s);
+                        std.log.err("Failed to copy text: {any}", .{err});
                         return;
                     };
                     defer state.allocator.free(null_terminated);

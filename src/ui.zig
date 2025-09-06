@@ -1011,7 +1011,7 @@ pub const UI = struct {
 
     pub fn handleEnter(self: *UI, allocator: Allocator, modifiers: u32) void {
         if (modifiers & sapp.modifier_shift != 0) {
-            // TODO: handle shift+enter to insert new line
+            self.insertNewline(allocator);
             return;
         }
         if (self.active_cursor) |cursor| {
@@ -1032,6 +1032,46 @@ pub const UI = struct {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
                     }
+                },
+            }
+        }
+    }
+
+    fn insertNewline(self: *UI, allocator: Allocator) void {
+        if (self.active_cursor) |cursor| {
+            switch (cursor) {
+                .empty => {
+                    // do nothing for now
+                },
+                .cell => |cell_pos| {
+                    const cell = self.getCellFromIndex(cell_pos.cell_index) orelse return;
+                    // Insert newline at the beginning of the cell
+                    cell.value.insert(allocator, 0, '\n') catch return;
+
+                    // Move cursor to text position after the newline
+                    const padding = self.units.paddingLeft();
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = cell_pos.cell_index,
+                            .pos = Vec2{ cell_pos.pos[0] + padding, cell_pos.pos[1] + self.units.text.height },
+                            .char_offset = 1, // After the newline character
+                        },
+                    };
+                },
+                .text => |text_pos| {
+                    const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
+                    // Insert newline at current cursor position
+                    cell.value.insert(allocator, text_pos.char_offset, '\n') catch return;
+
+                    // Move cursor to the next line, at the beginning
+                    const padding = self.units.paddingLeft();
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = text_pos.cell_index,
+                            .pos = Vec2{ self.getCellLeftPosition(text_pos.cell_index) + padding, text_pos.pos[1] + self.units.text.height },
+                            .char_offset = text_pos.char_offset + 1, // After the newline character
+                        },
+                    };
                 },
             }
         }
@@ -1061,6 +1101,34 @@ pub const UI = struct {
                     const cell = self.getCellFromIndex(text_pos.cell_index) orelse return;
                     if (cell.value.items.len == 0 or text_pos.char_offset == 0) {
                         return;
+                    }
+
+                    // Check if cursor is at the beginning of a line and there's a line above it
+                    if (findLineAndColumn(cell, text_pos.char_offset)) |line_info| {
+                        if (line_info.column == 0 and line_info.line > 0) {
+                            // We're at the beginning of a line with a line above
+                            // Find the end of the previous line
+                            const prev_line_end_offset = findEndOfLine(cell, line_info.line - 1);
+
+                            // Remove the newline character
+                            _ = cell.value.orderedRemove(prev_line_end_offset);
+
+                            // Move cursor to the end of the previous line
+                            const prev_line_info = findLineAndColumn(cell, prev_line_end_offset) orelse return;
+                            const cell_left_x = self.getCellLeftPosition(text_pos.cell_index);
+                            const padding = self.units.paddingLeft();
+                            const new_x = cell_left_x + padding + @as(f32, @floatFromInt(prev_line_info.column)) * self.units.text.width;
+                            const new_y = text_pos.pos[1] - self.units.text.height;
+
+                            self.active_cursor = .{
+                                .text = .{
+                                    .cell_index = text_pos.cell_index,
+                                    .pos = .{ new_x, new_y },
+                                    .char_offset = prev_line_end_offset,
+                                },
+                            };
+                            return;
+                        }
                     }
 
                     // Find the start of the previous UTF-8 character
@@ -1108,6 +1176,16 @@ pub const UI = struct {
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.hover_cursor_color));
         }
+    }
+
+    fn getCellLeftPosition(self: *UI, cell_index: CellIndex) f32 {
+        const table = self.tables.items[cell_index.table_index];
+        const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+        var cell_left_x = table_start_x;
+        for (0..cell_index.column_index) |col_idx| {
+            cell_left_x += table.columns.items[col_idx].size(self.units).width;
+        }
+        return cell_left_x;
     }
 
     fn getCursor(self: *UI, p: Vec2) Cursor {
@@ -1296,12 +1374,8 @@ pub const UI = struct {
             const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
             while (offset < cell.value.items.len) {
                 const char = cell.value.items[offset];
-                if (char == '\n') {
-                    // reset x to start
-                    x = containing_cell.pos[0] + padding;
-                    offset += 1;
-                    break;
-                }
+
+                // Check if click position matches current character position before processing the character
                 const char_pos = Vec2{ line_x, line_y };
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
@@ -1310,6 +1384,14 @@ pub const UI = struct {
                         .char_offset = offset,
                     };
                 }
+
+                if (char == '\n') {
+                    // reset x to start for next line
+                    x = containing_cell.pos[0] + padding;
+                    offset += 1;
+                    break;
+                }
+
                 // Move to next UTF-8 character (advance visually by one character width)
                 line_x += self.units.text.width;
                 offset = findNextUtf8CharStart(cell.value.items, offset);
@@ -1522,6 +1604,29 @@ fn countLines(cell: *const Cell) usize {
         if (char == '\n') lines += 1;
     }
     return lines;
+}
+
+fn findEndOfLine(cell: *const Cell, target_line: usize) usize {
+    var line: usize = 0;
+    var offset: usize = 0;
+
+    while (offset < cell.value.items.len) {
+        if (line == target_line) {
+            // Look for the newline character at the end of this line
+            while (offset < cell.value.items.len and cell.value.items[offset] != '\n') {
+                offset += 1;
+            }
+            return offset; // This is the position of the newline or end of string
+        }
+
+        const char = cell.value.items[offset];
+        if (char == '\n') {
+            line += 1;
+        }
+        offset += 1;
+    }
+
+    return offset; // End of string
 }
 
 fn findPrevUtf8CharStart(utf8_text: []const u8, current_offset: usize) usize {

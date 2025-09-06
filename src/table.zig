@@ -369,7 +369,14 @@ pub const Table = struct {
                 else
                     "";
 
-                try result.appendSlice(allocator, cell_value);
+                // Replace newlines with spaces in cell content
+                for (cell_value) |char| {
+                    if (char == '\n') {
+                        try result.append(allocator, ' ');
+                    } else {
+                        try result.append(allocator, char);
+                    }
+                }
 
                 // Add padding to align columns
                 const char_count = std.unicode.utf8CountCodepoints(cell_value) catch cell_value.len;
