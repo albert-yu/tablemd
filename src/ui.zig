@@ -1010,7 +1010,8 @@ pub const UI = struct {
     }
 
     pub fn handleEnter(self: *UI, allocator: Allocator, modifiers: u32) void {
-        if (modifiers & sapp.modifier_shift != 0) {
+        const ENABLE_NEWLINE = false;
+        if (modifiers & sapp.modifier_shift != 0 and ENABLE_NEWLINE) {
             self.insertNewline(allocator);
             return;
         }
