@@ -321,7 +321,7 @@ pub const Table = struct {
         };
     }
 
-    /// Convert table data to Markdown table format
+    /// Convert table data to Markdown table format with proper multi-line cell support
     pub fn md(self: Table, allocator: Allocator) ![]u8 {
         if (self.columns.items.len == 0) {
             std.log.warn("No columns in table", .{});
@@ -331,61 +331,94 @@ pub const Table = struct {
         var result = ArrayList(u8).initCapacity(allocator, 0) catch unreachable;
         defer result.deinit(allocator);
 
-        // Find the maximum number of rows
-        var max_rows: usize = 0;
+        // Find the maximum number of table rows
+        var max_table_rows: usize = 0;
         for (self.columns.items) |column| {
-            max_rows = @max(max_rows, column.data.items.len);
+            max_table_rows = @max(max_table_rows, column.data.items.len);
         }
 
-        if (max_rows == 0) {
+        if (max_table_rows == 0) {
             std.log.warn("No rows in table", .{});
             return allocator.dupe(u8, "");
         }
 
-        // Calculate maximum width for each column
+        // Split each cell into lines and calculate dimensions
+        var cell_lines = try allocator.alloc([][][]const u8, self.columns.items.len);
+        defer {
+            for (cell_lines) |col_lines| {
+                for (col_lines) |lines| {
+                    for (lines) |line| {
+                        allocator.free(line);
+                    }
+                    allocator.free(lines);
+                }
+                allocator.free(col_lines);
+            }
+            allocator.free(cell_lines);
+        }
+
         var column_widths = try allocator.alloc(usize, self.columns.items.len);
         defer allocator.free(column_widths);
 
+        // Process each column
         for (self.columns.items, 0..) |column, col_idx| {
+            cell_lines[col_idx] = try allocator.alloc([][]const u8, max_table_rows);
             var max_width: usize = 0;
-            for (column.data.items) |cell| {
-                const char_count = std.unicode.utf8CountCodepoints(cell.value.items) catch cell.value.items.len;
-                max_width = @max(max_width, char_count);
-            }
-            column_widths[col_idx] = max_width;
-        }
 
-        // Generate each row
-        for (0..max_rows) |row_idx| {
-            // Add pipe at start of row
-            try result.append(allocator, '|');
-
-            // Add cells for this row
-            for (self.columns.items, 0..) |column, col_idx| {
-                try result.append(allocator, ' ');
-
-                const cell_value = if (row_idx < column.data.items.len)
+            for (0..max_table_rows) |row_idx| {
+                const cell_content = if (row_idx < column.data.items.len)
                     column.data.items[row_idx].value.items
                 else
                     "";
 
-                try result.appendSlice(allocator, cell_value);
+                cell_lines[col_idx][row_idx] = try splitCellIntoLines(allocator, cell_content);
 
-                // Add padding to align columns
-                const char_count = std.unicode.utf8CountCodepoints(cell_value) catch cell_value.len;
-                const padding_needed = column_widths[col_idx] - char_count;
-                for (0..padding_needed) |_| {
-                    try result.append(allocator, ' ');
+                // Calculate max width for this column across all lines in all cells
+                const lines = cell_lines[col_idx][row_idx];
+                for (lines) |line| {
+                    const char_count = std.unicode.utf8CountCodepoints(line) catch line.len;
+                    max_width = @max(max_width, char_count);
                 }
+            }
+            column_widths[col_idx] = max_width;
+        }
 
-                try result.append(allocator, ' ');
-                try result.append(allocator, '|');
+        // Generate markdown table
+        for (0..max_table_rows) |table_row_idx| {
+            // Find the maximum number of lines in this table row
+            var max_lines_in_row: usize = 0;
+            for (0..self.columns.items.len) |col_idx| {
+                const lines = cell_lines[col_idx][table_row_idx];
+                max_lines_in_row = @max(max_lines_in_row, lines.len);
             }
 
-            try result.append(allocator, '\n');
+            // Output each line of this table row
+            for (0..max_lines_in_row) |line_idx| {
+                try result.append(allocator, '|');
 
-            // Add header separator after first row
-            if (row_idx == 0) {
+                for (0..self.columns.items.len) |col_idx| {
+                    try result.append(allocator, ' ');
+
+                    const lines = cell_lines[col_idx][table_row_idx];
+                    const line_content = if (line_idx < lines.len) lines[line_idx] else "";
+
+                    try result.appendSlice(allocator, line_content);
+
+                    // Add padding to align columns
+                    const char_count = std.unicode.utf8CountCodepoints(line_content) catch line_content.len;
+                    const padding_needed = column_widths[col_idx] - char_count;
+                    for (0..padding_needed) |_| {
+                        try result.append(allocator, ' ');
+                    }
+
+                    try result.append(allocator, ' ');
+                    try result.append(allocator, '|');
+                }
+                try result.append(allocator, '\n');
+            }
+
+            // Add header separator after first table row
+            if (table_row_idx == 0) {
                 try result.append(allocator, '|');
                 for (column_widths) |width| {
                     try result.append(allocator, ' ');
@@ -599,6 +632,47 @@ fn lineWidth(units: Units) f32 {
     return units.cell.width / 50.0;
 }
 
+/// Split cell content into individual lines for proper multi-line markdown table rendering
+fn splitCellIntoLines(allocator: Allocator, content: []const u8) ![][]const u8 {
+    if (content.len == 0) {
+        // Return single empty line for empty cells
+        const result = try allocator.alloc([]const u8, 1);
+        result[0] = try allocator.dupe(u8, "");
+        return result;
+    }
+
+    // Count newlines to determine number of lines
+    var line_count: usize = 1;
+    for (content) |char| {
+        if (char == '\n') {
+            line_count += 1;
+        }
+    }
+
+    var lines = try allocator.alloc([]const u8, line_count);
+    var line_idx: usize = 0;
+    var start: usize = 0;
+
+    for (content, 0..) |char, i| {
+        if (char == '\n') {
+            // Copy the line content (without the newline)
+            lines[line_idx] = try allocator.dupe(u8, content[start..i]);
+            line_idx += 1;
+            start = i + 1; // Skip the newline character
+        }
+    }
+
+    // Handle the last line (after the last newline, or the entire content if no newlines)
+    if (start < content.len) {
+        lines[line_idx] = try allocator.dupe(u8, content[start..]);
+    } else if (line_idx < line_count) {
+        // If content ends with newline, add empty line
+        lines[line_idx] = try allocator.dupe(u8, "");
+    }
+
+    return lines;
+}
+
 test "table serialization and deserialization" {
     const testing = std.testing;
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -670,4 +744,123 @@ test "empty table serialization" {
     // Verify empty table properties
     try testing.expectEqual(@as(usize, 0), deserialized_table.cols());
     try testing.expectEqual(@as(usize, 0), deserialized_table.rows());
+}
+
+test "split cell into lines" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Test empty string
+    const empty = try splitCellIntoLines(allocator, "");
+    defer {
+        for (empty) |line| {
+            allocator.free(line);
+        }
+        allocator.free(empty);
+    }
+    try testing.expectEqual(@as(usize, 1), empty.len);
+    try testing.expectEqualStrings("", empty[0]);
+
+    // Test single line
+    const single = try splitCellIntoLines(allocator, "Hello World");
+    defer {
+        for (single) |line| {
+            allocator.free(line);
+        }
+        allocator.free(single);
+    }
+    try testing.expectEqual(@as(usize, 1), single.len);
+    try testing.expectEqualStrings("Hello World", single[0]);
+
+    // Test multiline content
+    const multiline = try splitCellIntoLines(allocator, "Line 1\nLine 2\nLine 3");
+    defer {
+        for (multiline) |line| {
+            allocator.free(line);
+        }
+        allocator.free(multiline);
+    }
+    try testing.expectEqual(@as(usize, 3), multiline.len);
+    try testing.expectEqualStrings("Line 1", multiline[0]);
+    try testing.expectEqualStrings("Line 2", multiline[1]);
+    try testing.expectEqualStrings("Line 3", multiline[2]);
+
+    // Test content starting with newline
+    const starts_with_newline = try splitCellIntoLines(allocator, "\nStart");
+    defer {
+        for (starts_with_newline) |line| {
+            allocator.free(line);
+        }
+        allocator.free(starts_with_newline);
+    }
+    try testing.expectEqual(@as(usize, 2), starts_with_newline.len);
+    try testing.expectEqualStrings("", starts_with_newline[0]);
+    try testing.expectEqualStrings("Start", starts_with_newline[1]);
+
+    // Test content ending with newline
+    const ends_with_newline = try splitCellIntoLines(allocator, "End\n");
+    defer {
+        for (ends_with_newline) |line| {
+            allocator.free(line);
+        }
+        allocator.free(ends_with_newline);
+    }
+    try testing.expectEqual(@as(usize, 2), ends_with_newline.len);
+    try testing.expectEqualStrings("End", ends_with_newline[0]);
+    try testing.expectEqualStrings("", ends_with_newline[1]);
+}
+
+test "markdown output with multiline cells" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    // Create a table with multiline content
+    var table = Table.init(allocator);
+    defer table.deinit(allocator);
+
+    const col1 = try table.addColumn(allocator);
+    const col2 = try table.addColumn(allocator);
+
+    try table.addRow(allocator);
+    try table.addRow(allocator);
+
+    // Set multiline cell values
+    col1.data.items[0].value.clearAndFree(allocator);
+    try col1.data.items[0].value.appendSlice(allocator, "Header\nMultiline");
+
+    col1.data.items[1].value.clearAndFree(allocator);
+    try col1.data.items[1].value.appendSlice(allocator, "Cell\nWith\nThree\nLines");
+
+    col2.data.items[0].value.clearAndFree(allocator);
+    try col2.data.items[0].value.appendSlice(allocator, "Single");
+
+    col2.data.items[1].value.clearAndFree(allocator);
+    try col2.data.items[1].value.appendSlice(allocator, "Two\nLines");
+
+    // Generate markdown
+    const markdown = try table.md(allocator);
+    defer allocator.free(markdown);
+
+    std.debug.print("\nGenerated markdown:\n{s}\n", .{markdown});
+
+    // Verify that cells are properly rendered across multiple lines
+    try testing.expect(std.mem.indexOf(u8, markdown, "Header") != null);
+    try testing.expect(std.mem.indexOf(u8, markdown, "Multiline") != null);
+    try testing.expect(std.mem.indexOf(u8, markdown, "Cell") != null);
+    try testing.expect(std.mem.indexOf(u8, markdown, "With") != null);
+    try testing.expect(std.mem.indexOf(u8, markdown, "Three") != null);
+    try testing.expect(std.mem.indexOf(u8, markdown, "Lines") != null);
+    try testing.expect(std.mem.indexOf(u8, markdown, "Two") != null);
+
+    // Verify table structure is maintained
+    try testing.expect(std.mem.startsWith(u8, markdown, "|"));
+    try testing.expect(std.mem.indexOf(u8, markdown, "---") != null);
+
+    // Count the number of lines - should be more than a simple 2-row table
+    var line_count: usize = 0;
+    for (markdown) |c| {
+        if (c == '\n') line_count += 1;
+    }
+    // Should have at least: header lines + separator + data lines
+    try testing.expect(line_count >= 5);
 }
