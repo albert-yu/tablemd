@@ -1103,6 +1103,34 @@ pub const UI = struct {
                         return;
                     }
 
+                    // Check if cursor is at the beginning of a line and there's a line above it
+                    if (findLineAndColumn(cell, text_pos.char_offset)) |line_info| {
+                        if (line_info.column == 0 and line_info.line > 0) {
+                            // We're at the beginning of a line with a line above
+                            // Find the end of the previous line
+                            const prev_line_end_offset = findEndOfLine(cell, line_info.line - 1);
+
+                            // Remove the newline character
+                            _ = cell.value.orderedRemove(prev_line_end_offset);
+
+                            // Move cursor to the end of the previous line
+                            const prev_line_info = findLineAndColumn(cell, prev_line_end_offset) orelse return;
+                            const cell_left_x = self.getCellLeftPosition(text_pos.cell_index);
+                            const padding = self.units.paddingLeft();
+                            const new_x = cell_left_x + padding + @as(f32, @floatFromInt(prev_line_info.column)) * self.units.text.width;
+                            const new_y = text_pos.pos[1] - self.units.text.height;
+
+                            self.active_cursor = .{
+                                .text = .{
+                                    .cell_index = text_pos.cell_index,
+                                    .pos = .{ new_x, new_y },
+                                    .char_offset = prev_line_end_offset,
+                                },
+                            };
+                            return;
+                        }
+                    }
+
                     // Find the start of the previous UTF-8 character
                     const prev_char_start = findPrevUtf8CharStart(cell.value.items, text_pos.char_offset);
 
@@ -1576,6 +1604,29 @@ fn countLines(cell: *const Cell) usize {
         if (char == '\n') lines += 1;
     }
     return lines;
+}
+
+fn findEndOfLine(cell: *const Cell, target_line: usize) usize {
+    var line: usize = 0;
+    var offset: usize = 0;
+
+    while (offset < cell.value.items.len) {
+        if (line == target_line) {
+            // Look for the newline character at the end of this line
+            while (offset < cell.value.items.len and cell.value.items[offset] != '\n') {
+                offset += 1;
+            }
+            return offset; // This is the position of the newline or end of string
+        }
+
+        const char = cell.value.items[offset];
+        if (char == '\n') {
+            line += 1;
+        }
+        offset += 1;
+    }
+
+    return offset; // End of string
 }
 
 fn findPrevUtf8CharStart(utf8_text: []const u8, current_offset: usize) usize {
