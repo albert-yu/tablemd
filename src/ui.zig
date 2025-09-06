@@ -1346,12 +1346,8 @@ pub const UI = struct {
             const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
             while (offset < cell.value.items.len) {
                 const char = cell.value.items[offset];
-                if (char == '\n') {
-                    // reset x to start
-                    x = containing_cell.pos[0] + padding;
-                    offset += 1;
-                    break;
-                }
+
+                // Check if click position matches current character position before processing the character
                 const char_pos = Vec2{ line_x, line_y };
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
@@ -1360,6 +1356,14 @@ pub const UI = struct {
                         .char_offset = offset,
                     };
                 }
+
+                if (char == '\n') {
+                    // reset x to start for next line
+                    x = containing_cell.pos[0] + padding;
+                    offset += 1;
+                    break;
+                }
+
                 // Move to next UTF-8 character (advance visually by one character width)
                 line_x += self.units.text.width;
                 offset = findNextUtf8CharStart(cell.value.items, offset);
