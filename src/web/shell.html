@@ -106,13 +106,6 @@
                 transform: rotate(-180deg);
             }
 
-            @media (max-width: 768px) {
-                .side-panel {
-                    /* Adjust height for mobile */
-                    height: calc(90vh - 100px);
-                }
-            }
-
             .code-section {
                 flex: 1;
                 background-color: rgba(21, 50, 71, 0.8);
@@ -199,6 +192,105 @@
                 background-color: rgba(139, 69, 19, 0.8);
                 color: #ffcccb;
             }
+
+            .help-button {
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                width: 50px;
+                height: 50px;
+                background-color: rgba(14, 33, 47, 0.9);
+                border: white solid 1px;
+                border-radius: 50%;
+                backdrop-filter: blur(10px);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                transition: background-color 0.2s;
+                z-index: 1001;
+            }
+
+            .help-button:hover {
+                background-color: rgba(21, 50, 71, 0.9);
+            }
+
+            .help-menu {
+                position: fixed;
+                bottom: 85px;
+                left: 15px;
+                width: min(400px, 80vw);
+                height: calc(100vh - 100px);
+                background-color: rgba(14, 33, 47, 0.95);
+                border: rgba(120, 120, 120, 0.9) solid 1px;
+                border-radius: 18px;
+                backdrop-filter: blur(10px);
+                z-index: 1000;
+                padding: 20px;
+                box-sizing: border-box;
+                color: white;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                transition: opacity 0.3s ease-in-out;
+                overflow-y: auto;
+            }
+
+            .help-menu.hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .help-menu h2 {
+                margin: 0 0 10px 0;
+                color: white;
+                font-size: 24px;
+                font-weight: 600;
+            }
+
+            .help-menu h3 {
+                margin: 20px 0 10px 0;
+                color: #87ceeb;
+                font-size: 18px;
+                font-weight: 500;
+            }
+
+            .help-menu p {
+                margin: 5px 0;
+                line-height: 1.5;
+                color: #e0e0e0;
+            }
+
+            .help-menu ul {
+                margin: 5px 0 5px 20px;
+                color: #e0e0e0;
+            }
+
+            .help-menu li {
+                margin: 3px 0;
+                line-height: 1.4;
+            }
+
+            .help-menu code {
+                background-color: rgba(21, 50, 71, 0.8);
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
+                font-size: 13px;
+                color: #87ceeb;
+            }
+
+            @media (max-width: 768px) {
+                .side-panel,
+                .help-menu {
+                    /* Adjust height for mobile */
+                    height: calc(90vh - 100px);
+                }
+            }
         </style>
     </head>
 
@@ -255,6 +347,58 @@
                 <path d="M7 14l5-5 5 5z" />
             </svg>
         </button>
+        <button class="help-button" onclick="toggleHelpMenu()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"
+                />
+            </svg>
+        </button>
+        <div class="help-menu hidden" id="help-menu">
+            <h2>TableMD Help</h2>
+
+            <h3>Getting Started</h3>
+            <p>
+                TableMD is a visual markdown table editor. Click anywhere on the
+                canvas to start creating your first table.
+            </p>
+
+            <h3>Basic Controls</h3>
+            <ul>
+                <li><strong>Click</strong> - Select and edit a cell</li>
+                <li>
+                    <strong>Tab / Shift+Tab</strong> - Navigate between cells
+                </li>
+                <li><strong>Enter</strong> - Move to next row</li>
+                <li><strong>Drag</strong> - Pan around the canvas</li>
+                <li><strong>Scroll / Pinch</strong> - Zoom in and out</li>
+            </ul>
+
+            <h3>Editing Tables</h3>
+            <ul>
+                <li>Type in any cell to add content</li>
+                <li>Edit cells adjacent to the table to expand it</li>
+                <li>
+                    Use <code>Ctrl+V</code> or <code>Cmd+V</code> to paste text
+                </li>
+                <li>Tables automatically save as you work</li>
+            </ul>
+
+            <h3>Export Options</h3>
+            <p>Use the panel on the right to:</p>
+            <ul>
+                <li>Copy markdown source code</li>
+                <li>Copy rendered HTML</li>
+                <li>Clear all tables if needed</li>
+            </ul>
+
+            <h3>Tips</h3>
+            <ul>
+                <li>Your work is automatically saved locally</li>
+                <li>Works offline once loaded</li>
+                <li>Optimized for both desktop and mobile</li>
+            </ul>
+        </div>
         <script type="text/javascript">
             var Module = {
                 preRun: [],
@@ -426,6 +570,11 @@
             function toggleSidePanel() {
                 const sidePanel = document.getElementById("side-panel");
                 sidePanel.classList.toggle("collapsed");
+            }
+
+            function toggleHelpMenu() {
+                const helpMenu = document.getElementById("help-menu");
+                helpMenu.classList.toggle("hidden");
             }
 
             function clearAllTables() {
