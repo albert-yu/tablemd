@@ -47,10 +47,9 @@
                 padding: 5px;
             }
 
-            .side-panel {
+            .panel-base {
                 position: fixed;
                 bottom: 85px;
-                right: 15px;
                 width: min(400px, 80vw);
                 height: calc(100vh - 100px);
                 background-color: rgba(14, 33, 47, 0.9);
@@ -66,8 +65,17 @@
                     sans-serif;
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
                 transition: opacity 0.3s ease-in-out;
+            }
+
+            .panel-collapsed {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .side-panel {
+                right: 15px;
+                gap: 10px;
             }
 
             .side-panel.collapsed {
@@ -217,27 +225,11 @@
             }
 
             .help-menu {
-                position: fixed;
-                bottom: 85px;
                 left: 15px;
-                width: min(400px, 80vw);
-                height: calc(100vh - 100px);
-                background-color: rgba(14, 33, 47, 0.95);
-                border: rgba(120, 120, 120, 0.9) solid 1px;
-                border-radius: 18px;
-                backdrop-filter: blur(10px);
-                z-index: 1000;
                 padding: 20px;
-                box-sizing: border-box;
-                color: white;
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    sans-serif;
-                display: flex;
-                flex-direction: column;
                 gap: 15px;
-                transition: opacity 0.3s ease-in-out;
                 overflow-y: auto;
+                background-color: rgba(14, 33, 47, 0.95);
             }
 
             .help-menu.hidden {
@@ -308,8 +300,7 @@
             }
 
             @media (max-width: 768px) {
-                .side-panel,
-                .help-menu {
+                .panel-base {
                     /* Adjust height for mobile */
                     height: calc(90vh - 100px);
                 }
@@ -323,7 +314,7 @@
             id="canvas"
             oncontextmenu="event.preventDefault()"
         ></canvas>
-        <div class="side-panel" id="side-panel">
+        <div class="panel-base side-panel" id="side-panel">
             <input id="mobile-keyboard-focus" class="invisible" />
             <div class="code-section">
                 <div class="overflow-container">
@@ -377,7 +368,7 @@
                 />
             </svg>
         </button>
-        <div class="help-menu hidden" id="help-menu">
+        <div class="panel-base help-menu hidden" id="help-menu">
             <h2>TableMD Help</h2>
 
             <h3>Getting Started</h3>
