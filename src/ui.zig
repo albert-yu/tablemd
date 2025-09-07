@@ -462,7 +462,7 @@ pub const UI = struct {
             .RIGHT => self.handleArrowRight(),
             .UP => self.handleArrowUp(),
             .DOWN => self.handleArrowDown(),
-            .TAB => self.handleTab(),
+            .TAB => self.handleTab(modifiers),
             else => {},
         }
     }
@@ -936,6 +936,83 @@ pub const UI = struct {
         };
     }
 
+    fn tabToPrevColumn(self: *UI, cell_index: CellIndex) void {
+        const table = self.tables.items[cell_index.table_index];
+        const current_col = cell_index.column_index;
+
+        // Check if we're at the leftmost column
+        if (current_col == 0) {
+            // Go to the last column of the previous row
+            if (cell_index.row_index == 0) {
+                return; // Can't tab further - at the first cell of the table
+            }
+
+            const prev_row_idx = cell_index.row_index - 1;
+            const last_col_idx = table.columns.items.len - 1;
+            const last_column = table.columns.items[last_col_idx];
+
+            // Calculate position of the last cell in the previous row
+            const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+            const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+            var column_x = table_start_x;
+            for (0..last_col_idx) |col_idx| {
+                column_x += table.columns.items[col_idx].size(self.units).width;
+            }
+
+            // Calculate cell Y position
+            var cell_y = table_start_y;
+            for (0..prev_row_idx) |row_i| {
+                cell_y += last_column.data.items[row_i].size(self.units).height;
+            }
+
+            const padding = self.units.paddingLeft();
+            self.active_cursor = .{
+                .text = .{
+                    .cell_index = CellIndex{
+                        .table_index = cell_index.table_index,
+                        .column_index = last_col_idx,
+                        .row_index = prev_row_idx,
+                    },
+                    .pos = Vec2{ column_x + padding, cell_y },
+                    .char_offset = 0,
+                },
+            };
+        } else {
+            // Move to the previous column to the left
+            const prev_col_idx = current_col - 1;
+            const prev_column = table.columns.items[prev_col_idx];
+
+            // Calculate position of the previous cell
+            const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+            const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+            var column_x = table_start_x;
+            for (0..prev_col_idx) |col_idx| {
+                column_x += table.columns.items[col_idx].size(self.units).width;
+            }
+
+            // Calculate cell Y position
+            var cell_y = table_start_y;
+            for (0..cell_index.row_index) |row_i| {
+                cell_y += prev_column.data.items[row_i].size(self.units).height;
+            }
+
+            const padding = self.units.paddingLeft();
+            self.active_cursor = .{
+                .text = .{
+                    .cell_index = CellIndex{
+                        .table_index = cell_index.table_index,
+                        .column_index = prev_col_idx,
+                        .row_index = cell_index.row_index,
+                    },
+                    .pos = Vec2{ column_x + padding, cell_y },
+                    .char_offset = 0,
+                },
+            };
+        }
+    }
+
     fn tabToNextColumn(self: *UI, cell_index: CellIndex) void {
         const table = self.tables.items[cell_index.table_index];
         const current_col = cell_index.column_index;
@@ -1009,17 +1086,25 @@ pub const UI = struct {
         }
     }
 
-    fn handleTab(self: *UI) void {
+    fn handleTab(self: *UI, modifiers: u32) void {
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
                     // No-op for empty cursor
                 },
                 .cell => |cell_pos| {
-                    self.tabToNextColumn(cell_pos.cell_index);
+                    if (modifiers & sapp.modifier_shift != 0) {
+                        self.tabToPrevColumn(cell_pos.cell_index);
+                    } else {
+                        self.tabToNextColumn(cell_pos.cell_index);
+                    }
                 },
                 .text => |text_pos| {
-                    self.tabToNextColumn(text_pos.cell_index);
+                    if (modifiers & sapp.modifier_shift != 0) {
+                        self.tabToPrevColumn(text_pos.cell_index);
+                    } else {
+                        self.tabToNextColumn(text_pos.cell_index);
+                    }
                 },
             }
         }
