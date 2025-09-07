@@ -942,20 +942,36 @@ pub const UI = struct {
 
         // Check if we're at the rightmost column
         if (current_col == table.columns.items.len - 1) {
-            // Focus on empty cell to the right of the table
-            const table_size = table.gridSize(self.units);
-            const empty_grid_pos = GridPos{
-                .left = table.position.left + table_size.width,
-                .top = table.position.top + cell_index.row_index,
-            };
+            // Go to the first column of the next row
+            const next_row_idx = cell_index.row_index + 1;
 
+            // Check if we need to add a new row
+            if (next_row_idx >= table.rows()) {
+                return; // Can't tab further - at the last cell of the table
+            }
+
+            const first_column = table.columns.items[0];
+
+            // Calculate position of the first cell in the next row
+            const table_start_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+            const table_start_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+
+            // Calculate cell Y position
+            var cell_y = table_start_y;
+            for (0..next_row_idx) |row_i| {
+                cell_y += first_column.data.items[row_i].size(self.units).height;
+            }
+
+            const padding = self.units.paddingLeft();
             self.active_cursor = .{
-                .empty = .{
-                    .grid_pos = empty_grid_pos,
-                    .grid_size = .{
-                        .width = 1,
-                        .height = 1,
+                .text = .{
+                    .cell_index = CellIndex{
+                        .table_index = cell_index.table_index,
+                        .column_index = 0, // First column
+                        .row_index = next_row_idx,
                     },
+                    .pos = Vec2{ table_start_x + padding, cell_y },
+                    .char_offset = 0,
                 },
             };
         } else {
