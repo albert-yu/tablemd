@@ -73,11 +73,6 @@
                 gap: 10px;
             }
 
-            .side-panel.collapsed {
-                opacity: 0;
-                pointer-events: none;
-            }
-
             .floating-button {
                 position: fixed;
                 bottom: 20px;
@@ -108,7 +103,7 @@
                 transition: transform 0.3s ease-in-out;
             }
 
-            .side-panel.collapsed ~ .toggle-button svg {
+            .side-panel.hidden ~ .toggle-button svg {
                 transform: rotate(-180deg);
             }
 
@@ -211,7 +206,7 @@
                 background-color: rgba(14, 33, 47, 0.95);
             }
 
-            .help-menu.hidden {
+            .hidden {
                 opacity: 0;
                 pointer-events: none;
             }
@@ -571,7 +566,7 @@
 
             function toggleSidePanel() {
                 const sidePanel = document.getElementById("side-panel");
-                sidePanel.classList.toggle("collapsed");
+                sidePanel.classList.toggle("hidden");
             }
 
             function toggleHelpMenu() {
@@ -614,7 +609,7 @@
                     );
 
                 if (isMobile) {
-                    sidePanel.classList.add("collapsed");
+                    sidePanel.classList.add("hidden");
                 }
             }
 
