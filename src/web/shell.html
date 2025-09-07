@@ -284,6 +284,29 @@
                 color: #87ceeb;
             }
 
+            .help-menu kbd {
+                background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+                color: #495057;
+                padding: 3px 8px;
+                border-radius: 4px;
+                border: 1px solid #adb5bd;
+                box-shadow:
+                    0 2px 4px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+                display: inline-block;
+                min-width: 20px;
+                text-align: center;
+                position: relative;
+                top: -1px;
+            }
+
             @media (max-width: 768px) {
                 .side-panel,
                 .help-menu {
@@ -367,11 +390,16 @@
             <ul>
                 <li><strong>Click</strong> - Select and edit a cell</li>
                 <li>
-                    <strong>Tab / Shift+Tab</strong> - Navigate between cells
+                    <strong><kbd>Tab</kbd></strong> - Navigate between cells
                 </li>
-                <li><strong>Enter</strong> - Move to next row</li>
+                <li>
+                    <strong><kbd>Enter</kbd></strong> - Move to next row
+                </li>
                 <li><strong>Drag</strong> - Pan around the canvas</li>
-                <li><strong>Scroll / Pinch</strong> - Zoom in and out</li>
+                <li>
+                    <strong>Pinch</strong> or (<kbd>Ctrl</kbd>
+                    <strong>+ Scroll</strong>) - Zoom in and out
+                </li>
             </ul>
 
             <h3>Editing Tables</h3>
@@ -379,7 +407,8 @@
                 <li>Type in any cell to add content</li>
                 <li>Edit cells adjacent to the table to expand it</li>
                 <li>
-                    Use <code>Ctrl+V</code> or <code>Cmd+V</code> to paste text
+                    Use <kbd>Ctrl</kbd> + <kbd>V</kbd> or <kbd>⌘</kbd> +
+                    <kbd>V</kbd> to paste text
                 </li>
                 <li>Tables automatically save as you work</li>
             </ul>
