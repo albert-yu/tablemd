@@ -936,7 +936,7 @@ pub const UI = struct {
         };
     }
 
-    fn tabToPrevColumn(self: *UI, cell_index: CellIndex) void {
+    fn prevCell(self: *UI, cell_index: CellIndex) void {
         const table = self.tables.items[cell_index.table_index];
         const current_col = cell_index.column_index;
 
@@ -1013,7 +1013,7 @@ pub const UI = struct {
         }
     }
 
-    fn tabToNextColumn(self: *UI, cell_index: CellIndex) void {
+    fn nextCell(self: *UI, cell_index: CellIndex) void {
         const table = self.tables.items[cell_index.table_index];
         const current_col = cell_index.column_index;
 
@@ -1094,16 +1094,16 @@ pub const UI = struct {
                 },
                 .cell => |cell_pos| {
                     if (modifiers & sapp.modifier_shift != 0) {
-                        self.tabToPrevColumn(cell_pos.cell_index);
+                        self.prevCell(cell_pos.cell_index);
                     } else {
-                        self.tabToNextColumn(cell_pos.cell_index);
+                        self.nextCell(cell_pos.cell_index);
                     }
                 },
                 .text => |text_pos| {
                     if (modifiers & sapp.modifier_shift != 0) {
-                        self.tabToPrevColumn(text_pos.cell_index);
+                        self.prevCell(text_pos.cell_index);
                     } else {
-                        self.tabToNextColumn(text_pos.cell_index);
+                        self.nextCell(text_pos.cell_index);
                     }
                 },
             }
