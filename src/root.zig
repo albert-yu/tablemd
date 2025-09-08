@@ -100,8 +100,6 @@ export fn init() void {
 
     state.scene = Scene.init(state.allocator);
 
-    state.t.updateZoom(.{ .k = 1.0, .x = 0.0, .y = 0.0 });
-
     // quad (dot grid binding and pipeline)
     const rect_dims = state.dot_grid_renderer.setup();
     state.rect_dims = rect_dims;
@@ -128,6 +126,7 @@ export fn init() void {
     };
 
     state.t.updateWindowData(sapp.widthf(), sapp.heightf());
+    state.t.updateZoom(.{ .k = 1.0, .x = -sapp.widthf() * 2, .y = -sapp.heightf() * 2 });
 }
 
 export fn frame() void {
