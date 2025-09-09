@@ -304,7 +304,7 @@ export fn input(ev: ?*const sapp.Event) void {
                 const zoom_speed = scroll_y * zoomWheelDelta(event);
                 handleZoom(zoom_speed, state.mouse[0]);
             } else {
-                const pan_speed = 20.0;
+                const pan_speed = 40.0;
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
         },
