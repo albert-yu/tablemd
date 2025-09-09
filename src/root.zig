@@ -33,6 +33,9 @@ const CellPosition = struct {
     col: usize,
 };
 
+const GridPos = @import("table.zig").GridPos;
+const GRID_N = @import("render/dot_grid.zig").GRID_N;
+
 const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
@@ -246,6 +249,71 @@ export fn request_serialize() void {
 export fn clear_tables() void {
     state.ui.clearTables(state.allocator);
     updateTableFromCursorState();
+}
+
+export fn seed_example_table() void {
+    const table = state.ui.addTable(state.allocator) catch |err| {
+        std.log.err("Failed to create example table: {any}", .{err});
+        return;
+    };
+
+    // Position table in the center of the grid
+    table.position = GridPos{ .left = GRID_N / 2 - 1, .top = GRID_N / 2 - 1 };
+
+    // Create columns with example data
+    const col1 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add first column: {any}", .{err});
+        return;
+    };
+    const col2 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add second column: {any}", .{err});
+        return;
+    };
+    const col3 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add third column: {any}", .{err});
+        return;
+    };
+
+    // Populate with example data
+    // Header row
+    col1.addCell(state.allocator, "Name") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col1.addCell(state.allocator, "Alice") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col1.addCell(state.allocator, "Bob") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    col2.addCell(state.allocator, "Age") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col2.addCell(state.allocator, "25") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col2.addCell(state.allocator, "30") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    col3.addCell(state.allocator, "City") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col3.addCell(state.allocator, "New York") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col3.addCell(state.allocator, "San Francisco") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    // sendTableToDOM(table) catch |err| {
+    //     std.log.err("Failed to send table to DOM: {any}", .{err});
+    // };
+    const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
+        std.log.err("Failed to serialize tables: {any}", .{err});
+        return;
+    };
+    sendSerializedTables(serialized_tables);
 }
 
 const PRINT_DOM_STUFF = false;
