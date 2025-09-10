@@ -274,6 +274,11 @@ export fn seed_example_table() void {
         return;
     };
 
+    const col4 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add fourth column: {any}", .{err});
+        return;
+    };
+
     // Populate with example data
     // Header row
     col1.addCell(state.allocator, "Name") catch |err| {
@@ -283,6 +288,9 @@ export fn seed_example_table() void {
         std.log.err("Failed to add cell: {any}", .{err});
     };
     col1.addCell(state.allocator, "Bob") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col1.addCell(state.allocator, "Charlie") catch |err| {
         std.log.err("Failed to add cell: {any}", .{err});
     };
 
@@ -295,6 +303,9 @@ export fn seed_example_table() void {
     col2.addCell(state.allocator, "30") catch |err| {
         std.log.err("Failed to add cell: {any}", .{err});
     };
+    col2.addCell(state.allocator, "42") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
 
     col3.addCell(state.allocator, "City") catch |err| {
         std.log.err("Failed to add cell: {any}", .{err});
@@ -303,6 +314,22 @@ export fn seed_example_table() void {
         std.log.err("Failed to add cell: {any}", .{err});
     };
     col3.addCell(state.allocator, "San Francisco") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col3.addCell(state.allocator, "Los Angeles") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    col4.addCell(state.allocator, "About") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col4.addCell(state.allocator, "This is a table") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col4.addCell(state.allocator, "with some content") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col4.addCell(state.allocator, "Click anywhere to edit!") catch |err| {
         std.log.err("Failed to add cell: {any}", .{err});
     };
 
