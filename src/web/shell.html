@@ -498,7 +498,48 @@
 
                                 attemptDeserialize();
                             } else {
-                                console.log("No saved tables found");
+                                console.log(
+                                    "No saved tables found. Seeding example table...",
+                                );
+
+                                let retryCount = 0;
+                                const maxRetries = 3;
+
+                                function attemptSeedExample() {
+                                    try {
+                                        if (Module._seed_example_table) {
+                                            Module._seed_example_table();
+                                            console.log("Seeded example table");
+                                        } else {
+                                            throw new Error(
+                                                "_seed_example_table function not available",
+                                            );
+                                        }
+                                    } catch (error) {
+                                        console.error(
+                                            "Failed to seed example table (attempt " +
+                                                (retryCount + 1) +
+                                                "):",
+                                            error,
+                                        );
+
+                                        retryCount++;
+                                        if (retryCount < maxRetries) {
+                                            console.log(
+                                                "Retrying example table seeding in 100ms...",
+                                            );
+                                            setTimeout(attemptSeedExample, 100);
+                                        } else {
+                                            console.error(
+                                                "Failed to seed example table after " +
+                                                    maxRetries +
+                                                    " attempts",
+                                            );
+                                        }
+                                    }
+                                }
+
+                                attemptSeedExample();
                             }
                         };
 
