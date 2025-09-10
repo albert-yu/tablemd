@@ -33,6 +33,9 @@ const CellPosition = struct {
     col: usize,
 };
 
+const GridPos = @import("table.zig").GridPos;
+const GRID_N = @import("render/dot_grid.zig").GRID_N;
+
 const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
@@ -126,7 +129,7 @@ export fn init() void {
     };
 
     state.t.updateWindowData(sapp.widthf(), sapp.heightf());
-    state.t.updateZoom(.{ .k = 1.0, .x = -sapp.widthf() * 2, .y = -sapp.heightf() * 2 });
+    moveToGridPos(GridPos{ .left = GRID_N / 2 - 1, .top = GRID_N / 2 - 1 });
 }
 
 export fn frame() void {
@@ -248,6 +251,98 @@ export fn clear_tables() void {
     updateTableFromCursorState();
 }
 
+export fn seed_example_table() void {
+    const table = state.ui.addTable(state.allocator) catch |err| {
+        std.log.err("Failed to create example table: {any}", .{err});
+        return;
+    };
+
+    // Position table in the center of the grid
+    table.position = GridPos{ .left = GRID_N / 2, .top = GRID_N / 2 };
+
+    // Create columns with example data
+    const col1 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add first column: {any}", .{err});
+        return;
+    };
+    const col2 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add second column: {any}", .{err});
+        return;
+    };
+    const col3 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add third column: {any}", .{err});
+        return;
+    };
+
+    const col4 = table.addColumn(state.allocator) catch |err| {
+        std.log.err("Failed to add fourth column: {any}", .{err});
+        return;
+    };
+
+    // Populate with example data
+    // Header row
+    col1.addCell(state.allocator, "Name") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col1.addCell(state.allocator, "Alice") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col1.addCell(state.allocator, "Bob") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col1.addCell(state.allocator, "Charlie") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    col2.addCell(state.allocator, "Age") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col2.addCell(state.allocator, "25") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col2.addCell(state.allocator, "30") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col2.addCell(state.allocator, "42") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    col3.addCell(state.allocator, "City") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col3.addCell(state.allocator, "New York") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col3.addCell(state.allocator, "San Francisco") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col3.addCell(state.allocator, "Los Angeles") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    col4.addCell(state.allocator, "About") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col4.addCell(state.allocator, "This is a table") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col4.addCell(state.allocator, "with some content") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+    col4.addCell(state.allocator, "Click anywhere to edit!") catch |err| {
+        std.log.err("Failed to add cell: {any}", .{err});
+    };
+
+    const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
+        std.log.err("Failed to serialize tables: {any}", .{err});
+        return;
+    };
+    sendSerializedTables(serialized_tables);
+    sendTableToDOM(table) catch |err| {
+        std.log.err("Failed to send table to DOM: {any}", .{err});
+    };
+}
+
 const PRINT_DOM_STUFF = false;
 
 fn setHtmlRender(html: []const u8) void {
@@ -256,6 +351,14 @@ fn setHtmlRender(html: []const u8) void {
     } else if (PRINT_DOM_STUFF) {
         std.log.info("html:\n{s}", .{html});
     }
+}
+
+fn moveToGridPos(grid_pos: GridPos) void {
+    const grid_x = @as(f32, @floatFromInt(grid_pos.left)) * state.rect_dims.width;
+    const grid_y = @as(f32, @floatFromInt(grid_pos.top)) * state.rect_dims.height;
+    const denormalized = denormalizePt(Vec2{ grid_x, grid_y });
+    const uninverted = uninvert(denormalized);
+    state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = -uninverted[0], .y = -uninverted[1] });
 }
 
 fn setMarkdownSource(md_src: []const u8) void {
@@ -418,6 +521,13 @@ fn handleZoom(delta: f32, p: Vec2) void {
     const inv_p = invert(p);
     const translated = translate(new_k, p, inv_p);
     state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
+}
+
+fn uninvert(p: Vec2) Vec2 {
+    const zoom = state.t.getZoom();
+    const x = p[0] * zoom.k + zoom.x;
+    const y = p[1] * zoom.k + zoom.y;
+    return Vec2{ x, y };
 }
 
 /// Unapplies the zoom transform
@@ -655,6 +765,13 @@ fn normalizePt(p: Vec2) Vec2 {
     const grid_x = p[0] / min_dim;
     const grid_y = p[1] / min_dim;
     return Vec2{ grid_x, grid_y };
+}
+
+fn denormalizePt(p: Vec2) Vec2 {
+    const w = sapp.widthf();
+    const h = sapp.heightf();
+    const min_dim = @min(w, h);
+    return Vec2{ p[0] * min_dim, p[1] * min_dim };
 }
 
 /// Returns a normalized vec2 from a mouse position.
