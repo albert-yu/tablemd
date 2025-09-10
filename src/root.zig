@@ -258,7 +258,7 @@ export fn seed_example_table() void {
     };
 
     // Position table in the center of the grid
-    table.position = GridPos{ .left = GRID_N / 2 - 1, .top = GRID_N / 2 - 1 };
+    table.position = GridPos{ .left = GRID_N / 2, .top = GRID_N / 2 };
 
     // Create columns with example data
     const col1 = table.addColumn(state.allocator) catch |err| {
@@ -314,7 +314,6 @@ export fn seed_example_table() void {
         return;
     };
     sendSerializedTables(serialized_tables);
-    moveToGridPos(table.position);
 }
 
 const PRINT_DOM_STUFF = false;
@@ -332,7 +331,6 @@ fn moveToGridPos(grid_pos: GridPos) void {
     const grid_y = @as(f32, @floatFromInt(grid_pos.top)) * state.rect_dims.height;
     const denormalized = denormalizePt(Vec2{ grid_x, grid_y });
     const uninverted = uninvert(denormalized);
-    std.log.info("uninverted: {any}", .{uninverted});
     state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = -uninverted[0], .y = -uninverted[1] });
 }
 
