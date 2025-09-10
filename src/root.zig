@@ -306,14 +306,14 @@ export fn seed_example_table() void {
         std.log.err("Failed to add cell: {any}", .{err});
     };
 
-    // sendTableToDOM(table) catch |err| {
-    //     std.log.err("Failed to send table to DOM: {any}", .{err});
-    // };
     const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
         std.log.err("Failed to serialize tables: {any}", .{err});
         return;
     };
     sendSerializedTables(serialized_tables);
+    sendTableToDOM(table) catch |err| {
+        std.log.err("Failed to send table to DOM: {any}", .{err});
+    };
 }
 
 const PRINT_DOM_STUFF = false;
