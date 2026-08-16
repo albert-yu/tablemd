@@ -133,6 +133,10 @@ fn buildWeb(b: *Build, opts: Options) !void {
 
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
     var cache_result = try initEmsdkCache(b, emsdk);
+    if (cache_result.cache_init_step) |c_init_step| {
+        opts.dep_sokol.artifact("sokol_clib").step.dependOn(c_init_step);
+        lib.step.dependOn(c_init_step);
+    }
     const freetype_lib = try freetype_build.build(b, .{
         .target = target,
         .optimize = optimize,
