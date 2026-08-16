@@ -87,7 +87,7 @@ pub const Renderer = struct {
         };
     }
 
-    pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+    pub fn renderInPass(self: *const Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd.UB_vs_params, vs_range);

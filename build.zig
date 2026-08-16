@@ -87,6 +87,14 @@ pub fn build(b: *Build) !void {
                     .output_file = "font_shader.zig",
                 }),
             },
+            .{
+                .name = "line_shader",
+                .module = try createShaderModule(b, dep_sokol, .{
+                    .module_name = "line_shader",
+                    .input_file = "src/shaders/line.glsl",
+                    .output_file = "line_shader.zig",
+                }),
+            },
         },
     });
 

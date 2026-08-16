@@ -14,6 +14,7 @@ extern fn activate_mobile_keyboard() void;
 const Scene = ui.Scene;
 const UI = ui.UI;
 const RectRenderer = @import("render/rect.zig").Renderer;
+const LineRenderer = @import("render/line.zig").Renderer;
 const FontRenderer = @import("render/font.zig").Renderer;
 const dot_grid = @import("render/dot_grid.zig");
 const DotGridRenderer = dot_grid.Renderer;
@@ -98,10 +99,11 @@ const TouchState = struct {
 const state = struct {
     var dot_grid_renderer = DotGridRenderer.new();
     var rect_renderer = RectRenderer.new();
+    var line_renderer = LineRenderer.new();
     var font_renderer: FontRenderer = undefined;
     var pass_action: sg.PassAction = .{};
     var t = Transform.new();
-    var allocator: std.mem.Allocator = undefined;
+    var allocator: std.mem.Allocator = if (builtin.target.cpu.arch.isWasm()) std.heap.c_allocator else undefined;
     // This is here so that deinit can deallocate.
     // For practical purposes, we do not need to
     // deallocate on shutdown, but we can leave this
@@ -116,7 +118,28 @@ const state = struct {
     var text_dims = RectDims{ .width = 0, .height = 0 };
     var scene: Scene = undefined;
     var ui: UI = undefined;
+    var is_ui_initialized: bool = false;
 };
+
+fn ensureAllocator() void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        state.allocator = std.heap.c_allocator;
+    } else if (state.gpa == null) {
+        state.gpa = std.heap.DebugAllocator(.{}){};
+        state.allocator = state.gpa.?.allocator();
+    }
+}
+
+fn ensureUIInitialized() void {
+    ensureAllocator();
+    if (!state.is_ui_initialized) {
+        state.ui = UI.init(state.allocator, .{
+            .cell = .{ .width = state.rect_dims.width, .height = state.rect_dims.height },
+            .text = .{ .width = state.text_dims.width, .height = state.rect_dims.height },
+        });
+        state.is_ui_initialized = true;
+    }
+}
 
 export fn init() void {
     sg.setup(.{
@@ -124,12 +147,7 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    if (builtin.target.cpu.arch.isWasm()) {
-        state.allocator = std.heap.c_allocator;
-    } else {
-        state.gpa = std.heap.DebugAllocator(.{}){};
-        state.allocator = state.gpa.?.allocator();
-    }
+    ensureAllocator();
 
     state.scene = Scene.init(state.allocator);
 
@@ -137,6 +155,7 @@ export fn init() void {
     const rect_dims = state.dot_grid_renderer.setup();
     state.rect_dims = rect_dims;
     state.rect_renderer.setup();
+    state.line_renderer.setup();
 
     // text renderer
     state.font_renderer = FontRenderer.new(state.allocator);
@@ -147,10 +166,18 @@ export fn init() void {
         return;
     };
     state.text_dims = RectDims{ .width = text_width, .height = rect_dims.height };
-    state.ui = UI.init(state.allocator, .{
-        .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
-        .text = .{ .width = text_width, .height = rect_dims.height },
-    });
+    if (!state.is_ui_initialized) {
+        state.ui = UI.init(state.allocator, .{
+            .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
+            .text = .{ .width = text_width, .height = rect_dims.height },
+        });
+        state.is_ui_initialized = true;
+    } else {
+        state.ui.units = .{
+            .cell = .{ .width = rect_dims.width, .height = rect_dims.height },
+            .text = .{ .width = text_width, .height = rect_dims.height },
+        };
+    }
 
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
@@ -191,6 +218,10 @@ export fn frame() void {
         state.rect_renderer.add(rect);
     }
     state.rect_renderer.updateBuffer();
+    for (state.scene.lines.items) |line_item| {
+        state.line_renderer.add(line_item);
+    }
+    state.line_renderer.updateBuffer();
     for (state.scene.texts.items) |text| {
         state.font_renderer.addLine(text);
     }
@@ -209,6 +240,7 @@ export fn frame() void {
     });
     state.dot_grid_renderer.renderInPass(vs_range);
     state.rect_renderer.renderInPass(vs_range);
+    state.line_renderer.renderInPass(vs_range);
     state.font_renderer.renderInPass(vs_range);
 
     sg.endPass();
@@ -249,6 +281,7 @@ pub fn main() void {
 }
 
 export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
+    ensureUIInitialized();
     const text = std.mem.span(text_ptr);
     if (text.len > 0) {
         state.ui.handlePaste(state.allocator, text) catch |err| {
@@ -261,6 +294,7 @@ export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {
 
 /// JS world sends serialized tables to us
 export fn handle_deserialize(data_ptr: [*]const u8, data_len: usize) void {
+    ensureUIInitialized();
     const data_slice = data_ptr[0..data_len];
     state.ui.deserializeTables(state.allocator, data_slice) catch |err| {
         std.log.err("Failed to deserialize tables: {any}", .{err});
@@ -271,6 +305,7 @@ export fn handle_deserialize(data_ptr: [*]const u8, data_len: usize) void {
 
 /// JS world requests a serialized version of the current UI
 export fn request_serialize() void {
+    ensureUIInitialized();
     const serialized_tables = state.ui.serializeTables(state.allocator) catch |err| {
         std.log.err("Failed to serialize tables: {any}", .{err});
         return;
@@ -279,11 +314,13 @@ export fn request_serialize() void {
 }
 
 export fn clear_tables() void {
+    ensureUIInitialized();
     state.ui.clearTables(state.allocator);
     updateTableFromCursorState();
 }
 
 export fn seed_example_table() void {
+    ensureUIInitialized();
     const table = state.ui.addTable(state.allocator) catch |err| {
         std.log.err("Failed to create example table: {any}", .{err});
         return;
@@ -439,7 +476,7 @@ export fn input(ev: ?*const sapp.Event) void {
                 const zoom_speed = scroll_y * zoomWheelDelta(event);
                 handleZoom(zoom_speed, state.mouse[0]);
             } else {
-                const pan_speed = 40.0;
+                const pan_speed = 150.0;
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
         },
@@ -578,9 +615,9 @@ fn translate(k: f32, p0: Vec2, p1: Vec2) Vec2 {
 
 fn zoomWheelDelta(event: *const sapp.Event) f32 {
     if ((event.modifiers & sapp.modifier_ctrl) != 0) {
-        return 0.25;
+        return 1.25;
     } else {
-        return 0.05;
+        return 0.3;
     }
 }
 
@@ -691,7 +728,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         // Handle pinch zoom
         if (state.touch_state.prev_distance > TOUCH_THRESHOLD) {
             const zoom_distance = current_distance - state.touch_state.prev_distance;
-            const factor = 0.002; // from trial and error on what felt "right"
+            const factor = 0.01; // increased for faster pinch zoom
             const zoom_speed = zoom_distance * factor;
             handleZoom(zoom_speed, current_center);
         }
@@ -786,6 +823,7 @@ fn handleTouchCancelled(event: *const sapp.Event) void {
 
 fn clear() void {
     state.rect_renderer.clear();
+    state.line_renderer.clear();
     state.font_renderer.clear();
     state.scene.clear();
 }

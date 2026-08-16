@@ -190,14 +190,10 @@ pub const Column = struct {
             try cell.addSelfToScene(scene, allocator, units, Vec2{ position[0], pos_y });
             pos_y += cell_dims.height;
             if (i < self.data.items.len - 1) {
-                try scene.rects.append(allocator, .{
+                try scene.lines.append(allocator, .{
+                    .p0 = .{ position[0], pos_y },
+                    .p1 = .{ position[0] + self_size.width, pos_y },
                     .color = theme.DARK_THEME.text_color,
-                    .x = position[0],
-                    .y = pos_y - lineWidth(units),
-                    .width = self_size.width,
-                    .height = lineWidth(units),
-                    .corners = .{ 0, 0, 0, 0 },
-                    .sigma = 1e-6,
                 });
             }
         }
@@ -425,6 +421,18 @@ pub const Table = struct {
             .sigma = 1e-6,
         });
 
+        // Add rounded border outline around the table
+        try addRoundedRectLines(
+            scene,
+            allocator,
+            actual_position_x,
+            actual_position_y,
+            rect_size.width,
+            rect_size.height,
+            corner,
+            theme.DARK_THEME.text_color,
+        );
+
         var pos_x = actual_position_x;
         for (self.columns.items, 0..) |column, i| {
             const col_size = column.size(units);
@@ -433,14 +441,10 @@ pub const Table = struct {
 
             // Add white column separator line
             if (i < self.columns.items.len - 1) {
-                try scene.rects.append(allocator, .{
+                try scene.lines.append(allocator, .{
+                    .p0 = .{ pos_x, actual_position_y },
+                    .p1 = .{ pos_x, actual_position_y + rect_size.height },
                     .color = theme.DARK_THEME.text_color,
-                    .x = pos_x - lineWidth(units),
-                    .y = actual_position_y,
-                    .width = lineWidth(units),
-                    .height = rect_size.height,
-                    .corners = .{ 0, 0, 0, 0 },
-                    .sigma = 1e-6,
                 });
             }
         }
@@ -599,8 +603,90 @@ pub const Table = struct {
     }
 };
 
-fn lineWidth(units: Units) f32 {
-    return units.cell.width / 50.0;
+fn addRoundedRectLines(
+    scene: *Scene,
+    allocator: Allocator,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    corner_radius: f32,
+    color: sg.Color,
+) !void {
+    const r = @min(corner_radius, @min(width / 2.0, height / 2.0));
+    if (r <= 0.0) {
+        try scene.lines.append(allocator, .{ .p0 = .{ x, y }, .p1 = .{ x + width, y }, .color = color });
+        try scene.lines.append(allocator, .{ .p0 = .{ x + width, y }, .p1 = .{ x + width, y + height }, .color = color });
+        try scene.lines.append(allocator, .{ .p0 = .{ x + width, y + height }, .p1 = .{ x, y + height }, .color = color });
+        try scene.lines.append(allocator, .{ .p0 = .{ x, y + height }, .p1 = .{ x, y }, .color = color });
+        return;
+    }
+
+    // 4 straight segments
+    // Top
+    try scene.lines.append(allocator, .{ .p0 = .{ x + r, y }, .p1 = .{ x + width - r, y }, .color = color });
+    // Right
+    try scene.lines.append(allocator, .{ .p0 = .{ x + width, y + r }, .p1 = .{ x + width, y + height - r }, .color = color });
+    // Bottom
+    try scene.lines.append(allocator, .{ .p0 = .{ x + width - r, y + height }, .p1 = .{ x + r, y + height }, .color = color });
+    // Left
+    try scene.lines.append(allocator, .{ .p0 = .{ x, y + height - r }, .p1 = .{ x, y + r }, .color = color });
+
+    // 4 corner arcs
+    const ARC_SEGMENTS = 8;
+    const half_pi = std.math.pi / 2.0;
+
+    // Top-Right corner: center (x + width - r, y + r), from -pi/2 to 0
+    const tr_cx = x + width - r;
+    const tr_cy = y + r;
+    for (0..ARC_SEGMENTS) |step| {
+        const a0 = -half_pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        const a1 = -half_pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        try scene.lines.append(allocator, .{
+            .p0 = .{ tr_cx + r * @cos(a0), tr_cy + r * @sin(a0) },
+            .p1 = .{ tr_cx + r * @cos(a1), tr_cy + r * @sin(a1) },
+            .color = color,
+        });
+    }
+
+    // Bottom-Right corner: center (x + width - r, y + height - r), from 0 to pi/2
+    const br_cx = x + width - r;
+    const br_cy = y + height - r;
+    for (0..ARC_SEGMENTS) |step| {
+        const a0 = (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        const a1 = (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        try scene.lines.append(allocator, .{
+            .p0 = .{ br_cx + r * @cos(a0), br_cy + r * @sin(a0) },
+            .p1 = .{ br_cx + r * @cos(a1), br_cy + r * @sin(a1) },
+            .color = color,
+        });
+    }
+
+    // Bottom-Left corner: center (x + r, y + height - r), from pi/2 to pi
+    const bl_cx = x + r;
+    const bl_cy = y + height - r;
+    for (0..ARC_SEGMENTS) |step| {
+        const a0 = half_pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        const a1 = half_pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        try scene.lines.append(allocator, .{
+            .p0 = .{ bl_cx + r * @cos(a0), bl_cy + r * @sin(a0) },
+            .p1 = .{ bl_cx + r * @cos(a1), bl_cy + r * @sin(a1) },
+            .color = color,
+        });
+    }
+
+    // Top-Left corner: center (x + r, y + r), from pi to 3*pi/2
+    const tl_cx = x + r;
+    const tl_cy = y + r;
+    for (0..ARC_SEGMENTS) |step| {
+        const a0 = std.math.pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        const a1 = std.math.pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+        try scene.lines.append(allocator, .{
+            .p0 = .{ tl_cx + r * @cos(a0), tl_cy + r * @sin(a0) },
+            .p1 = .{ tl_cx + r * @cos(a1), tl_cy + r * @sin(a1) },
+            .color = color,
+        });
+    }
 }
 
 test "table serialization and deserialization" {
