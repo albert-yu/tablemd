@@ -112,14 +112,14 @@ pub const Renderer = struct {
     }
 
     /// Updates the instance buffer with the current rectangles
-    pub fn updateBuffer(self: Renderer) void {
+    pub fn updateBuffer(self: *Renderer) void {
         if (self.count == 0) {
             return;
         }
         sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.rects[0..self.count]));
     }
 
-    pub fn renderInPass(self: Renderer, vs_range: sg.Range) void {
+    pub fn renderInPass(self: *const Renderer, vs_range: sg.Range) void {
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_rect.UB_vs_params, vs_range);
