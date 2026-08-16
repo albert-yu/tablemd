@@ -255,7 +255,7 @@ pub const Renderer = struct {
         };
 
         const glyph_slot = self.font.face.face.*.glyph;
-        const outline = &glyph_slot.*.outline;
+        const outline: *const ft.Outline = &glyph_slot.*.outline;
 
         // Convert contours to quadratic bezier curves
         var start: i16 = 0;
@@ -424,7 +424,7 @@ pub const Renderer = struct {
             glyph_data[0] = .{ 0.0, 0.0 };
         }
 
-        glyph_desc.data.subimage[0][0] = sg.asRange(glyph_data);
+        glyph_desc.data.mip_levels[0] = sg.asRange(glyph_data);
         self.glyph_texture = sg.makeImage(glyph_desc);
         self.bind.views[shd_font.VIEW_glyphs_tex] = sg.makeView(.{ .texture = .{ .image = self.glyph_texture } });
 
@@ -459,7 +459,7 @@ pub const Renderer = struct {
             curve_data[2] = .{ 0.0, 0.0 };
         }
 
-        curve_desc.data.subimage[0][0] = sg.asRange(curve_data);
+        curve_desc.data.mip_levels[0] = sg.asRange(curve_data);
         self.curve_texture = sg.makeImage(curve_desc);
         self.bind.views[shd_font.VIEW_curves_tex] = sg.makeView(.{ .texture = .{ .image = self.curve_texture } });
     }

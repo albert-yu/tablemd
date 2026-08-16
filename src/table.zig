@@ -531,46 +531,44 @@ pub const Table = struct {
     }
 
     pub fn serialize(self: Table, allocator: Allocator) ![]u8 {
-        var buffer = try ArrayList(u8).initCapacity(allocator, 0);
-        defer buffer.deinit(allocator);
-        var writer = buffer.writer(allocator);
+        var aw: std.Io.Writer.Allocating = .init(allocator);
+        defer aw.deinit();
 
         // Write table position
-        try writer.writeInt(usize, self.position.left, .little);
-        try writer.writeInt(usize, self.position.top, .little);
+        try aw.writer.writeInt(usize, self.position.left, .little);
+        try aw.writer.writeInt(usize, self.position.top, .little);
 
         // Write number of columns
-        try writer.writeInt(usize, self.columns.items.len, .little);
+        try aw.writer.writeInt(usize, self.columns.items.len, .little);
 
         // Write each column
         for (self.columns.items) |column| {
             // Write number of cells in column
-            try writer.writeInt(usize, column.data.items.len, .little);
+            try aw.writer.writeInt(usize, column.data.items.len, .little);
 
             // Write each cell
             for (column.data.items) |cell| {
                 // Write cell value length and data
-                try writer.writeInt(usize, cell.value.items.len, .little);
-                try writer.writeAll(cell.value.items);
+                try aw.writer.writeInt(usize, cell.value.items.len, .little);
+                try aw.writer.writeAll(cell.value.items);
             }
         }
 
-        return buffer.toOwnedSlice(allocator);
+        return try aw.toOwnedSlice();
     }
 
     pub fn deserialize(allocator: Allocator, data: []const u8) !Table {
-        var stream = std.io.fixedBufferStream(data);
-        var reader = stream.reader();
+        var reader = std.Io.Reader.fixed(data);
 
         // Read table position
-        const left = try reader.readInt(usize, .little);
-        const top = try reader.readInt(usize, .little);
+        const left = try reader.takeInt(usize, .little);
+        const top = try reader.takeInt(usize, .little);
 
         var table = Table.init(allocator);
         table.position = .{ .left = left, .top = top };
 
         // Read number of columns
-        const num_columns = try reader.readInt(usize, .little);
+        const num_columns = try reader.takeInt(usize, .little);
 
         // Read each column
         for (0..num_columns) |_| {
@@ -578,21 +576,20 @@ pub const Table = struct {
             column.* = Column.init(allocator);
 
             // Read number of cells
-            const num_cells = try reader.readInt(usize, .little);
+            const num_cells = try reader.takeInt(usize, .little);
 
             // Read each cell
             for (0..num_cells) |_| {
                 // Read cell value length
-                const value_len = try reader.readInt(usize, .little);
+                const value_len = try reader.takeInt(usize, .little);
 
                 // Read cell value data
                 const value_data = try allocator.alloc(u8, value_len);
-                _ = try reader.readAll(value_data);
+                defer allocator.free(value_data);
+                try reader.readSliceAll(value_data);
 
                 const cell = try Cell.init(allocator, value_data);
                 try column.data.append(allocator, cell);
-
-                allocator.free(value_data);
             }
 
             try table.columns.append(allocator, column);

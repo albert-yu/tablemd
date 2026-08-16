@@ -30,12 +30,12 @@ const ExtraIndex = Document.ExtraIndex;
 const ExtraData = Document.ExtraData;
 const StringIndex = Document.StringIndex;
 
-nodes: Node.List = .{},
-extra: std.ArrayList(u32) = .{},
-scratch_extra: std.ArrayList(u32) = .{},
-string_bytes: std.ArrayList(u8) = .{},
-scratch_string: std.ArrayList(u8) = .{},
-pending_blocks: std.ArrayList(Block) = .{},
+nodes: Node.List = .empty,
+extra: std.ArrayList(u32) = .empty,
+scratch_extra: std.ArrayList(u32) = .empty,
+string_bytes: std.ArrayList(u8) = .empty,
+scratch_string: std.ArrayList(u8) = .empty,
+pending_blocks: std.ArrayList(Block) = .empty,
 allocator: Allocator,
 
 const Parser = @This();
@@ -170,7 +170,7 @@ const Block = struct {
     /// (e.g. for a blockquote, this would be everything except the leading
     /// `>`). If unsuccessful, returns null.
     fn match(b: Block, line: []const u8) ?[]const u8 {
-        const unindented = mem.trimLeft(u8, line, " \t");
+        const unindented = mem.trimStart(u8, line, " \t");
         const indent = line.len - unindented.len;
         return switch (b.tag) {
             .list => line,
@@ -186,7 +186,7 @@ const Block = struct {
             .table_row => null,
             .heading => null,
             .code_block => code_block: {
-                const trimmed = mem.trimRight(u8, unindented, " \t");
+                const trimmed = mem.trimEnd(u8, unindented, " \t");
                 if (mem.indexOfNone(u8, trimmed, "`") != null or trimmed.len != b.data.code_block.fence_len) {
                     const effective_indent = @min(indent, b.data.code_block.indent);
                     break :code_block line[effective_indent..];
@@ -255,7 +255,7 @@ pub fn feedLine(p: *Parser, line: []const u8) Allocator.Error!void {
         p.pending_blocks.items.len > 0 and
         p.pending_blocks.getLast().tag == .paragraph)
     {
-        try p.addScratchStringLine(mem.trimLeft(u8, rest_line, " \t"));
+        try p.addScratchStringLine(mem.trimStart(u8, rest_line, " \t"));
         return;
     }
 
@@ -291,7 +291,7 @@ pub fn feedLine(p: *Parser, line: []const u8) Allocator.Error!void {
         last_pending_block.canAccept()
     else
         .blocks;
-    const rest_line_trimmed = mem.trimLeft(u8, rest_line, " \t");
+    const rest_line_trimmed = mem.trimStart(u8, rest_line, " \t");
     switch (can_accept) {
         .blocks => {
             // If we're inside a list item and the rest of the line is blank, it
@@ -533,7 +533,7 @@ fn appendBlockStart(p: *Parser, block_start: BlockStart) !void {
 }
 
 fn startBlock(p: *Parser, line: []const u8) !?BlockStart {
-    const unindented = mem.trimLeft(u8, line, " \t");
+    const unindented = mem.trimStart(u8, line, " \t");
     const indent = line.len - unindented.len;
     if (isThematicBreak(line)) {
         // Thematic breaks take precedence over list items.
@@ -961,8 +961,8 @@ const InlineParser = struct {
     parent: *Parser,
     content: []const u8,
     pos: usize = 0,
-    pending_inlines: std.ArrayList(PendingInline) = .{},
-    completed_inlines: std.ArrayList(CompletedInline) = .{},
+    pending_inlines: std.ArrayList(PendingInline) = .empty,
+    completed_inlines: std.ArrayList(CompletedInline) = .empty,
 
     const PendingInline = struct {
         tag: Tag,

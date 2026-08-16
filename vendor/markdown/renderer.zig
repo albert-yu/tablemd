@@ -11,18 +11,19 @@ const Node = Document.Node;
 /// intention that custom `renderFn` implementations can call `renderDefault`
 /// for node types for which they require no special rendering.
 pub fn Renderer(comptime Writer: type, comptime Context: type) type {
+    const Error = anyerror;
     return struct {
         renderFn: *const fn (
             r: Self,
             doc: Document,
             node: Node.Index,
             writer: Writer,
-        ) Writer.Error!void = renderDefault,
+        ) Error!void = renderDefault,
         context: Context,
 
         const Self = @This();
 
-        pub fn render(r: Self, doc: Document, writer: Writer) Writer.Error!void {
+        pub fn render(r: Self, doc: Document, writer: Writer) Error!void {
             try r.renderFn(r, doc, .root, writer);
         }
 
@@ -31,7 +32,7 @@ pub fn Renderer(comptime Writer: type, comptime Context: type) type {
             doc: Document,
             node: Node.Index,
             writer: Writer,
-        ) Writer.Error!void {
+        ) Error!void {
             const data = doc.nodes.items(.data)[@intFromEnum(node)];
             switch (doc.nodes.items(.tag)[@intFromEnum(node)]) {
                 .root => {
@@ -191,7 +192,7 @@ pub fn renderInlineNodeText(
     doc: Document,
     node: Node.Index,
     writer: anytype,
-) @TypeOf(writer).Error!void {
+) anyerror!void {
     const data = doc.nodes.items(.data)[@intFromEnum(node)];
     switch (doc.nodes.items(.tag)[@intFromEnum(node)]) {
         .root,
@@ -240,7 +241,7 @@ pub fn fmtHtml(bytes: []const u8) HtmlFormatter {
 
 fn formatHtml(
     bytes: []const u8,
-    writer: *std.io.Writer,
+    writer: *std.Io.Writer,
 ) error{WriteFailed}!void {
     for (bytes) |b| {
         switch (b) {

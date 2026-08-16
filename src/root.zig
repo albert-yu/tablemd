@@ -21,6 +21,36 @@ const RectDims = dot_grid.Size;
 const Transform = @import("uniforms.zig").Transform;
 const Vec2 = @import("zm").Vec2f;
 
+fn emscriptenPanic(msg: []const u8, first_trace_addr: ?usize) noreturn {
+    _ = first_trace_addr;
+    _ = std.c.write(std.c.STDERR_FILENO, msg.ptr, msg.len);
+    _ = std.c.write(std.c.STDERR_FILENO, "\n", 1);
+    @trap();
+}
+
+fn wasmLog(
+    comptime message_level: std.log.Level,
+    comptime scope: @EnumLiteral(),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    _ = message_level;
+    _ = scope;
+    var buf: [512]u8 = undefined;
+    var bw = std.Io.Writer.fixed(&buf);
+    bw.print(format ++ "\n", args) catch return;
+    _ = std.c.write(std.c.STDERR_FILENO, buf[0..bw.end].ptr, bw.end);
+}
+
+pub const std_options: std.Options = .{
+    .logFn = if (builtin.target.cpu.arch.isWasm()) wasmLog else std.log.defaultLog,
+};
+
+pub const panic = if (builtin.target.cpu.arch.isWasm())
+    std.debug.FullPanic(emscriptenPanic)
+else
+    std.debug.FullPanic(std.debug.defaultPanic);
+
 const io = std.io;
 const sapp = sokol.app;
 const slog = sokol.log;
@@ -76,7 +106,7 @@ const state = struct {
     // For practical purposes, we do not need to
     // deallocate on shutdown, but we can leave this
     // here to make sure we don't leak memory.
-    var gpa: ?std.heap.GeneralPurposeAllocator(.{}) = null;
+    var gpa: if (!builtin.target.cpu.arch.isWasm()) ?std.heap.DebugAllocator(.{}) else void = if (!builtin.target.cpu.arch.isWasm()) null else {};
 
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var mouse_press_pos: ?Vec2 = null;
@@ -94,12 +124,12 @@ export fn init() void {
         .logger = .{ .func = slog.func },
     });
 
-    state.allocator = if (builtin.target.cpu.arch.isWasm())
-        std.heap.c_allocator
-    else blk: {
-        state.gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        break :blk state.gpa.?.allocator();
-    };
+    if (builtin.target.cpu.arch.isWasm()) {
+        state.allocator = std.heap.c_allocator;
+    } else {
+        state.gpa = std.heap.DebugAllocator(.{}){};
+        state.allocator = state.gpa.?.allocator();
+    }
 
     state.scene = Scene.init(state.allocator);
 
@@ -192,10 +222,12 @@ export fn cleanup() void {
     sg.shutdown();
 
     // Clean up GPA if we created one
-    if (state.gpa) |*gpa| {
-        const deinit_status = gpa.deinit();
-        if (deinit_status == .leak) {
-            std.log.err("Memory leak detected!", .{});
+    if (!builtin.target.cpu.arch.isWasm()) {
+        if (state.gpa) |*gpa| {
+            const deinit_status = gpa.deinit();
+            if (deinit_status == .leak) {
+                std.log.err("Memory leak detected!", .{});
+            }
         }
     }
 }
@@ -680,10 +712,10 @@ fn markdownToHtml(md: []const u8) ![]const u8 {
     var doc = try parser.endInput();
     defer doc.deinit(state.allocator);
 
-    var html_str = try std.ArrayList(u8).initCapacity(state.allocator, 0);
-    defer html_str.deinit(state.allocator);
-    try doc.render(html_str.writer(state.allocator));
-    return html_str.toOwnedSlice(state.allocator);
+    var aw: std.Io.Writer.Allocating = .init(state.allocator);
+    defer aw.deinit();
+    try doc.render(&aw.writer);
+    return try aw.toOwnedSlice();
 }
 
 fn handleTouchEnded(event: *const sapp.Event) bool {

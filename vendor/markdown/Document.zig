@@ -160,7 +160,7 @@ pub fn deinit(doc: *Document, allocator: Allocator) void {
 }
 
 /// Renders a document directly to a writer using the default renderer.
-pub fn render(doc: Document, writer: anytype) @TypeOf(writer).Error!void {
+pub fn render(doc: Document, writer: anytype) anyerror!void {
     const renderer: Renderer(@TypeOf(writer), void) = .{ .context = {} };
     try renderer.render(doc, writer);
 }

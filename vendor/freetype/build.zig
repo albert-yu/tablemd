@@ -30,8 +30,8 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
     });
 
     // Add include directories
-    lib.addIncludePath(b.path("vendor/freetype/include"));
-    lib.addIncludePath(b.path("vendor/freetype/src"));
+    mod.addIncludePath(b.path("vendor/freetype/include"));
+    mod.addIncludePath(b.path("vendor/freetype/src"));
 
     // Common compilation flags
     const c_flags = &[_][]const u8{
@@ -48,7 +48,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
             if (cache_result.cache_init_step) |c_init_step| {
                 lib.step.dependOn(c_init_step);
             }
-            lib.addIncludePath(cache_result.include_path);
+            mod.addIncludePath(cache_result.include_path);
         } else {
             @panic("Must provide emsdk_cache dependency when building for web");
         }
@@ -59,7 +59,7 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
 
     // Add all FreeType C source files
     for (freetype_sources) |source| {
-        lib.addCSourceFile(.{
+        mod.addCSourceFile(.{
             .file = b.path(source),
             .flags = c_flags,
         });
@@ -67,13 +67,11 @@ pub fn build(b: *Build, options: BuildOptions) !*Build.Step.Compile {
 
     // For WASM builds, add setjmp/longjmp stub implementation
     if (target.result.cpu.arch.isWasm()) {
-        lib.addCSourceFile(.{
+        mod.addCSourceFile(.{
             .file = b.path("vendor/freetype/setjmp_stub.c"),
             .flags = c_flags,
         });
     }
-
-    lib.linkLibC();
 
     return lib;
 }
