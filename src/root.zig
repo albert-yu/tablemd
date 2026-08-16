@@ -476,7 +476,7 @@ export fn input(ev: ?*const sapp.Event) void {
                 const zoom_speed = scroll_y * zoomWheelDelta(event);
                 handleZoom(zoom_speed, state.mouse[0]);
             } else {
-                const pan_speed = 40.0;
+                const pan_speed = 150.0;
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
         },
@@ -615,9 +615,9 @@ fn translate(k: f32, p0: Vec2, p1: Vec2) Vec2 {
 
 fn zoomWheelDelta(event: *const sapp.Event) f32 {
     if ((event.modifiers & sapp.modifier_ctrl) != 0) {
-        return 0.25;
+        return 1.25;
     } else {
-        return 0.05;
+        return 0.3;
     }
 }
 
@@ -728,7 +728,7 @@ fn handleTouchMoved(event: *const sapp.Event) void {
         // Handle pinch zoom
         if (state.touch_state.prev_distance > TOUCH_THRESHOLD) {
             const zoom_distance = current_distance - state.touch_state.prev_distance;
-            const factor = 0.002; // from trial and error on what felt "right"
+            const factor = 0.01; // increased for faster pinch zoom
             const zoom_speed = zoom_distance * factor;
             handleZoom(zoom_speed, current_center);
         }
