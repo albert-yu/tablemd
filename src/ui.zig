@@ -1519,12 +1519,11 @@ pub const UI = struct {
     }
 
     pub fn serializeTables(self: *UI, allocator: Allocator) ![]u8 {
-        var buffer = try ArrayList(u8).initCapacity(allocator, 0);
-        defer buffer.deinit(allocator);
-        var writer = buffer.writer(allocator);
+        var aw: std.Io.Writer.Allocating = .init(allocator);
+        defer aw.deinit();
 
         // Write number of tables
-        try writer.writeInt(usize, self.tables.items.len, .little);
+        try aw.writer.writeInt(usize, self.tables.items.len, .little);
 
         // Serialize each table
         for (self.tables.items) |table| {
@@ -1532,11 +1531,11 @@ pub const UI = struct {
             defer allocator.free(table_data);
 
             // Write table data length and then the data
-            try writer.writeInt(usize, table_data.len, .little);
-            try writer.writeAll(table_data);
+            try aw.writer.writeInt(usize, table_data.len, .little);
+            try aw.writer.writeAll(table_data);
         }
 
-        return buffer.toOwnedSlice(allocator);
+        return try aw.toOwnedSlice();
     }
 
     /// This will clear existing tables and deserialize the provided data
@@ -1548,21 +1547,20 @@ pub const UI = struct {
         }
         self.tables.clearRetainingCapacity();
 
-        var stream = std.io.fixedBufferStream(data);
-        var reader = stream.reader();
+        var reader = std.Io.Reader.fixed(data);
 
         // Read number of tables
-        const num_tables = try reader.readInt(usize, .little);
+        const num_tables = try reader.takeInt(usize, .little);
 
         // Deserialize each table
         for (0..num_tables) |_| {
             // Read table data length
-            const table_data_len = try reader.readInt(usize, .little);
+            const table_data_len = try reader.takeInt(usize, .little);
 
             // Read table data
             const table_data = try allocator.alloc(u8, table_data_len);
             defer allocator.free(table_data);
-            _ = try reader.readAll(table_data);
+            try reader.readSliceAll(table_data);
 
             // Deserialize table and add to UI
             const table = try Table.deserialize(allocator, table_data);

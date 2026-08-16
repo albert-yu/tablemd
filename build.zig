@@ -116,7 +116,7 @@ fn buildNative(b: *Build, opts: Options) !void {
         .optimize = optimize,
         .emsdk_cache = null,
     });
-    exe.linkLibrary(freetype_lib);
+    opts.mod.linkLibrary(freetype_lib);
     b.installArtifact(exe);
     const run = b.addRunArtifact(exe);
     b.step("run", "Run root").dependOn(&run.step);
@@ -133,13 +133,17 @@ fn buildWeb(b: *Build, opts: Options) !void {
 
     const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
     var cache_result = try initEmsdkCache(b, emsdk);
+    if (cache_result.cache_init_step) |c_init_step| {
+        opts.dep_sokol.artifact("sokol_clib").step.dependOn(c_init_step);
+        lib.step.dependOn(c_init_step);
+    }
     const freetype_lib = try freetype_build.build(b, .{
         .target = target,
         .optimize = optimize,
         .emsdk_cache = &cache_result,
     });
 
-    lib.linkLibrary(freetype_lib);
+    opts.mod.linkLibrary(freetype_lib);
     opts.mod_freetype.addSystemIncludePath(cache_result.include_path);
 
     // create a build step which invokes the Emscripten linker
@@ -193,11 +197,12 @@ fn createShaderModule(b: *Build, dep_sokol: *Build.Dependency, mod: ShaderModule
 fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !freetype_build.EmsdkCacheResult {
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
     var cache_init: ?*Build.Step.Run = null;
-    var dir = std.fs.openDirAbsolute(
+    var dir = std.Io.Dir.openDirAbsolute(
+        b.graph.io,
         include_path.getPath(b),
         .{
             .access_sub_paths = true,
-            .no_follow = true,
+            .follow_symlinks = false,
         },
     ) catch {
         std.log.info("No emscripten sysroot cache. Attempting to generate...", .{});
@@ -227,7 +232,7 @@ fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !freetype_build.EmsdkCach
             .include_path = include_path,
         };
     };
-    defer dir.close();
+    defer dir.close(b.graph.io);
 
     return .{
         .cache_init_step = if (cache_init) |c_init| &c_init.step else null,
@@ -258,7 +263,7 @@ fn createEmsdkStep(b: *Build, emsdk: *Build.Dependency) *Build.Step.Run {
 /// Copied from sokol build.zig (it wasn't exported)
 fn emSdkSetupStep(b: *Build, emsdk: *Build.Dependency) !?*Build.Step.Run {
     const dot_emsc_path = emSdkLazyPath(b, emsdk, &.{".emscripten"}).getPath(b);
-    const dot_emsc_exists = !std.meta.isError(std.fs.accessAbsolute(dot_emsc_path, .{}));
+    const dot_emsc_exists = if (std.Io.Dir.accessAbsolute(b.graph.io, dot_emsc_path, .{})) |_| true else |_| false;
     if (!dot_emsc_exists) {
         const emsdk_install = createEmsdkStep(b, emsdk);
         emsdk_install.addArgs(&.{ "install", "latest" });

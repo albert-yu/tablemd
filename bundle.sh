@@ -105,7 +105,7 @@ install_zig() {
 
     PLATFORM=$(detect_platform)
     ZIG_PLATFORM=$(map_to_zig_platform "$PLATFORM")
-    ZIG_VERSION="0.15.1"
+    ZIG_VERSION="0.16.0"
     ZIG_DIR="$HOME/.local/zig"
 
     # Zig's official public key for minisign verification
