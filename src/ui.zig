@@ -1211,11 +1211,12 @@ pub const UI = struct {
         for (self.tables.items) |table| {
             try table.addSelfToScene(scene, allocator, self.units);
         }
+        const current_theme = theme.current();
         if (self.active_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.active_cursor_color));
+            try scene.rects.append(allocator, cursor.getRect(self, current_theme.active_cursor_color));
         }
         if (self.hover_cursor) |cursor| {
-            try scene.rects.append(allocator, cursor.getRect(self, theme.DARK_THEME.hover_cursor_color));
+            try scene.rects.append(allocator, cursor.getRect(self, current_theme.hover_cursor_color));
         }
     }
 

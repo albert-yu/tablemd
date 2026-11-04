@@ -10,6 +10,7 @@ extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 extern fn set_serialized_tables(ptr: [*]const u8, len: usize) void;
 extern fn activate_mobile_keyboard() void;
+extern fn prefers_dark_mode() u32;
 
 const Scene = ui.Scene;
 const UI = ui.UI;
@@ -57,7 +58,6 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
-const Color = sg.Color;
 
 const CellPosition = struct {
     row: usize,
@@ -66,8 +66,6 @@ const CellPosition = struct {
 
 const GridPos = @import("table.zig").GridPos;
 const GRID_N = @import("render/dot_grid.zig").GRID_N;
-
-const BG_COLOR: Color = theme.DARK_THEME.background_color;
 
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
@@ -119,6 +117,7 @@ const state = struct {
     var scene: Scene = undefined;
     var ui: UI = undefined;
     var is_ui_initialized: bool = false;
+    var is_graphics_initialized: bool = false;
 };
 
 fn ensureAllocator() void {
@@ -142,6 +141,10 @@ fn ensureUIInitialized() void {
 }
 
 export fn init() void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        theme.setDarkMode(prefers_dark_mode() != 0);
+    }
+
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -160,7 +163,7 @@ export fn init() void {
     // text renderer
     state.font_renderer = FontRenderer.new(state.allocator);
     const text_width = state.font_renderer.setup(.{
-        .color = theme.DARK_THEME.text_color,
+        .color = theme.current().text_color,
     }) catch |err| {
         std.log.err("Failed to setup font renderer: {any}", .{err});
         return;
@@ -187,6 +190,7 @@ export fn init() void {
 
     state.t.updateWindowData(sapp.widthf(), sapp.heightf());
     moveToGridPos(GridPos{ .left = GRID_N / 2 - 1, .top = GRID_N / 2 - 1 });
+    state.is_graphics_initialized = true;
 }
 
 export fn frame() void {
@@ -231,7 +235,7 @@ export fn frame() void {
     const vs_range = sg.asRange(&vs_params);
     state.pass_action.colors[0] = .{
         .load_action = .CLEAR,
-        .clear_value = theme.DARK_THEME.background_color,
+        .clear_value = theme.current().background_color,
     };
 
     sg.beginPass(.{
@@ -248,6 +252,7 @@ export fn frame() void {
 }
 
 export fn cleanup() void {
+    state.is_graphics_initialized = false;
     state.font_renderer.cleanup();
     state.scene.deinit(state.allocator);
     state.ui.deinit(state.allocator);
@@ -278,6 +283,18 @@ pub fn main() void {
         // .sample_count = 4,
         .high_dpi = true,
     });
+}
+
+export fn set_dark_mode(is_dark: u32) void {
+    const use_dark_mode = is_dark != 0;
+    if (theme.isDarkMode() == use_dark_mode) return;
+
+    theme.setDarkMode(use_dark_mode);
+    if (state.is_graphics_initialized) {
+        const current_theme = theme.current();
+        state.dot_grid_renderer.setColor(current_theme.dot_grid_color);
+        state.font_renderer.color = current_theme.text_color;
+    }
 }
 
 export fn handle_paste_from_web(text_ptr: [*:0]const u8) void {

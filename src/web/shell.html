@@ -10,9 +10,34 @@
         />
         <title>tablemd</title>
         <style>
+            :root {
+                color-scheme: dark;
+                --page-background: #0e212f;
+                --panel-background: rgba(14, 33, 47, 0.9);
+                --panel-background-strong: rgba(14, 33, 47, 0.95);
+                --border-color: rgba(120, 120, 120, 0.9);
+                --button-border-color: rgba(120, 120, 120, 0.7);
+                --text-primary: #ffffff;
+                --text-muted: #e0e0e0;
+                --surface-background: rgba(21, 50, 71, 0.8);
+                --surface-background-soft: rgba(21, 50, 71, 0.6);
+                --surface-hover: rgba(35, 84, 119, 0.9);
+                --button-background: rgba(28, 67, 95, 0.9);
+                --button-active: rgba(21, 50, 71, 0.9);
+                --accent-text: #87ceeb;
+                --danger-background: rgba(139, 69, 19, 0.6);
+                --danger-hover: rgba(139, 69, 19, 0.8);
+                --danger-text: #ffcccb;
+                --kbd-background: linear-gradient(to bottom, #454545, #262626);
+                --kbd-border: #adb5bd;
+                --kbd-shadow: 0 2px 4px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+            }
+
             body {
                 margin: 0;
-                background-color: black;
+                background-color: var(--page-background);
             }
 
             .game {
@@ -38,7 +63,7 @@
             table,
             th,
             td {
-                border: 1px solid white;
+                border: 1px solid var(--text-primary);
                 border-collapse: collapse;
             }
 
@@ -52,14 +77,14 @@
                 bottom: 85px;
                 width: min(400px, 80vw);
                 height: calc(100vh - 100px);
-                background-color: rgba(14, 33, 47, 0.9);
-                border: rgba(120, 120, 120, 0.9) solid 1px;
+                background-color: var(--panel-background);
+                border: var(--border-color) solid 1px;
                 border-radius: 18px;
                 backdrop-filter: blur(10px);
                 z-index: 1000;
                 padding: 10px;
                 box-sizing: border-box;
-                color: white;
+                color: var(--text-primary);
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                     sans-serif;
@@ -78,21 +103,21 @@
                 bottom: 20px;
                 width: 50px;
                 height: 50px;
-                background-color: rgba(14, 33, 47, 0.9);
-                border: white solid 1px;
+                background-color: var(--panel-background);
+                border: var(--text-primary) solid 1px;
                 border-radius: 50%;
                 backdrop-filter: blur(10px);
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: white;
+                color: var(--text-primary);
                 transition: background-color 0.2s;
                 z-index: 1001;
             }
 
             .floating-button:hover {
-                background-color: rgba(21, 50, 71, 0.9);
+                background-color: var(--button-active);
             }
 
             .toggle-button {
@@ -109,7 +134,7 @@
 
             .code-section {
                 flex: 1;
-                background-color: rgba(21, 50, 71, 0.8);
+                background-color: var(--surface-background);
                 border-radius: 8px;
                 position: relative;
             }
@@ -132,10 +157,10 @@
                 position: absolute;
                 bottom: 10px;
                 right: 10px;
-                background-color: rgba(28, 67, 95, 0.9);
-                border: 1px solid rgba(120, 120, 120, 0.7);
+                background-color: var(--button-background);
+                border: 1px solid var(--button-border-color);
                 border-radius: 4px;
-                color: white;
+                color: var(--text-primary);
                 padding: 6px 8px;
                 cursor: pointer;
                 font-size: 11px;
@@ -146,11 +171,11 @@
             }
 
             .copy-button:hover {
-                background-color: rgba(35, 84, 119, 0.9);
+                background-color: var(--surface-hover);
             }
 
             .copy-button:active {
-                background-color: rgba(21, 50, 71, 0.9);
+                background-color: var(--button-active);
             }
 
             #html-render {
@@ -169,10 +194,10 @@
                 width: 100%;
                 margin: 10px 0 0 0;
                 padding: 12px;
-                border: 1px solid rgba(120, 120, 120, 0.7);
+                border: 1px solid var(--button-border-color);
                 border-radius: 6px;
-                background-color: rgba(21, 50, 71, 0.6);
-                color: white;
+                background-color: var(--surface-background-soft);
+                color: var(--text-primary);
                 cursor: pointer;
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -182,16 +207,16 @@
             }
 
             .menu-item:hover {
-                background-color: rgba(21, 50, 71, 0.8);
+                background-color: var(--surface-background);
             }
 
             .menu-item.danger {
-                background-color: rgba(139, 69, 19, 0.6);
+                background-color: var(--danger-background);
             }
 
             .menu-item.danger:hover {
-                background-color: rgba(139, 69, 19, 0.8);
-                color: #ffcccb;
+                background-color: var(--danger-hover);
+                color: var(--danger-text);
             }
 
             .help-button {
@@ -208,7 +233,7 @@
                 padding: 20px;
                 gap: 12px;
                 overflow-y: auto;
-                background-color: rgba(14, 33, 47, 0.95);
+                background-color: var(--panel-background-strong);
             }
 
             .collapsed {
@@ -218,14 +243,14 @@
 
             .help-menu h2 {
                 margin: 0 0 6px 0;
-                color: white;
+                color: var(--text-primary);
                 font-size: 24px;
                 font-weight: 600;
             }
 
             .help-menu h3 {
                 margin: 0 0 4px 0;
-                color: white;
+                color: var(--text-primary);
                 font-size: 18px;
                 font-weight: 500;
             }
@@ -233,12 +258,12 @@
             .help-menu p {
                 margin: 2px;
                 line-height: 1.4;
-                color: #e0e0e0;
+                color: var(--text-muted);
             }
 
             .help-menu ul {
                 margin: 0px;
-                color: #e0e0e0;
+                color: var(--text-muted);
             }
 
             .help-menu li {
@@ -247,24 +272,21 @@
             }
 
             .help-menu code {
-                background-color: rgba(21, 50, 71, 0.8);
+                background-color: var(--surface-background);
                 padding: 2px 6px;
                 border-radius: 4px;
                 font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
                 font-size: 13px;
-                color: #87ceeb;
+                color: var(--accent-text);
             }
 
             .help-menu kbd {
-                background: linear-gradient(to bottom, #454545, #262626);
-                color: white;
+                background: var(--kbd-background);
+                color: var(--text-primary);
                 padding: 3px 8px;
                 border-radius: 4px;
-                border: 1px solid #adb5bd;
-                box-shadow:
-                    0 2px 4px rgba(0, 0, 0, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+                border: 1px solid var(--kbd-border);
+                box-shadow: var(--kbd-shadow);
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                     sans-serif;
@@ -275,6 +297,33 @@
                 text-align: center;
                 position: relative;
                 top: -1px;
+            }
+
+            @media (prefers-color-scheme: light) {
+                :root {
+                    color-scheme: light;
+                    --page-background: #f4f7f8;
+                    --panel-background: rgba(255, 255, 255, 0.9);
+                    --panel-background-strong: rgba(255, 255, 255, 0.96);
+                    --border-color: rgba(23, 48, 66, 0.24);
+                    --button-border-color: rgba(23, 48, 66, 0.28);
+                    --text-primary: #173042;
+                    --text-muted: #49606f;
+                    --surface-background: rgba(220, 238, 240, 0.9);
+                    --surface-background-soft: rgba(232, 244, 245, 0.9);
+                    --surface-hover: rgba(189, 224, 228, 0.96);
+                    --button-background: rgba(207, 234, 237, 0.96);
+                    --button-active: rgba(197, 228, 232, 0.98);
+                    --accent-text: #086979;
+                    --danger-background: rgba(177, 55, 39, 0.12);
+                    --danger-hover: rgba(177, 55, 39, 0.2);
+                    --danger-text: #8f291f;
+                    --kbd-background: linear-gradient(to bottom, #ffffff, #dce5e8);
+                    --kbd-border: #9cabb3;
+                    --kbd-shadow: 0 2px 4px rgba(23, 48, 66, 0.16),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+                        inset 0 -1px 0 rgba(23, 48, 66, 0.08);
+                }
             }
 
             @media (max-width: 768px) {
@@ -408,6 +457,28 @@
             </ul>
         </div>
         <script type="text/javascript">
+            const preferredColorScheme = window.matchMedia(
+                "(prefers-color-scheme: dark)",
+            );
+
+            function syncCanvasColorScheme() {
+                if (
+                    typeof Module !== "undefined" &&
+                    Module._set_dark_mode
+                ) {
+                    Module._set_dark_mode(preferredColorScheme.matches ? 1 : 0);
+                }
+            }
+
+            if (preferredColorScheme.addEventListener) {
+                preferredColorScheme.addEventListener(
+                    "change",
+                    syncCanvasColorScheme,
+                );
+            } else {
+                preferredColorScheme.addListener(syncCanvasColorScheme);
+            }
+
             var Module = {
                 preRun: [],
                 print: (function () {
@@ -422,6 +493,7 @@
                 },
                 onRuntimeInitialized: function () {
                     console.log("Initialized");
+                    syncCanvasColorScheme();
 
                     // Check IndexedDB for saved tables
                     const request = indexedDB.open("tablemd", 1);

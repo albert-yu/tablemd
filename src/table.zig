@@ -11,8 +11,6 @@ const theme = @import("theme.zig");
 const Scene = scene_mod.Scene;
 const Size = grid.Size;
 
-const TABLE_BG_COLOR: sg.Color = theme.DARK_THEME.table_background_color;
-
 pub const Units = struct {
     cell: Size,
     text: Size,
@@ -193,7 +191,7 @@ pub const Column = struct {
                 try scene.lines.append(allocator, .{
                     .p0 = .{ position[0], pos_y },
                     .p1 = .{ position[0] + self_size.width, pos_y },
-                    .color = theme.DARK_THEME.text_color,
+                    .color = theme.current().text_color,
                 });
             }
         }
@@ -412,7 +410,7 @@ pub const Table = struct {
         const rect_size = self.size(units);
         const corner = 1.0 / 512.0;
         try scene.rects.append(allocator, .{
-            .color = TABLE_BG_COLOR,
+            .color = theme.current().table_background_color,
             .x = actual_position_x,
             .y = actual_position_y,
             .width = rect_size.width,
@@ -430,7 +428,7 @@ pub const Table = struct {
             rect_size.width,
             rect_size.height,
             corner,
-            theme.DARK_THEME.text_color,
+            theme.current().text_color,
         );
 
         var pos_x = actual_position_x;
@@ -439,12 +437,12 @@ pub const Table = struct {
             try column.addSelfToScene(scene, allocator, units, Vec2{ pos_x, actual_position_y });
             pos_x += col_size.width;
 
-            // Add white column separator line
+            // Add a theme-aware column separator line
             if (i < self.columns.items.len - 1) {
                 try scene.lines.append(allocator, .{
                     .p0 = .{ pos_x, actual_position_y },
                     .p1 = .{ pos_x, actual_position_y + rect_size.height },
-                    .color = theme.DARK_THEME.text_color,
+                    .color = theme.current().text_color,
                 });
             }
         }

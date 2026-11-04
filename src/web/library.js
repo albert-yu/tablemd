@@ -1,6 +1,9 @@
 // Note: emscripten functions (e.g. UTF8ToString) here
 // do not need the Module. prefix
 mergeInto(LibraryManager.library, {
+    prefers_dark_mode: function() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 1 : 0;
+    },
     set_html_render: function(ptr, len) {
         const html = UTF8ToString(ptr, len);
         const renderElement = document.getElementById("html-render");
