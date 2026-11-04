@@ -5,7 +5,6 @@ const zm = @import("zm");
 const Vec2 = zm.Vec2f;
 const Vec3 = zm.Vec3f;
 const theme = @import("../theme.zig");
-const dark_theme = theme.DARK_THEME;
 
 pub const GRID_N = 250;
 const POINTS_N = GRID_N * GRID_N;
@@ -34,8 +33,10 @@ pub const Renderer = struct {
     /// Returns width, height of rect size of one cell
     pub fn setup(self: *Renderer) Size {
         self.bind.vertex_buffers[0] = sg.makeBuffer(.{
-            .data = sg.asRange(&makeQuadVertexBuffer(dark_theme.dot_grid_color)),
+            .usage = .{ .stream_update = true },
+            .size = @sizeOf([24]f32),
         });
+        self.setColor(theme.current().dot_grid_color);
 
         // an index buffer
         self.bind.index_buffer = sg.makeBuffer(.{
@@ -85,6 +86,11 @@ pub const Renderer = struct {
             .width = w,
             .height = h,
         };
+    }
+
+    pub fn setColor(self: *Renderer, color: sg.Color) void {
+        const vertices = makeQuadVertexBuffer(color);
+        sg.updateBuffer(self.bind.vertex_buffers[0], sg.asRange(&vertices));
     }
 
     pub fn renderInPass(self: *const Renderer, vs_range: sg.Range) void {
