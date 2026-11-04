@@ -8,6 +8,8 @@ const Options = struct {
     mod: *Build.Module,
     dep_sokol: *Build.Dependency,
     mod_freetype: *Build.Module,
+    emsdk: ?*Build.Dependency,
+    emsdk_cache: ?freetype_build.EmsdkCacheResult,
 };
 
 const ShaderModule = struct {
@@ -34,11 +36,33 @@ pub fn build(b: *Build) !void {
         .optimize = optimize,
     });
 
-    // Create FreeType module
+    // Translate the FreeType C API and expose it to the Zig wrapper.
+    const translate_freetype = b.addTranslateC(.{
+        .root_source_file = b.path("vendor/freetype/freetype.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    translate_freetype.addIncludePath(b.path("vendor/freetype/include"));
+
+    var emsdk: ?*Build.Dependency = null;
+    var emsdk_cache: ?freetype_build.EmsdkCacheResult = null;
+    if (target.result.cpu.arch.isWasm()) {
+        emsdk = dep_sokol.builder.dependency("emsdk", .{});
+        emsdk_cache = try initEmsdkCache(b, emsdk.?);
+        translate_freetype.addSystemIncludePath(emsdk_cache.?.include_path);
+        if (emsdk_cache.?.cache_init_step) |cache_init_step| {
+            translate_freetype.step.dependOn(cache_init_step);
+        }
+    }
+
     const mod_freetype = b.createModule(.{
         .root_source_file = b.path("vendor/freetype/freetype.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{.{
+            .name = "freetype_c",
+            .module = translate_freetype.createModule(),
+        }},
     });
     mod_freetype.addIncludePath(b.path("vendor/freetype/include"));
 
@@ -103,6 +127,8 @@ pub fn build(b: *Build) !void {
         .mod = mod_root,
         .dep_sokol = dep_sokol,
         .mod_freetype = mod_freetype,
+        .emsdk = emsdk,
+        .emsdk_cache = emsdk_cache,
     };
     if (target.result.cpu.arch.isWasm()) {
         try buildWeb(b, opts);
@@ -139,8 +165,8 @@ fn buildWeb(b: *Build, opts: Options) !void {
     const target = opts.mod.resolved_target.?;
     const optimize = opts.mod.optimize.?;
 
-    const emsdk = opts.dep_sokol.builder.dependency("emsdk", .{});
-    var cache_result = try initEmsdkCache(b, emsdk);
+    const emsdk = opts.emsdk.?;
+    var cache_result = opts.emsdk_cache.?;
     if (cache_result.cache_init_step) |c_init_step| {
         opts.dep_sokol.artifact("sokol_clib").step.dependOn(c_init_step);
         lib.step.dependOn(c_init_step);
@@ -205,9 +231,9 @@ fn createShaderModule(b: *Build, dep_sokol: *Build.Dependency, mod: ShaderModule
 fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !freetype_build.EmsdkCacheResult {
     const include_path = emsdk.path(b.pathJoin(&.{ "upstream", "emscripten", "cache", "sysroot", "include" }));
     var cache_init: ?*Build.Step.Run = null;
-    var dir = std.Io.Dir.openDirAbsolute(
+    var dir = emsdk.builder.root.openDir(
         b.graph.io,
-        include_path.getPath(b),
+        "upstream/emscripten/cache/sysroot/include",
         .{
             .access_sub_paths = true,
             .follow_symlinks = false,
@@ -217,15 +243,9 @@ fn initEmsdkCache(b: *Build, emsdk: *Build.Dependency) !freetype_build.EmsdkCach
         // https://ziggit.dev/t/libc-not-linking-when-compiling-for-emscripten/5022/7
         const embuilder_path = emTool(b, emsdk, "embuilder");
 
-        // Check if embuilder exists before trying to run it
-        const embuilder_absolute_path = embuilder_path.getPath(b);
-
         // Use embuilder to ensure system libraries are built
-        cache_init = b.addSystemCommand(&.{
-            embuilder_absolute_path,
-            "build",
-            "sysroot",
-        });
+        cache_init = b.addRunFile(embuilder_path);
+        cache_init.?.addArgs(&.{ "build", "sysroot" });
         if (cache_init) |c_init| {
             c_init.has_side_effects = true;
             c_init.setName("generate sysroot cache");
@@ -260,18 +280,17 @@ pub fn emTool(b: *Build, emsdk: *Build.Dependency, tool: []const u8) Build.LazyP
 
 fn createEmsdkStep(b: *Build, emsdk: *Build.Dependency) *Build.Step.Run {
     if (builtin.os.tag == .windows) {
-        return b.addSystemCommand(&.{emSdkLazyPath(b, emsdk, &.{"emsdk.bat"}).getPath(b)});
+        return b.addRunFile(emSdkLazyPath(b, emsdk, &.{"emsdk.bat"}));
     } else {
         const step = b.addSystemCommand(&.{"bash"});
-        step.addArg(emSdkLazyPath(b, emsdk, &.{"emsdk"}).getPath(b));
+        step.addFileArg(emSdkLazyPath(b, emsdk, &.{"emsdk"}));
         return step;
     }
 }
 
 /// Copied from sokol build.zig (it wasn't exported)
 fn emSdkSetupStep(b: *Build, emsdk: *Build.Dependency) !?*Build.Step.Run {
-    const dot_emsc_path = emSdkLazyPath(b, emsdk, &.{".emscripten"}).getPath(b);
-    const dot_emsc_exists = if (std.Io.Dir.accessAbsolute(b.graph.io, dot_emsc_path, .{})) |_| true else |_| false;
+    const dot_emsc_exists = if (emsdk.builder.root.access(b.graph.io, ".emscripten", .{})) |_| true else |_| false;
     if (!dot_emsc_exists) {
         const emsdk_install = createEmsdkStep(b, emsdk);
         emsdk_install.addArgs(&.{ "install", "latest" });

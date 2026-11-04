@@ -84,15 +84,15 @@ const MOMENTUM_TIMEOUT_MS = 16;
 const TouchState = struct {
     active: bool = false,
     num_touches: u32 = 0,
-    touches: [10]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 10,
-    prev_touches: [10]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 10,
+    touches: [10]Vec2 = @splat(Vec2{ 0, 0 }),
+    prev_touches: [10]Vec2 = @splat(Vec2{ 0, 0 }),
     initial_distance: f32 = 0,
     prev_distance: f32 = 0,
     center: Vec2 = Vec2{ 0, 0 },
     prev_center: Vec2 = Vec2{ 0, 0 },
     // Momentum tracking
     velocity: Vec2 = Vec2{ 0, 0 },
-    momentum_samples: [5]Vec2 = [_]Vec2{Vec2{ 0, 0 }} ** 5,
+    momentum_samples: [5]Vec2 = @splat(Vec2{ 0, 0 }),
     momentum_sample_index: u32 = 0,
 };
 
@@ -523,7 +523,7 @@ export fn input(ev: ?*const sapp.Event) void {
                         return;
                     };
                     defer state.allocator.free(s);
-                    const null_terminated = state.allocator.dupeZ(u8, s) catch |err| {
+                    const null_terminated = state.allocator.dupeSentinel(u8, s, 0) catch |err| {
                         state.allocator.free(s);
                         std.log.err("Failed to copy text: {any}", .{err});
                         return;
@@ -795,7 +795,7 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
         }
 
         // Clear momentum samples
-        state.touch_state.momentum_samples = [_]Vec2{Vec2{ 0, 0 }} ** 5;
+        state.touch_state.momentum_samples = @splat(Vec2{ 0, 0 });
         state.touch_state.momentum_sample_index = 0;
     }
 

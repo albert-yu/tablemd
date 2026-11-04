@@ -33,8 +33,8 @@ pub fn Renderer(comptime Writer: type, comptime Context: type) type {
             node: Node.Index,
             writer: Writer,
         ) Error!void {
-            const data = doc.nodes.items(.data)[@intFromEnum(node)];
-            switch (doc.nodes.items(.tag)[@intFromEnum(node)]) {
+            const data = doc.nodes.items(.data)[@backingInt(node)];
+            switch (doc.nodes.items(.tag)[@backingInt(node)]) {
                 .root => {
                     for (doc.extraChildren(data.container.children)) |child| {
                         try r.renderFn(r, doc, child, writer);
@@ -62,8 +62,8 @@ pub fn Renderer(comptime Writer: type, comptime Context: type) type {
                 .list_item => {
                     try writer.writeAll("<li>");
                     for (doc.extraChildren(data.list_item.children)) |child| {
-                        if (data.list_item.tight and doc.nodes.items(.tag)[@intFromEnum(child)] == .paragraph) {
-                            const para_data = doc.nodes.items(.data)[@intFromEnum(child)];
+                        if (data.list_item.tight and doc.nodes.items(.tag)[@backingInt(child)] == .paragraph) {
+                            const para_data = doc.nodes.items(.data)[@backingInt(child)];
                             for (doc.extraChildren(para_data.container.children)) |para_child| {
                                 try r.renderFn(r, doc, para_child, writer);
                             }
@@ -193,8 +193,8 @@ pub fn renderInlineNodeText(
     node: Node.Index,
     writer: anytype,
 ) anyerror!void {
-    const data = doc.nodes.items(.data)[@intFromEnum(node)];
-    switch (doc.nodes.items(.tag)[@intFromEnum(node)]) {
+    const data = doc.nodes.items(.data)[@backingInt(node)];
+    switch (doc.nodes.items(.tag)[@backingInt(node)]) {
         .root,
         .list,
         .list_item,
