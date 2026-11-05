@@ -448,6 +448,58 @@ pub const Table = struct {
         }
     }
 
+    pub fn addCellBorderToScene(
+        self: Table,
+        scene: *Scene,
+        allocator: Allocator,
+        units: Units,
+        column_index: usize,
+        row_index: usize,
+        color: sg.Color,
+    ) !void {
+        if (column_index >= self.columns.items.len) return;
+        const column = self.columns.items[column_index];
+        if (row_index >= column.data.items.len) return;
+
+        const cell_units = units.cell;
+        var pos_x = @as(f32, @floatFromInt(self.position.left)) * cell_units.width;
+        for (0..column_index) |col_i| {
+            pos_x += self.columns.items[col_i].size(units).width;
+        }
+
+        var pos_y = @as(f32, @floatFromInt(self.position.top)) * cell_units.height;
+        for (0..row_index) |row_i| {
+            pos_y += column.data.items[row_i].size(units).height;
+        }
+
+        const width = column.size(units).width;
+        const height = column.data.items[row_index].size(units).height;
+
+        const corner = 1.0 / 512.0;
+        const is_left = column_index == 0;
+        const is_right = column_index + 1 == self.columns.items.len;
+        const is_top = row_index == 0;
+        const is_bottom = row_index + 1 == column.data.items.len;
+
+        const corners: [4]f32 = .{
+            if (is_left and is_top) corner else 0.0,
+            if (is_right and is_top) corner else 0.0,
+            if (is_right and is_bottom) corner else 0.0,
+            if (is_left and is_bottom) corner else 0.0,
+        };
+
+        try addRoundedRectCornersLines(
+            scene,
+            allocator,
+            pos_x,
+            pos_y,
+            width,
+            height,
+            corners,
+            color,
+        );
+    }
+
     pub fn adjacent(self: Table, grid_pos: GridPos, units: Units) Direction {
         const self_grid_size = self.gridSize(units);
         const self_right = self.position.left + self_grid_size.width;
@@ -611,79 +663,106 @@ fn addRoundedRectLines(
     corner_radius: f32,
     color: sg.Color,
 ) !void {
-    const r = @min(corner_radius, @min(width / 2.0, height / 2.0));
-    if (r <= 0.0) {
-        try scene.lines.append(allocator, .{ .p0 = .{ x, y }, .p1 = .{ x + width, y }, .color = color });
-        try scene.lines.append(allocator, .{ .p0 = .{ x + width, y }, .p1 = .{ x + width, y + height }, .color = color });
-        try scene.lines.append(allocator, .{ .p0 = .{ x + width, y + height }, .p1 = .{ x, y + height }, .color = color });
-        try scene.lines.append(allocator, .{ .p0 = .{ x, y + height }, .p1 = .{ x, y }, .color = color });
-        return;
-    }
+    try addRoundedRectCornersLines(
+        scene,
+        allocator,
+        x,
+        y,
+        width,
+        height,
+        .{ corner_radius, corner_radius, corner_radius, corner_radius },
+        color,
+    );
+}
+
+fn addRoundedRectCornersLines(
+    scene: *Scene,
+    allocator: Allocator,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    corners: [4]f32,
+    color: sg.Color,
+) !void {
+    const max_r = @min(width / 2.0, height / 2.0);
+    const tl = @max(0.0, @min(corners[0], max_r));
+    const tr = @max(0.0, @min(corners[1], max_r));
+    const br = @max(0.0, @min(corners[2], max_r));
+    const bl = @max(0.0, @min(corners[3], max_r));
 
     // 4 straight segments
     // Top
-    try scene.lines.append(allocator, .{ .p0 = .{ x + r, y }, .p1 = .{ x + width - r, y }, .color = color });
+    try scene.lines.append(allocator, .{ .p0 = .{ x + tl, y }, .p1 = .{ x + width - tr, y }, .color = color });
     // Right
-    try scene.lines.append(allocator, .{ .p0 = .{ x + width, y + r }, .p1 = .{ x + width, y + height - r }, .color = color });
+    try scene.lines.append(allocator, .{ .p0 = .{ x + width, y + tr }, .p1 = .{ x + width, y + height - br }, .color = color });
     // Bottom
-    try scene.lines.append(allocator, .{ .p0 = .{ x + width - r, y + height }, .p1 = .{ x + r, y + height }, .color = color });
+    try scene.lines.append(allocator, .{ .p0 = .{ x + width - br, y + height }, .p1 = .{ x + bl, y + height }, .color = color });
     // Left
-    try scene.lines.append(allocator, .{ .p0 = .{ x, y + height - r }, .p1 = .{ x, y + r }, .color = color });
+    try scene.lines.append(allocator, .{ .p0 = .{ x, y + height - bl }, .p1 = .{ x, y + tl }, .color = color });
 
     // 4 corner arcs
     const ARC_SEGMENTS = 8;
     const half_pi = std.math.pi / 2.0;
 
-    // Top-Right corner: center (x + width - r, y + r), from -pi/2 to 0
-    const tr_cx = x + width - r;
-    const tr_cy = y + r;
-    for (0..ARC_SEGMENTS) |step| {
-        const a0 = -half_pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        const a1 = -half_pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        try scene.lines.append(allocator, .{
-            .p0 = .{ tr_cx + r * @cos(a0), tr_cy + r * @sin(a0) },
-            .p1 = .{ tr_cx + r * @cos(a1), tr_cy + r * @sin(a1) },
-            .color = color,
-        });
+    // Top-Right corner: center (x + width - tr, y + tr), from -pi/2 to 0
+    if (tr > 0.0) {
+        const tr_cx = x + width - tr;
+        const tr_cy = y + tr;
+        for (0..ARC_SEGMENTS) |step| {
+            const a0 = -half_pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            const a1 = -half_pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            try scene.lines.append(allocator, .{
+                .p0 = .{ tr_cx + tr * @cos(a0), tr_cy + tr * @sin(a0) },
+                .p1 = .{ tr_cx + tr * @cos(a1), tr_cy + tr * @sin(a1) },
+                .color = color,
+            });
+        }
     }
 
-    // Bottom-Right corner: center (x + width - r, y + height - r), from 0 to pi/2
-    const br_cx = x + width - r;
-    const br_cy = y + height - r;
-    for (0..ARC_SEGMENTS) |step| {
-        const a0 = (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        const a1 = (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        try scene.lines.append(allocator, .{
-            .p0 = .{ br_cx + r * @cos(a0), br_cy + r * @sin(a0) },
-            .p1 = .{ br_cx + r * @cos(a1), br_cy + r * @sin(a1) },
-            .color = color,
-        });
+    // Bottom-Right corner: center (x + width - br, y + height - br), from 0 to pi/2
+    if (br > 0.0) {
+        const br_cx = x + width - br;
+        const br_cy = y + height - br;
+        for (0..ARC_SEGMENTS) |step| {
+            const a0 = (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            const a1 = (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            try scene.lines.append(allocator, .{
+                .p0 = .{ br_cx + br * @cos(a0), br_cy + br * @sin(a0) },
+                .p1 = .{ br_cx + br * @cos(a1), br_cy + br * @sin(a1) },
+                .color = color,
+            });
+        }
     }
 
-    // Bottom-Left corner: center (x + r, y + height - r), from pi/2 to pi
-    const bl_cx = x + r;
-    const bl_cy = y + height - r;
-    for (0..ARC_SEGMENTS) |step| {
-        const a0 = half_pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        const a1 = half_pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        try scene.lines.append(allocator, .{
-            .p0 = .{ bl_cx + r * @cos(a0), bl_cy + r * @sin(a0) },
-            .p1 = .{ bl_cx + r * @cos(a1), bl_cy + r * @sin(a1) },
-            .color = color,
-        });
+    // Bottom-Left corner: center (x + bl, y + height - bl), from pi/2 to pi
+    if (bl > 0.0) {
+        const bl_cx = x + bl;
+        const bl_cy = y + height - bl;
+        for (0..ARC_SEGMENTS) |step| {
+            const a0 = half_pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            const a1 = half_pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            try scene.lines.append(allocator, .{
+                .p0 = .{ bl_cx + bl * @cos(a0), bl_cy + bl * @sin(a0) },
+                .p1 = .{ bl_cx + bl * @cos(a1), bl_cy + bl * @sin(a1) },
+                .color = color,
+            });
+        }
     }
 
-    // Top-Left corner: center (x + r, y + r), from pi to 3*pi/2
-    const tl_cx = x + r;
-    const tl_cy = y + r;
-    for (0..ARC_SEGMENTS) |step| {
-        const a0 = std.math.pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        const a1 = std.math.pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
-        try scene.lines.append(allocator, .{
-            .p0 = .{ tl_cx + r * @cos(a0), tl_cy + r * @sin(a0) },
-            .p1 = .{ tl_cx + r * @cos(a1), tl_cy + r * @sin(a1) },
-            .color = color,
-        });
+    // Top-Left corner: center (x + tl, y + tl), from pi to 3*pi/2
+    if (tl > 0.0) {
+        const tl_cx = x + tl;
+        const tl_cy = y + tl;
+        for (0..ARC_SEGMENTS) |step| {
+            const a0 = std.math.pi + (@as(f32, @floatFromInt(step)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            const a1 = std.math.pi + (@as(f32, @floatFromInt(step + 1)) / @as(f32, @floatFromInt(ARC_SEGMENTS))) * half_pi;
+            try scene.lines.append(allocator, .{
+                .p0 = .{ tl_cx + tl * @cos(a0), tl_cy + tl * @sin(a0) },
+                .p1 = .{ tl_cx + tl * @cos(a1), tl_cy + tl * @sin(a1) },
+                .color = color,
+            });
+        }
     }
 }
 

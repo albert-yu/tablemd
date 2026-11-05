@@ -58,6 +58,7 @@ const sapp = sokol.app;
 const slog = sokol.log;
 const sg = sokol.gfx;
 const sglue = sokol.glue;
+const stm = sokol.time;
 
 const CellPosition = struct {
     row: usize,
@@ -70,6 +71,9 @@ const GRID_N = @import("render/dot_grid.zig").GRID_N;
 const WIDTH_START = 800;
 const HEIGHT_START = 600;
 const TOUCH_THRESHOLD = 1.0; // pixels
+const DOUBLE_CLICK_MS = 400.0;
+const DOUBLE_CLICK_TOLERANCE_PX = 8.0;
+const DRAG_TOLERANCE_PX = 2.0;
 
 // Momentum constants
 const MOMENTUM_MIN_SPEED = 5.0; // Minimum speed to trigger momentum
@@ -111,6 +115,9 @@ const state = struct {
     var mouse: [2]Vec2 = .{ Vec2{ 0, 0 }, Vec2{ 0, 0 } };
     var mouse_press_pos: ?Vec2 = null;
     var is_dragging: bool = false;
+    var is_double_click: bool = false;
+    var last_click_time: u64 = 0;
+    var last_click_pos: Vec2 = Vec2{ 0, 0 };
     var touch_state = TouchState{};
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
@@ -145,6 +152,7 @@ export fn init() void {
         theme.setDarkMode(prefers_dark_mode() != 0);
     }
 
+    stm.setup();
     sg.setup(.{
         .environment = sglue.environment(),
         .logger = .{ .func = slog.func },
@@ -474,17 +482,20 @@ export fn input(ev: ?*const sapp.Event) void {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
             const point = getPointForUI(state.mouse[0]);
             if (state.mouse_press_pos) |press_pos| {
-                const delta_x = state.mouse[0][0] - press_pos[0];
-                const delta_y = state.mouse[0][1] - press_pos[1];
-                const tolerance_px = 2;
-                if (!vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, tolerance_px)) {
-                    state.is_dragging = true;
-                    handlePan(delta_x, delta_y);
-                    state.mouse_press_pos = state.mouse[0];
+                if (!state.is_double_click) {
+                    const delta_x = state.mouse[0][0] - press_pos[0];
+                    const delta_y = state.mouse[0][1] - press_pos[1];
+                    if (state.is_dragging or !vec2Equal(.{ delta_x, delta_y }, .{ 0, 0 }, DRAG_TOLERANCE_PX)) {
+                        state.is_dragging = true;
+                        const start_point = getPointForUI(press_pos);
+                        state.ui.handleMouseDrag(start_point, point);
+                        table_dirty = true;
+                    }
                 }
             } else {
                 state.ui.handleMouseHover(point);
             }
+            updateMouseCursor();
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
@@ -496,21 +507,50 @@ export fn input(ev: ?*const sapp.Event) void {
                 const pan_speed = 150.0;
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
             }
+            if (state.mouse_press_pos == null) {
+                state.ui.handleMouseHover(getPointForUI(state.mouse[0]));
+                updateMouseCursor();
+            }
         },
         .MOUSE_DOWN => {
+            state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
             state.mouse_press_pos = state.mouse[0];
+            state.is_dragging = false;
             // Stop any existing momentum when user starts mouse interaction
             state.touch_state.velocity = Vec2{ 0, 0 };
+
+            const now = stm.now();
+            if (state.last_click_time != 0 and
+                stm.ms(stm.diff(now, state.last_click_time)) <= DOUBLE_CLICK_MS and
+                vec2Equal(state.mouse[0], state.last_click_pos, DOUBLE_CLICK_TOLERANCE_PX))
+            {
+                state.is_double_click = true;
+                state.last_click_time = 0;
+                const normalized_p = getPointForUI(state.mouse[0]);
+                state.ui.handleMouseDoubleClick(normalized_p);
+                table_dirty = true;
+            } else {
+                state.is_double_click = false;
+            }
+            updateMouseCursor();
         },
         .MOUSE_UP => {
+            state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
             if (state.mouse_press_pos) |_| {
-                if (!state.is_dragging) {
-                    const normalized_p = getPointForUI(state.mouse[0]);
+                const normalized_p = getPointForUI(state.mouse[0]);
+                if (!state.is_dragging and !state.is_double_click) {
                     state.ui.handleMouseClick(normalized_p);
+                    state.last_click_time = stm.now();
+                    state.last_click_pos = state.mouse[0];
                     table_dirty = true;
+                } else if (state.is_dragging) {
+                    state.last_click_time = 0;
                 }
                 state.mouse_press_pos = null;
                 state.is_dragging = false;
+                state.is_double_click = false;
+                state.ui.handleMouseHover(normalized_p);
+                updateMouseCursor();
             }
         },
         .TOUCHES_BEGAN => {
@@ -535,18 +575,7 @@ export fn input(ev: ?*const sapp.Event) void {
             const ctrl_or_cmd = event.modifiers & sapp.modifier_super != 0 or event.modifiers & sapp.modifier_ctrl != 0;
             if (ctrl_or_cmd) {
                 if (event.char_code == 'c') {
-                    const s = state.ui.handleCopy(state.allocator) catch |err| {
-                        std.log.err("Failed to copy text: {any}", .{err});
-                        return;
-                    };
-                    defer state.allocator.free(s);
-                    const null_terminated = state.allocator.dupeSentinel(u8, s, 0) catch |err| {
-                        state.allocator.free(s);
-                        std.log.err("Failed to copy text: {any}", .{err});
-                        return;
-                    };
-                    defer state.allocator.free(null_terminated);
-                    sapp.setClipboardString(null_terminated);
+                    copySelectionToClipboard();
                 }
             } else {
                 state.ui.handleChar(state.allocator, event.char_code) catch {};
@@ -561,8 +590,13 @@ export fn input(ev: ?*const sapp.Event) void {
             }
         },
         .KEY_DOWN => {
-            state.ui.handleKeyDown(state.allocator, event.key_code, event.modifiers);
-            table_dirty = true;
+            const ctrl_or_cmd = event.modifiers & sapp.modifier_super != 0 or event.modifiers & sapp.modifier_ctrl != 0;
+            if (ctrl_or_cmd and event.key_code == .C) {
+                copySelectionToClipboard();
+            } else {
+                state.ui.handleKeyDown(state.allocator, event.key_code, event.modifiers);
+                table_dirty = true;
+            }
         },
         else => {},
     }
@@ -572,12 +606,45 @@ export fn input(ev: ?*const sapp.Event) void {
     // otherwise, leave the current table rendered as-is
 }
 
+fn updateMouseCursor() void {
+    const is_ibeam = if (state.is_dragging) blk: {
+        break :blk if (state.ui.active_cursor) |cursor|
+            switch (cursor) {
+                .text, .text_selection => true,
+                .empty, .cell => false,
+            }
+        else
+            false;
+    } else blk: {
+        break :blk if (state.ui.hover_cursor) |cursor|
+            cursor == .text
+        else
+            false;
+    };
+    sapp.setMouseCursor(if (is_ibeam) .IBEAM else .DEFAULT);
+}
+
+fn copySelectionToClipboard() void {
+    const s = state.ui.handleCopy(state.allocator) catch |err| {
+        std.log.err("Failed to copy text: {any}", .{err});
+        return;
+    };
+    defer state.allocator.free(s);
+    const null_terminated = state.allocator.dupeSentinel(u8, s, 0) catch |err| {
+        std.log.err("Failed to copy text: {any}", .{err});
+        return;
+    };
+    defer state.allocator.free(null_terminated);
+    sapp.setClipboardString(null_terminated);
+}
+
 fn updateTableFromCursorState() void {
     if (state.ui.active_cursor) |cursor| {
         const table: ?*ui.Table = switch (cursor) {
             .empty => null,
             .cell => |cell_pos| state.ui.tables.items[cell_pos.cell_index.table_index],
             .text => |text_pos| state.ui.tables.items[text_pos.cell_index.table_index],
+            .text_selection => |sel| state.ui.tables.items[sel.cell_index.table_index],
         };
         if (table) |tbl| {
             sendTableToDOM(tbl) catch |err| {

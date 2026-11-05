@@ -64,16 +64,32 @@ const TextPos = struct {
     char_offset: usize,
 };
 
+const TextSelection = struct {
+    cell_index: CellIndex,
+    pos: Vec2,
+    /// Inclusive byte offset into the cell's value slice.
+    start_offset: usize,
+    /// Exclusive byte offset into the cell's value slice.
+    end_offset: usize,
+};
+
+const OffsetRange = struct {
+    start: usize,
+    end: usize,
+};
+
 const CursorType = enum {
     empty,
     cell,
     text,
+    text_selection,
 };
 
 pub const Cursor = union(CursorType) {
     empty: EmptyPos,
     cell: CellPos,
     text: TextPos,
+    text_selection: TextSelection,
 
     pub fn getRect(self: Cursor, ui: *UI, color: Color) RectElement {
         const corner = 1.0 / 512.0;
@@ -114,14 +130,36 @@ pub const Cursor = union(CursorType) {
                     };
                 }
             },
-            .text => |text_pos| .{
-                .color = color,
-                .x = text_pos.pos[0],
-                .y = text_pos.pos[1],
-                .width = units.text.width,
-                .height = units.text.height,
-                .corners = corners,
-                .sigma = 1e-6,
+            .text => |text_pos| blk: {
+                const cursor_width = units.text.width / 8.0;
+                const text_corner = @min(corner, cursor_width * 0.5);
+                break :blk .{
+                    .color = color,
+                    .x = text_pos.pos[0] - cursor_width * 0.5,
+                    .y = text_pos.pos[1],
+                    .width = cursor_width,
+                    .height = units.text.height,
+                    .corners = .{ text_corner, text_corner, text_corner, text_corner },
+                    .sigma = 1e-6,
+                };
+            },
+            .text_selection => |sel| blk: {
+                const char_count = if (ui.getCellFromIndex(sel.cell_index)) |cell|
+                    if (sel.start_offset <= sel.end_offset and sel.end_offset <= cell.value.items.len)
+                        std.unicode.utf8CountCodepoints(cell.value.items[sel.start_offset..sel.end_offset]) catch (sel.end_offset - sel.start_offset)
+                    else
+                        0
+                else
+                    0;
+                break :blk .{
+                    .color = color,
+                    .x = sel.pos[0],
+                    .y = sel.pos[1],
+                    .width = units.text.width * @as(f32, @floatFromInt(char_count)),
+                    .height = units.text.height,
+                    .corners = corners,
+                    .sigma = 1e-6,
+                };
             },
         };
     }
@@ -201,6 +239,85 @@ pub const UI = struct {
 
     pub fn handleMouseHover(self: *UI, p: Vec2) void {
         self.hover_cursor = self.getCursor(p);
+    }
+
+    pub fn handleMouseDrag(self: *UI, start_p: Vec2, curr_p: Vec2) void {
+        self.hover_cursor = null;
+        const cell_info = self.getCellAt(start_p) orelse return;
+        const cell = self.getCellFromIndex(cell_info.cell_index) orelse return;
+        if (cell.value.items.len == 0) return;
+
+        const offset0 = self.getTextOffsetAtPoint(start_p, cell_info);
+        const offset1 = self.getTextOffsetAtPoint(curr_p, cell_info);
+        const start_offset = @min(offset0, offset1);
+        const end_offset = @max(offset0, offset1);
+
+        const pos = self.getPosForOffset(cell_info, start_offset);
+        if (start_offset < end_offset) {
+            self.active_cursor = .{
+                .text_selection = .{
+                    .cell_index = cell_info.cell_index,
+                    .pos = pos,
+                    .start_offset = start_offset,
+                    .end_offset = end_offset,
+                },
+            };
+        } else {
+            self.active_cursor = .{
+                .text = .{
+                    .cell_index = cell_info.cell_index,
+                    .pos = pos,
+                    .char_offset = start_offset,
+                },
+            };
+        }
+    }
+
+    pub fn handleMouseDoubleClick(self: *UI, p: Vec2) void {
+        const cell_info = self.getCellAt(p) orelse return;
+        const cell = self.getCellFromIndex(cell_info.cell_index) orelse return;
+        const text = cell.value.items;
+        if (text.len == 0) return;
+
+        const text_pos = self.getTextPositionAt(p, cell_info) orelse return;
+        const char_range = self.getTextOffsetRangeAtPoint(p, cell_info);
+        const anchor_offset: usize = if (char_range.start < char_range.end)
+            char_range.start
+        else if (text_pos.char_offset < text.len and text[text_pos.char_offset] != '\n')
+            text_pos.char_offset
+        else if (text_pos.char_offset > 0) blk: {
+            const prev = findPrevUtf8CharStart(text, text_pos.char_offset);
+            if (text[prev] == '\n') return;
+            break :blk prev;
+        } else return;
+
+        const target_class = getCharClass(text[anchor_offset]);
+        if (target_class == .newline) return;
+
+        var start_offset = anchor_offset;
+        while (start_offset > 0) {
+            const prev_offset = findPrevUtf8CharStart(text, start_offset);
+            if (getCharClass(text[prev_offset]) != target_class) break;
+            start_offset = prev_offset;
+        }
+
+        var end_offset = findNextUtf8CharStart(text, anchor_offset);
+        while (end_offset < text.len) {
+            if (getCharClass(text[end_offset]) != target_class) break;
+            end_offset = findNextUtf8CharStart(text, end_offset);
+        }
+
+        if (start_offset < end_offset) {
+            const pos = self.getPosForOffset(cell_info, start_offset);
+            self.active_cursor = .{
+                .text_selection = .{
+                    .cell_index = cell_info.cell_index,
+                    .pos = pos,
+                    .start_offset = start_offset,
+                    .end_offset = end_offset,
+                },
+            };
+        }
     }
 
     fn findAdjacentTable(self: *UI, grid_pos: GridPos) struct { table: ?*Table, direction: Direction, multiple: bool } {
@@ -449,13 +566,42 @@ pub const UI = struct {
                         self.shiftTablesRight(table, new_table_width - curr_table_width);
                     }
                 },
+                .text_selection => |sel| {
+                    const cell = self.getCellFromIndex(sel.cell_index) orelse return;
+                    const table = self.tables.items[sel.cell_index.table_index];
+                    const curr_table_width = table.gridSize(self.units).width;
+                    if (sel.start_offset < sel.end_offset and sel.end_offset <= cell.value.items.len) {
+                        const bytes_to_remove = sel.end_offset - sel.start_offset;
+                        for (0..bytes_to_remove) |_| {
+                            _ = cell.value.orderedRemove(sel.start_offset);
+                        }
+                    }
+                    var utf8_bytes: [4]u8 = undefined;
+                    const utf8_len = std.unicode.utf8Encode(@intCast(char_code), &utf8_bytes) catch return;
+                    const new_offset = sel.start_offset;
+                    for (utf8_bytes[0..utf8_len], 0..) |byte, i| {
+                        try cell.value.insert(allocator, new_offset + i, byte);
+                    }
+                    const new_table_width = table.gridSize(self.units).width;
+                    const new_x = sel.pos[0] + self.units.text.width;
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = .{ new_x, sel.pos[1] },
+                            .char_offset = new_offset + utf8_len,
+                        },
+                    };
+                    if (new_table_width > curr_table_width) {
+                        self.shiftTablesRight(table, new_table_width - curr_table_width);
+                    }
+                },
             }
         }
     }
 
     pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode, modifiers: u32) void {
         switch (key_code) {
-            .BACKSPACE => self.handleBackspace(allocator),
+            .BACKSPACE, .DELETE => self.handleBackspace(allocator),
             .ENTER => self.handleEnter(allocator, modifiers),
             .ESCAPE => self.handleEscape(),
             .LEFT => self.handleArrowLeft(),
@@ -478,6 +624,12 @@ pub const UI = struct {
                     try str_builder.appendSlice(allocator, cell_content);
                 },
                 .text => {},
+                .text_selection => |sel| {
+                    const cell = self.getCellFromIndex(sel.cell_index) orelse return error.CellNotFound;
+                    if (sel.start_offset < sel.end_offset and sel.end_offset <= cell.value.items.len) {
+                        try str_builder.appendSlice(allocator, cell.value.items[sel.start_offset..sel.end_offset]);
+                    }
+                },
             }
         }
         return str_builder.toOwnedSlice(allocator);
@@ -590,6 +742,39 @@ pub const UI = struct {
                         self.shiftTablesDown(table, new_table_size.height - curr_table_size.height);
                     }
                 },
+                .text_selection => |sel| {
+                    const cell = self.getCellFromIndex(sel.cell_index) orelse return;
+                    const table = self.tables.items[sel.cell_index.table_index];
+                    const curr_table_size = table.gridSize(self.units);
+                    if (sel.start_offset < sel.end_offset and sel.end_offset <= cell.value.items.len) {
+                        const bytes_to_remove = sel.end_offset - sel.start_offset;
+                        for (0..bytes_to_remove) |_| {
+                            _ = cell.value.orderedRemove(sel.start_offset);
+                        }
+                    }
+                    var insert_pos = sel.start_offset;
+                    for (clipboard_text) |char| {
+                        try cell.value.insert(allocator, insert_pos, char);
+                        insert_pos += 1;
+                    }
+                    const new_table_size = table.gridSize(self.units);
+                    const char_count = std.unicode.utf8CountCodepoints(clipboard_text) catch clipboard_text.len;
+                    const text_width_offset = @as(f32, @floatFromInt(char_count)) * self.units.text.width;
+                    const new_x = sel.pos[0] + text_width_offset;
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = .{ new_x, sel.pos[1] },
+                            .char_offset = sel.start_offset + clipboard_text.len,
+                        },
+                    };
+                    if (new_table_size.width > curr_table_size.width) {
+                        self.shiftTablesRight(table, new_table_size.width - curr_table_size.width);
+                    }
+                    if (new_table_size.height > curr_table_size.height) {
+                        self.shiftTablesDown(table, new_table_size.height - curr_table_size.height);
+                    }
+                },
             }
         }
     }
@@ -655,6 +840,15 @@ pub const UI = struct {
                             .cell_index = text_pos.cell_index,
                             .pos = .{ text_pos.pos[0] - self.units.text.width, text_pos.pos[1] },
                             .char_offset = prev_char_start,
+                        },
+                    };
+                },
+                .text_selection => |sel| {
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = sel.pos,
+                            .char_offset = sel.start_offset,
                         },
                     };
                 },
@@ -724,6 +918,20 @@ pub const UI = struct {
                             .cell_index = text_pos.cell_index,
                             .pos = .{ text_pos.pos[0] + self.units.text.width, text_pos.pos[1] },
                             .char_offset = next_char_start,
+                        },
+                    };
+                },
+                .text_selection => |sel| {
+                    const cell = self.getCellFromIndex(sel.cell_index) orelse return;
+                    const char_count = if (sel.start_offset <= sel.end_offset and sel.end_offset <= cell.value.items.len)
+                        std.unicode.utf8CountCodepoints(cell.value.items[sel.start_offset..sel.end_offset]) catch (sel.end_offset - sel.start_offset)
+                    else
+                        0;
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = .{ sel.pos[0] + @as(f32, @floatFromInt(char_count)) * self.units.text.width, sel.pos[1] },
+                            .char_offset = sel.end_offset,
                         },
                     };
                 },
@@ -805,6 +1013,15 @@ pub const UI = struct {
                         }
                     }
                 },
+                .text_selection => |sel| {
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = sel.pos,
+                            .char_offset = sel.start_offset,
+                        },
+                    };
+                },
             }
         }
     }
@@ -883,6 +1100,15 @@ pub const UI = struct {
                             };
                         }
                     }
+                },
+                .text_selection => |sel| {
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = sel.pos,
+                            .char_offset = sel.start_offset,
+                        },
+                    };
                 },
             }
         }
@@ -1045,6 +1271,13 @@ pub const UI = struct {
                         self.nextCell(text_pos.cell_index);
                     }
                 },
+                .text_selection => |sel| {
+                    if (modifiers & sapp.modifier_shift != 0) {
+                        self.prevCell(sel.cell_index);
+                    } else {
+                        self.nextCell(sel.cell_index);
+                    }
+                },
             }
         }
     }
@@ -1070,6 +1303,13 @@ pub const UI = struct {
                 .text => |text_pos| {
                     const table = self.tables.items[text_pos.cell_index.table_index];
                     if (self.moveToNextRow(allocator, text_pos.cell_index)) |next_cursor| {
+                        self.active_cursor = next_cursor;
+                        self.shiftTablesDown(table, 1);
+                    }
+                },
+                .text_selection => |sel| {
+                    const table = self.tables.items[sel.cell_index.table_index];
+                    if (self.moveToNextRow(allocator, sel.cell_index)) |next_cursor| {
                         self.active_cursor = next_cursor;
                         self.shiftTablesDown(table, 1);
                     }
@@ -1111,6 +1351,24 @@ pub const UI = struct {
                             .cell_index = text_pos.cell_index,
                             .pos = Vec2{ self.getCellLeftPosition(text_pos.cell_index) + padding, text_pos.pos[1] + self.units.text.height },
                             .char_offset = text_pos.char_offset + 1, // After the newline character
+                        },
+                    };
+                },
+                .text_selection => |sel| {
+                    const cell = self.getCellFromIndex(sel.cell_index) orelse return;
+                    if (sel.start_offset < sel.end_offset and sel.end_offset <= cell.value.items.len) {
+                        const bytes_to_remove = sel.end_offset - sel.start_offset;
+                        for (0..bytes_to_remove) |_| {
+                            _ = cell.value.orderedRemove(sel.start_offset);
+                        }
+                    }
+                    cell.value.insert(allocator, sel.start_offset, '\n') catch return;
+                    const padding = self.units.paddingLeft();
+                    self.active_cursor = .{
+                        .text = .{
+                            .cell_index = sel.cell_index,
+                            .pos = Vec2{ self.getCellLeftPosition(sel.cell_index) + padding, sel.pos[1] + self.units.text.height },
+                            .char_offset = sel.start_offset + 1,
                         },
                     };
                 },
@@ -1203,6 +1461,37 @@ pub const UI = struct {
                         };
                     }
                 },
+                .text_selection => |sel| {
+                    const cell = self.getCellFromIndex(sel.cell_index) orelse return;
+                    if (sel.start_offset >= sel.end_offset or sel.end_offset > cell.value.items.len) {
+                        return;
+                    }
+
+                    const bytes_to_remove = sel.end_offset - sel.start_offset;
+                    for (0..bytes_to_remove) |_| {
+                        _ = cell.value.orderedRemove(sel.start_offset);
+                    }
+
+                    const table_idx = sel.cell_index.table_index;
+                    const column_idx = sel.cell_index.column_index;
+                    const table = self.tables.items[table_idx];
+                    const column = table.columns.items[column_idx];
+                    if (column.gridSize(self.units).width == 0) {
+                        table.removeColumn(allocator, column_idx);
+                        self.active_cursor = null;
+                    } else if (table.rowIsEmpty(sel.cell_index.row_index)) {
+                        table.removeRow(allocator, sel.cell_index.row_index);
+                        self.active_cursor = null;
+                    } else {
+                        self.active_cursor = .{
+                            .text = .{
+                                .cell_index = sel.cell_index,
+                                .pos = sel.pos,
+                                .char_offset = sel.start_offset,
+                            },
+                        };
+                    }
+                },
             }
         }
     }
@@ -1214,6 +1503,25 @@ pub const UI = struct {
         const current_theme = theme.current();
         if (self.active_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, current_theme.active_cursor_color));
+            const active_cell_index: ?CellIndex = switch (cursor) {
+                .empty => null,
+                .cell => |cell_pos| cell_pos.cell_index,
+                .text => |text_pos| text_pos.cell_index,
+                .text_selection => |sel| sel.cell_index,
+            };
+            if (active_cell_index) |cell_index| {
+                if (cell_index.table_index < self.tables.items.len) {
+                    const table = self.tables.items[cell_index.table_index];
+                    try table.addCellBorderToScene(
+                        scene,
+                        allocator,
+                        self.units,
+                        cell_index.column_index,
+                        cell_index.row_index,
+                        current_theme.edited_cell_border_color,
+                    );
+                }
+            }
         }
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, current_theme.hover_cursor_color));
@@ -1411,14 +1719,15 @@ pub const UI = struct {
         var offset: usize = 0;
         const padding = self.units.paddingLeft();
         var x: f32 = containing_cell.pos[0] + padding;
+        const half_w = self.units.text.width * 0.5;
         for (0..lines) |target_line| {
             var line_x = x;
             const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
             while (offset < cell.value.items.len) {
                 const char = cell.value.items[offset];
 
-                // Check if click position matches current character position before processing the character
-                const char_pos = Vec2{ line_x, line_y };
+                // Check if click position is closest to the boundary before the current character
+                const char_pos = Vec2{ line_x - half_w, line_y };
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
                         .cell_index = containing_cell.cell_index,
@@ -1440,7 +1749,7 @@ pub const UI = struct {
             }
             // allow positioning to the right of the last character
             // so that the user can backspace (delete) the last character
-            const last_char_pos = Vec2{ line_x, line_y };
+            const last_char_pos = Vec2{ line_x - half_w, line_y };
             if (clientRectContains(.{ .pos = last_char_pos, .size = self.units.text }, p)) {
                 return TextPos{
                     .cell_index = containing_cell.cell_index,
@@ -1450,6 +1759,119 @@ pub const UI = struct {
             }
         }
         return null;
+    }
+
+    fn getPosForOffset(self: *UI, containing_cell: CellPos, target_offset: usize) Vec2 {
+        const padding = self.units.paddingLeft();
+        const cell = self.getCellFromIndex(containing_cell.cell_index) orelse {
+            return Vec2{ containing_cell.pos[0] + padding, containing_cell.pos[1] };
+        };
+        var line: usize = 0;
+        var col_chars: usize = 0;
+        var offset: usize = 0;
+        while (offset < cell.value.items.len and offset < target_offset) {
+            if (cell.value.items[offset] == '\n') {
+                line += 1;
+                col_chars = 0;
+                offset += 1;
+            } else {
+                col_chars += 1;
+                offset = findNextUtf8CharStart(cell.value.items, offset);
+            }
+        }
+        return Vec2{
+            containing_cell.pos[0] + padding + @as(f32, @floatFromInt(col_chars)) * self.units.text.width,
+            containing_cell.pos[1] + @as(f32, @floatFromInt(line)) * self.units.cell.height,
+        };
+    }
+
+    fn getTextOffsetAtPoint(self: *UI, p: Vec2, containing_cell: CellPos) usize {
+        const cell = self.getCellFromIndex(containing_cell.cell_index) orelse return 0;
+        const text = cell.value.items;
+        if (text.len == 0) return 0;
+
+        const total_lines = countLines(cell);
+        const target_line: usize = if (p[1] <= containing_cell.pos[1])
+            0
+        else blk: {
+            const rel_y = p[1] - containing_cell.pos[1];
+            const line_idx: usize = @intFromFloat(@floor(rel_y / self.units.cell.height));
+            break :blk @min(line_idx, total_lines - 1);
+        };
+
+        var current_line: usize = 0;
+        var offset: usize = 0;
+        while (offset < text.len and current_line < target_line) {
+            if (text[offset] == '\n') {
+                current_line += 1;
+            }
+            offset += 1;
+        }
+        const line_start = offset;
+        var line_end = line_start;
+        while (line_end < text.len and text[line_end] != '\n') {
+            line_end += 1;
+        }
+
+        const padding = self.units.paddingLeft();
+        var line_x = containing_cell.pos[0] + padding;
+        var char_offset = line_start;
+        while (char_offset < line_end) {
+            if (p[0] < line_x + self.units.text.width * 0.5) {
+                return char_offset;
+            }
+            line_x += self.units.text.width;
+            char_offset = findNextUtf8CharStart(text, char_offset);
+        }
+
+        return line_end;
+    }
+
+    fn getTextOffsetRangeAtPoint(self: *UI, p: Vec2, containing_cell: CellPos) OffsetRange {
+        const cell = self.getCellFromIndex(containing_cell.cell_index) orelse return .{ .start = 0, .end = 0 };
+        const text = cell.value.items;
+        if (text.len == 0) return .{ .start = 0, .end = 0 };
+
+        const total_lines = countLines(cell);
+        const target_line: usize = if (p[1] <= containing_cell.pos[1])
+            0
+        else blk: {
+            const rel_y = p[1] - containing_cell.pos[1];
+            const line_idx: usize = @intFromFloat(@floor(rel_y / self.units.cell.height));
+            break :blk @min(line_idx, total_lines - 1);
+        };
+
+        var current_line: usize = 0;
+        var offset: usize = 0;
+        while (offset < text.len and current_line < target_line) {
+            if (text[offset] == '\n') {
+                current_line += 1;
+            }
+            offset += 1;
+        }
+        const line_start = offset;
+        var line_end = line_start;
+        while (line_end < text.len and text[line_end] != '\n') {
+            line_end += 1;
+        }
+
+        const padding = self.units.paddingLeft();
+        var line_x = containing_cell.pos[0] + padding;
+        if (p[0] < line_x) {
+            return .{ .start = line_start, .end = line_start };
+        }
+
+        var char_offset = line_start;
+        while (char_offset < line_end) {
+            const next_offset = findNextUtf8CharStart(text, char_offset);
+            if (p[0] >= line_x and p[0] < line_x + self.units.text.width) {
+                return .{ .start = char_offset, .end = next_offset };
+            }
+            line_x += self.units.text.width;
+            char_offset = next_offset;
+        }
+
+        return .{ .start = line_end, .end = line_end };
     }
 
     fn getCellAt(self: *UI, p: Vec2) ?CellPos {
@@ -1737,4 +2159,98 @@ fn isPrintableChar(char_code: u32) bool {
     // For most other Unicode characters, assume they are printable
     // This covers Latin extended, Cyrillic, Greek, Arabic, CJK, emoji, etc.
     return true;
+}
+
+const CharClass = enum {
+    word,
+    whitespace,
+    punctuation,
+    newline,
+};
+
+fn getCharClass(byte: u8) CharClass {
+    if (byte == '\n' or byte == '\r') return .newline;
+    if (byte == ' ' or byte == '\t') return .whitespace;
+    if (std.ascii.isAlphanumeric(byte) or byte == '_' or byte >= 0x80) return .word;
+    return .punctuation;
+}
+
+test "drag to select, double-click word to select, copy and delete" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const units = Units{
+        .cell = .{ .width = 10.0, .height = 10.0 },
+        .text = .{ .width = 5.0, .height = 10.0 },
+    };
+    var ui = UI.init(allocator, units);
+    defer ui.deinit(allocator);
+
+    const table = try ui.addTable(allocator);
+    table.position = .{ .left = 0, .top = 0 };
+    const col = try table.addColumn(allocator);
+    try col.addCell(allocator, "Hello world");
+
+    const padding = units.paddingLeft(); // 2.0
+    // Characters start at x = 2.0, each 5.0 wide:
+    // 'H': [2, 7), 'e': [7, 12), 'l': [12, 17), 'l': [17, 22), 'o': [22, 27), ' ': [27, 32),
+    // 'w': [32, 37), 'o': [37, 42), 'r': [42, 47), 'l': [47, 52), 'd': [52, 57)
+
+    // 1. Double-click on "Hello" (at 'e', x = 9.0, y = 5.0)
+    ui.handleMouseDoubleClick(Vec2{ padding + 7.0, 5.0 });
+    try testing.expect(ui.active_cursor != null);
+    try testing.expect(ui.active_cursor.? == .text_selection);
+    try testing.expectEqual(@as(usize, 0), ui.active_cursor.?.text_selection.start_offset);
+    try testing.expectEqual(@as(usize, 5), ui.active_cursor.?.text_selection.end_offset);
+
+    const copied1 = try ui.handleCopy(allocator);
+    defer allocator.free(copied1);
+    try testing.expectEqualStrings("Hello", copied1);
+
+    // 2. Double-click on "world" (at 'r', x = 2 + 8*5 + 1 = 43.0, y = 5.0)
+    ui.handleMouseDoubleClick(Vec2{ padding + 41.0, 5.0 });
+    try testing.expect(ui.active_cursor != null);
+    try testing.expect(ui.active_cursor.? == .text_selection);
+    try testing.expectEqual(@as(usize, 6), ui.active_cursor.?.text_selection.start_offset);
+    try testing.expectEqual(@as(usize, 11), ui.active_cursor.?.text_selection.end_offset);
+
+    const copied2 = try ui.handleCopy(allocator);
+    defer allocator.free(copied2);
+    try testing.expectEqualStrings("world", copied2);
+
+    // 3. Drag to select left-to-right across "llo w" (char 2..7: boundary 2 at padding+10 to boundary 7 at padding+35)
+    ui.handleMouseDrag(Vec2{ padding + 11.0, 5.0 }, Vec2{ padding + 34.0, 5.0 });
+    try testing.expect(ui.active_cursor != null);
+    try testing.expect(ui.active_cursor.? == .text_selection);
+    try testing.expectEqual(@as(usize, 2), ui.active_cursor.?.text_selection.start_offset);
+    try testing.expectEqual(@as(usize, 7), ui.active_cursor.?.text_selection.end_offset);
+
+    const copied3 = try ui.handleCopy(allocator);
+    defer allocator.free(copied3);
+    try testing.expectEqualStrings("llo w", copied3);
+
+    // 4. Drag to select right-to-left across "llo w"
+    ui.handleMouseDrag(Vec2{ padding + 34.0, 5.0 }, Vec2{ padding + 11.0, 5.0 });
+    try testing.expect(ui.active_cursor != null);
+    try testing.expect(ui.active_cursor.? == .text_selection);
+    try testing.expectEqual(@as(usize, 2), ui.active_cursor.?.text_selection.start_offset);
+    try testing.expectEqual(@as(usize, 7), ui.active_cursor.?.text_selection.end_offset);
+
+    // 5. Delete the selection with BACKSPACE
+    ui.handleKeyDown(allocator, .BACKSPACE, 0);
+    try testing.expectEqualStrings("Heorld", col.data.items[0].value.items);
+    try testing.expect(ui.active_cursor != null);
+    try testing.expect(ui.active_cursor.? == .text);
+    try testing.expectEqual(@as(usize, 2), ui.active_cursor.?.text.char_offset);
+
+    // 6. Click on left half vs right half of a character snaps between characters
+    // 'H' is at [padding + 0, padding + 5). Left half (< padding + 2.5) -> offset 0; right half (>= padding + 2.5) -> offset 1.
+    ui.handleMouseClick(Vec2{ padding + 1.0, 5.0 });
+    try testing.expectEqual(@as(usize, 0), ui.active_cursor.?.text.char_offset);
+    ui.handleMouseClick(Vec2{ padding + 4.0, 5.0 });
+    try testing.expectEqual(@as(usize, 1), ui.active_cursor.?.text.char_offset);
+
+    const cursor_rect = ui.active_cursor.?.getRect(&ui, theme.current().active_cursor_color);
+    try testing.expect(cursor_rect.width < units.text.width);
+    try testing.expectApproxEqAbs(padding + 5.0, cursor_rect.x + cursor_rect.width * 0.5, 1e-4);
 }
