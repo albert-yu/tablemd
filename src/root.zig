@@ -495,6 +495,7 @@ export fn input(ev: ?*const sapp.Event) void {
             } else {
                 state.ui.handleMouseHover(point);
             }
+            updateMouseCursor();
         },
         .MOUSE_SCROLL => {
             const scroll_x = event.scroll_x;
@@ -505,6 +506,10 @@ export fn input(ev: ?*const sapp.Event) void {
             } else {
                 const pan_speed = 150.0;
                 handlePan(scroll_x * pan_speed, scroll_y * pan_speed);
+            }
+            if (state.mouse_press_pos == null) {
+                state.ui.handleMouseHover(getPointForUI(state.mouse[0]));
+                updateMouseCursor();
             }
         },
         .MOUSE_DOWN => {
@@ -527,12 +532,13 @@ export fn input(ev: ?*const sapp.Event) void {
             } else {
                 state.is_double_click = false;
             }
+            updateMouseCursor();
         },
         .MOUSE_UP => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
             if (state.mouse_press_pos) |_| {
+                const normalized_p = getPointForUI(state.mouse[0]);
                 if (!state.is_dragging and !state.is_double_click) {
-                    const normalized_p = getPointForUI(state.mouse[0]);
                     state.ui.handleMouseClick(normalized_p);
                     state.last_click_time = stm.now();
                     state.last_click_pos = state.mouse[0];
@@ -543,6 +549,8 @@ export fn input(ev: ?*const sapp.Event) void {
                 state.mouse_press_pos = null;
                 state.is_dragging = false;
                 state.is_double_click = false;
+                state.ui.handleMouseHover(normalized_p);
+                updateMouseCursor();
             }
         },
         .TOUCHES_BEGAN => {
@@ -596,6 +604,24 @@ export fn input(ev: ?*const sapp.Event) void {
         updateTableFromCursorState();
     }
     // otherwise, leave the current table rendered as-is
+}
+
+fn updateMouseCursor() void {
+    const is_ibeam = if (state.is_dragging) blk: {
+        break :blk if (state.ui.active_cursor) |cursor|
+            switch (cursor) {
+                .text, .text_selection => true,
+                .empty, .cell => false,
+            }
+        else
+            false;
+    } else blk: {
+        break :blk if (state.ui.hover_cursor) |cursor|
+            cursor == .text
+        else
+            false;
+    };
+    sapp.setMouseCursor(if (is_ibeam) .IBEAM else .DEFAULT);
 }
 
 fn copySelectionToClipboard() void {
