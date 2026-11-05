@@ -130,14 +130,18 @@ pub const Cursor = union(CursorType) {
                     };
                 }
             },
-            .text => |text_pos| .{
-                .color = color,
-                .x = text_pos.pos[0],
-                .y = text_pos.pos[1],
-                .width = units.text.width,
-                .height = units.text.height,
-                .corners = corners,
-                .sigma = 1e-6,
+            .text => |text_pos| blk: {
+                const cursor_width = units.text.width / 8.0;
+                const text_corner = @min(corner, cursor_width * 0.5);
+                break :blk .{
+                    .color = color,
+                    .x = text_pos.pos[0] - cursor_width * 0.5,
+                    .y = text_pos.pos[1],
+                    .width = cursor_width,
+                    .height = units.text.height,
+                    .corners = .{ text_corner, text_corner, text_corner, text_corner },
+                    .sigma = 1e-6,
+                };
             },
             .text_selection => |sel| blk: {
                 const char_count = if (ui.getCellFromIndex(sel.cell_index)) |cell|
@@ -243,19 +247,27 @@ pub const UI = struct {
         const cell = self.getCellFromIndex(cell_info.cell_index) orelse return;
         if (cell.value.items.len == 0) return;
 
-        const r0 = self.getTextOffsetRangeAtPoint(start_p, cell_info);
-        const r1 = self.getTextOffsetRangeAtPoint(curr_p, cell_info);
-        const start_offset = @min(r0.start, r1.start);
-        const end_offset = @max(r0.end, r1.end);
+        const offset0 = self.getTextOffsetAtPoint(start_p, cell_info);
+        const offset1 = self.getTextOffsetAtPoint(curr_p, cell_info);
+        const start_offset = @min(offset0, offset1);
+        const end_offset = @max(offset0, offset1);
 
+        const pos = self.getPosForOffset(cell_info, start_offset);
         if (start_offset < end_offset) {
-            const pos = self.getPosForOffset(cell_info, start_offset);
             self.active_cursor = .{
                 .text_selection = .{
                     .cell_index = cell_info.cell_index,
                     .pos = pos,
                     .start_offset = start_offset,
                     .end_offset = end_offset,
+                },
+            };
+        } else {
+            self.active_cursor = .{
+                .text = .{
+                    .cell_index = cell_info.cell_index,
+                    .pos = pos,
+                    .char_offset = start_offset,
                 },
             };
         }
@@ -268,7 +280,10 @@ pub const UI = struct {
         if (text.len == 0) return;
 
         const text_pos = self.getTextPositionAt(p, cell_info) orelse return;
-        const anchor_offset: usize = if (text_pos.char_offset < text.len and text[text_pos.char_offset] != '\n')
+        const char_range = self.getTextOffsetRangeAtPoint(p, cell_info);
+        const anchor_offset: usize = if (char_range.start < char_range.end)
+            char_range.start
+        else if (text_pos.char_offset < text.len and text[text_pos.char_offset] != '\n')
             text_pos.char_offset
         else if (text_pos.char_offset > 0) blk: {
             const prev = findPrevUtf8CharStart(text, text_pos.char_offset);
@@ -1704,14 +1719,15 @@ pub const UI = struct {
         var offset: usize = 0;
         const padding = self.units.paddingLeft();
         var x: f32 = containing_cell.pos[0] + padding;
+        const half_w = self.units.text.width * 0.5;
         for (0..lines) |target_line| {
             var line_x = x;
             const line_y = containing_cell.pos[1] + self.units.cell.height * @as(f32, @floatFromInt(target_line));
             while (offset < cell.value.items.len) {
                 const char = cell.value.items[offset];
 
-                // Check if click position matches current character position before processing the character
-                const char_pos = Vec2{ line_x, line_y };
+                // Check if click position is closest to the boundary before the current character
+                const char_pos = Vec2{ line_x - half_w, line_y };
                 if (clientRectContains(.{ .pos = char_pos, .size = self.units.text }, p)) {
                     return TextPos{
                         .cell_index = containing_cell.cell_index,
@@ -1733,7 +1749,7 @@ pub const UI = struct {
             }
             // allow positioning to the right of the last character
             // so that the user can backspace (delete) the last character
-            const last_char_pos = Vec2{ line_x, line_y };
+            const last_char_pos = Vec2{ line_x - half_w, line_y };
             if (clientRectContains(.{ .pos = last_char_pos, .size = self.units.text }, p)) {
                 return TextPos{
                     .cell_index = containing_cell.cell_index,
@@ -1767,6 +1783,48 @@ pub const UI = struct {
             containing_cell.pos[0] + padding + @as(f32, @floatFromInt(col_chars)) * self.units.text.width,
             containing_cell.pos[1] + @as(f32, @floatFromInt(line)) * self.units.cell.height,
         };
+    }
+
+    fn getTextOffsetAtPoint(self: *UI, p: Vec2, containing_cell: CellPos) usize {
+        const cell = self.getCellFromIndex(containing_cell.cell_index) orelse return 0;
+        const text = cell.value.items;
+        if (text.len == 0) return 0;
+
+        const total_lines = countLines(cell);
+        const target_line: usize = if (p[1] <= containing_cell.pos[1])
+            0
+        else blk: {
+            const rel_y = p[1] - containing_cell.pos[1];
+            const line_idx: usize = @intFromFloat(@floor(rel_y / self.units.cell.height));
+            break :blk @min(line_idx, total_lines - 1);
+        };
+
+        var current_line: usize = 0;
+        var offset: usize = 0;
+        while (offset < text.len and current_line < target_line) {
+            if (text[offset] == '\n') {
+                current_line += 1;
+            }
+            offset += 1;
+        }
+        const line_start = offset;
+        var line_end = line_start;
+        while (line_end < text.len and text[line_end] != '\n') {
+            line_end += 1;
+        }
+
+        const padding = self.units.paddingLeft();
+        var line_x = containing_cell.pos[0] + padding;
+        var char_offset = line_start;
+        while (char_offset < line_end) {
+            if (p[0] < line_x + self.units.text.width * 0.5) {
+                return char_offset;
+            }
+            line_x += self.units.text.width;
+            char_offset = findNextUtf8CharStart(text, char_offset);
+        }
+
+        return line_end;
     }
 
     fn getTextOffsetRangeAtPoint(self: *UI, p: Vec2, containing_cell: CellPos) OffsetRange {
@@ -2160,8 +2218,8 @@ test "drag to select, double-click word to select, copy and delete" {
     defer allocator.free(copied2);
     try testing.expectEqualStrings("world", copied2);
 
-    // 3. Drag to select left-to-right across "llo w" (char 2..7: x from 14.0 to 34.0)
-    ui.handleMouseDrag(Vec2{ padding + 12.0, 5.0 }, Vec2{ padding + 32.0, 5.0 });
+    // 3. Drag to select left-to-right across "llo w" (char 2..7: boundary 2 at padding+10 to boundary 7 at padding+35)
+    ui.handleMouseDrag(Vec2{ padding + 11.0, 5.0 }, Vec2{ padding + 34.0, 5.0 });
     try testing.expect(ui.active_cursor != null);
     try testing.expect(ui.active_cursor.? == .text_selection);
     try testing.expectEqual(@as(usize, 2), ui.active_cursor.?.text_selection.start_offset);
@@ -2172,7 +2230,7 @@ test "drag to select, double-click word to select, copy and delete" {
     try testing.expectEqualStrings("llo w", copied3);
 
     // 4. Drag to select right-to-left across "llo w"
-    ui.handleMouseDrag(Vec2{ padding + 32.0, 5.0 }, Vec2{ padding + 12.0, 5.0 });
+    ui.handleMouseDrag(Vec2{ padding + 34.0, 5.0 }, Vec2{ padding + 11.0, 5.0 });
     try testing.expect(ui.active_cursor != null);
     try testing.expect(ui.active_cursor.? == .text_selection);
     try testing.expectEqual(@as(usize, 2), ui.active_cursor.?.text_selection.start_offset);
@@ -2184,4 +2242,15 @@ test "drag to select, double-click word to select, copy and delete" {
     try testing.expect(ui.active_cursor != null);
     try testing.expect(ui.active_cursor.? == .text);
     try testing.expectEqual(@as(usize, 2), ui.active_cursor.?.text.char_offset);
+
+    // 6. Click on left half vs right half of a character snaps between characters
+    // 'H' is at [padding + 0, padding + 5). Left half (< padding + 2.5) -> offset 0; right half (>= padding + 2.5) -> offset 1.
+    ui.handleMouseClick(Vec2{ padding + 1.0, 5.0 });
+    try testing.expectEqual(@as(usize, 0), ui.active_cursor.?.text.char_offset);
+    ui.handleMouseClick(Vec2{ padding + 4.0, 5.0 });
+    try testing.expectEqual(@as(usize, 1), ui.active_cursor.?.text.char_offset);
+
+    const cursor_rect = ui.active_cursor.?.getRect(&ui, theme.current().active_cursor_color);
+    try testing.expect(cursor_rect.width < units.text.width);
+    try testing.expectApproxEqAbs(padding + 5.0, cursor_rect.x + cursor_rect.width * 0.5, 1e-4);
 }
