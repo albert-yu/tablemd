@@ -1214,6 +1214,24 @@ pub const UI = struct {
         const current_theme = theme.current();
         if (self.active_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, current_theme.active_cursor_color));
+            const active_cell_index: ?CellIndex = switch (cursor) {
+                .empty => null,
+                .cell => |cell_pos| cell_pos.cell_index,
+                .text => |text_pos| text_pos.cell_index,
+            };
+            if (active_cell_index) |cell_index| {
+                if (cell_index.table_index < self.tables.items.len) {
+                    const table = self.tables.items[cell_index.table_index];
+                    try table.addCellBorderToScene(
+                        scene,
+                        allocator,
+                        self.units,
+                        cell_index.column_index,
+                        cell_index.row_index,
+                        current_theme.edited_cell_border_color,
+                    );
+                }
+            }
         }
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, current_theme.hover_cursor_color));

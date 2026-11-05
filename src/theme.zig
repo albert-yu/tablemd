@@ -8,6 +8,7 @@ pub const Theme = struct {
     hover_cursor_color: sg.Color,
     table_background_color: sg.Color,
     dot_grid_color: sg.Color,
+    edited_cell_border_color: sg.Color,
 };
 
 pub const DARK_THEME: Theme = .{
@@ -47,6 +48,12 @@ pub const DARK_THEME: Theme = .{
         .b = 1.0,
         .a = 0.20,
     },
+    .edited_cell_border_color = .{
+        .r = 96.0 / 255.0,
+        .g = 165.0 / 255.0,
+        .b = 250.0 / 255.0,
+        .a = 1.0,
+    },
 };
 
 pub const LIGHT_THEME: Theme = .{
@@ -85,6 +92,12 @@ pub const LIGHT_THEME: Theme = .{
         .g = 0.0,
         .b = 0.0,
         .a = 0.16,
+    },
+    .edited_cell_border_color = .{
+        .r = 37.0 / 255.0,
+        .g = 99.0 / 255.0,
+        .b = 235.0 / 255.0,
+        .a = 1.0,
     },
 };
 
