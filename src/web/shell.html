@@ -17,14 +17,12 @@
                 --border-color: rgba(120, 120, 120, 0.6);
                 --button-border-color: rgba(120, 120, 120, 0.5);
                 --text-primary: #ffffff;
+                --text-muted: rgba(255, 255, 255, 0.65);
                 --surface-background: rgba(45, 45, 45, 0.85);
                 --surface-background-soft: rgba(45, 45, 45, 0.5);
                 --surface-hover: rgba(65, 65, 65, 0.9);
                 --button-background: rgba(50, 50, 50, 0.9);
                 --button-active: rgba(40, 40, 40, 0.9);
-                --danger-background: rgba(255, 255, 255, 0.08);
-                --danger-hover: rgba(255, 255, 255, 0.16);
-                --danger-text: #ffffff;
             }
 
             body {
@@ -64,17 +62,12 @@
                 padding: 5px;
             }
 
-            .panel-base {
+            .preview-view {
                 position: fixed;
-                bottom: 85px;
-                width: min(400px, 80vw);
-                height: calc(100vh - 100px);
-                background-color: var(--panel-background);
-                border: var(--border-color) solid 1px;
-                border-radius: 18px;
-                backdrop-filter: blur(10px);
+                inset: 0;
+                background-color: var(--page-background);
                 z-index: 1000;
-                padding: 10px;
+                padding: 20px 20px 90px 20px;
                 box-sizing: border-box;
                 color: var(--text-primary);
                 font-family:
@@ -82,12 +75,92 @@
                     sans-serif;
                 display: flex;
                 flex-direction: column;
-                transition: opacity 0.3s ease-in-out;
+                align-items: center;
+                transition: opacity 0.2s ease-in-out;
             }
 
-            .side-panel {
-                right: 15px;
+            .preview-panel {
+                width: min(800px, 100%);
+                height: 100%;
+                background-color: var(--panel-background);
+                border: var(--border-color) solid 1px;
+                border-radius: 18px;
+                backdrop-filter: blur(10px);
+                padding: 12px;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
                 gap: 10px;
+            }
+
+            .preview-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+            }
+
+            .preview-select {
+                background-color: var(--button-background);
+                color: var(--text-primary);
+                border: 1px solid var(--button-border-color);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-family: inherit;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                outline: none;
+                transition: background-color 0.2s, border-color 0.2s;
+            }
+
+            .preview-select:hover {
+                background-color: var(--surface-hover);
+            }
+
+            .bottom-tabs {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: var(--panel-background);
+                border: var(--border-color) solid 1px;
+                border-radius: 999px;
+                backdrop-filter: blur(10px);
+                padding: 4px;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                z-index: 1001;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+            }
+
+            .tab-button {
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 999px;
+                color: var(--text-muted);
+                padding: 8px 18px;
+                font-family: inherit;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                transition:
+                    background-color 0.2s,
+                    color 0.2s,
+                    border-color 0.2s;
+            }
+
+            .tab-button:hover {
+                color: var(--text-primary);
+                background-color: var(--surface-background-soft);
+            }
+
+            .tab-button.active {
+                background-color: var(--button-background);
+                border-color: var(--button-border-color);
+                color: var(--text-primary);
             }
 
             .floating-button {
@@ -112,20 +185,9 @@
                 background-color: var(--button-active);
             }
 
-            .toggle-button {
-                right: 20px;
-            }
-
-            .toggle-button svg {
-                transition: transform 0.3s ease-in-out;
-            }
-
-            .side-panel.collapsed ~ .toggle-button svg {
-                transform: rotate(-180deg);
-            }
-
             .code-section {
                 flex: 1;
+                min-height: 0;
                 background-color: var(--surface-background);
                 border-radius: 8px;
                 position: relative;
@@ -135,6 +197,11 @@
                 overflow: auto;
                 width: 100%;
                 height: 100%;
+                box-sizing: border-box;
+            }
+
+            .hidden {
+                display: none !important;
             }
 
             #markdown-source {
@@ -182,35 +249,6 @@
                 pointer-events: none;
             }
 
-            .menu-item {
-                width: 100%;
-                margin: 10px 0 0 0;
-                padding: 12px;
-                border: 1px solid var(--button-border-color);
-                border-radius: 6px;
-                background-color: var(--surface-background-soft);
-                color: var(--text-primary);
-                cursor: pointer;
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    sans-serif;
-                font-size: 14px;
-                transition: background-color 0.2s;
-            }
-
-            .menu-item:hover {
-                background-color: var(--surface-background);
-            }
-
-            .menu-item.danger {
-                background-color: var(--danger-background);
-            }
-
-            .menu-item.danger:hover {
-                background-color: var(--danger-hover);
-                color: var(--danger-text);
-            }
-
             .github-button {
                 left: 20px;
                 text-decoration: none;
@@ -229,21 +267,18 @@
                     --border-color: rgba(0, 0, 0, 0.16);
                     --button-border-color: rgba(0, 0, 0, 0.18);
                     --text-primary: #1a1a1a;
+                    --text-muted: rgba(26, 26, 26, 0.6);
                     --surface-background: rgba(238, 238, 238, 0.9);
                     --surface-background-soft: rgba(245, 245, 245, 0.9);
                     --surface-hover: rgba(220, 220, 220, 0.96);
                     --button-background: rgba(230, 230, 230, 0.96);
                     --button-active: rgba(215, 215, 215, 0.98);
-                    --danger-background: rgba(0, 0, 0, 0.06);
-                    --danger-hover: rgba(0, 0, 0, 0.12);
-                    --danger-text: #1a1a1a;
                 }
             }
 
             @media (max-width: 768px) {
-                .panel-base {
-                    /* Adjust height for mobile */
-                    height: calc(90vh - 100px);
+                .preview-view {
+                    padding: 12px 12px 85px 12px;
                 }
             }
         </style>
@@ -255,56 +290,66 @@
             id="canvas"
             oncontextmenu="event.preventDefault()"
         ></canvas>
-        <div class="panel-base side-panel" id="side-panel">
-            <input id="mobile-keyboard-focus" class="invisible" />
-            <div class="code-section">
-                <div class="overflow-container">
-                    <div id="markdown-source"></div>
-                </div>
-                <button class="copy-button" onclick="copyCodeSection()">
-                    <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
+        <input id="mobile-keyboard-focus" class="invisible" />
+        <div class="preview-view collapsed" id="preview-view">
+            <div class="preview-panel">
+                <div class="preview-toolbar">
+                    <select
+                        id="preview-mode-select"
+                        class="preview-select"
+                        onchange="setPreviewMode(this.value)"
                     >
-                        <path
-                            d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
-                        />
-                    </svg>
-                    Copy
-                </button>
-            </div>
-            <div class="code-section">
-                <div class="overflow-container">
-                    <div id="html-render"></div>
+                        <option value="markdown">Markdown</option>
+                        <option value="html">HTML</option>
+                    </select>
                 </div>
-                <button class="copy-button" onclick="copyHtmlSection()">
-                    <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
+                <div class="code-section">
+                    <div class="overflow-container" id="markdown-container">
+                        <div id="markdown-source"></div>
+                    </div>
+                    <div class="overflow-container hidden" id="html-container">
+                        <div id="html-render"></div>
+                    </div>
+                    <button
+                        class="copy-button"
+                        id="copy-preview-button"
+                        onclick="copyPreview()"
                     >
-                        <path
-                            d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
-                        />
-                    </svg>
-                    Copy HTML
-                </button>
+                        <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                        >
+                            <path
+                                d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                            />
+                        </svg>
+                        <span id="copy-button-text">Copy</span>
+                    </button>
+                </div>
             </div>
-            <button class="menu-item danger" onclick="clearAllTables()">
-                Clear all tables
+        </div>
+        <div class="bottom-tabs" role="tablist">
+            <button
+                class="tab-button active"
+                id="tab-canvas"
+                role="tab"
+                aria-selected="true"
+                onclick="switchTab('canvas')"
+            >
+                Canvas
+            </button>
+            <button
+                class="tab-button"
+                id="tab-preview"
+                role="tab"
+                aria-selected="false"
+                onclick="switchTab('preview')"
+            >
+                Preview
             </button>
         </div>
-        <button
-            class="floating-button toggle-button"
-            onclick="toggleSidePanel()"
-        >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 14l5-5 5 5z" />
-            </svg>
-        </button>
         <a href="https://github.com/albert-yu/tablemd" target="_blank" class="floating-button github-button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path
@@ -498,98 +543,88 @@
                 console.log("onerror: " + event.message);
             };
 
-            function copyCodeSection() {
-                const codeSection = document.getElementById("markdown-source");
-                const text = codeSection.innerText;
+            let activeTab = "canvas";
+            let previewMode = "markdown";
+            let copyResetTimeout = null;
+
+            const COPY_ICON_SVG =
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+            const CHECK_ICON_SVG =
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>';
+
+            function getCopyButtonLabel() {
+                return previewMode === "html" ? "Copy HTML" : "Copy";
+            }
+
+            function renderCopyButtonDefault() {
+                const button = document.getElementById("copy-preview-button");
+                if (!button) return;
+                button.innerHTML =
+                    COPY_ICON_SVG +
+                    '<span id="copy-button-text">' +
+                    getCopyButtonLabel() +
+                    "</span>";
+            }
+
+            function switchTab(tab) {
+                activeTab = tab;
+                const previewView = document.getElementById("preview-view");
+                const tabCanvas = document.getElementById("tab-canvas");
+                const tabPreview = document.getElementById("tab-preview");
+
+                const isPreview = tab === "preview";
+                previewView.classList.toggle("collapsed", !isPreview);
+                tabCanvas.classList.toggle("active", !isPreview);
+                tabCanvas.setAttribute("aria-selected", String(!isPreview));
+                tabPreview.classList.toggle("active", isPreview);
+                tabPreview.setAttribute("aria-selected", String(isPreview));
+            }
+
+            function setPreviewMode(mode) {
+                previewMode = mode === "html" ? "html" : "markdown";
+                const markdownContainer =
+                    document.getElementById("markdown-container");
+                const htmlContainer = document.getElementById("html-container");
+                const isHtml = previewMode === "html";
+
+                markdownContainer.classList.toggle("hidden", isHtml);
+                htmlContainer.classList.toggle("hidden", !isHtml);
+
+                if (copyResetTimeout) {
+                    clearTimeout(copyResetTimeout);
+                    copyResetTimeout = null;
+                }
+                renderCopyButtonDefault();
+            }
+
+            function copyPreview() {
+                const text =
+                    previewMode === "html"
+                        ? document.getElementById("html-render").innerHTML
+                        : document.getElementById("markdown-source").innerText;
+
                 navigator.clipboard
                     .writeText(text)
                     .then(function () {
-                        // Provide visual feedback
-                        const button = document.querySelector(".copy-button");
+                        const button = document.getElementById(
+                            "copy-preview-button",
+                        );
                         if (!button) {
                             return;
                         }
-                        const originalText = button.innerHTML;
-                        button.innerHTML =
-                            '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
-                        setTimeout(() => {
-                            button.innerHTML = originalText;
-                        }, 2000);
-                    })
-                    .catch(function (err) {
-                        console.error("Failed to copy text: ", err);
-                    });
-            }
-
-            function copyHtmlSection() {
-                const htmlSection = document.getElementById("html-render");
-                const html = htmlSection.innerHTML;
-                navigator.clipboard
-                    .writeText(html)
-                    .then(function () {
-                        // Provide visual feedback
-                        const button = event.target.closest(".copy-button");
-                        if (!button) {
-                            return;
+                        if (copyResetTimeout) {
+                            clearTimeout(copyResetTimeout);
                         }
-                        const originalText = button.innerHTML;
-                        button.innerHTML =
-                            '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>Copied!';
-                        setTimeout(() => {
-                            button.innerHTML = originalText;
+                        button.innerHTML = CHECK_ICON_SVG + "Copied!";
+                        copyResetTimeout = setTimeout(() => {
+                            copyResetTimeout = null;
+                            renderCopyButtonDefault();
                         }, 2000);
                     })
                     .catch(function (err) {
-                        console.error("Failed to copy HTML: ", err);
+                        console.error("Failed to copy preview: ", err);
                     });
             }
-
-            function toggleSidePanel() {
-                const sidePanel = document.getElementById("side-panel");
-                sidePanel.classList.toggle("collapsed");
-            }
-
-            function clearAllTables() {
-                if (
-                    confirm(
-                        "Are you sure you want to clear all tables? This action cannot be undone.",
-                    )
-                ) {
-                    if (Module._clear_tables) {
-                        Module._clear_tables();
-                        console.log("Cleared all tables");
-
-                        // Also clear from IndexedDB
-                        const request = indexedDB.open("tablemd", 1);
-                        request.onsuccess = function (event) {
-                            const db = event.target.result;
-                            const transaction = db.transaction(
-                                ["tables"],
-                                "readwrite",
-                            );
-                            const store = transaction.objectStore("tables");
-                            store.delete("current_tables");
-                        };
-                    }
-                }
-            }
-
-            // Check if on mobile and collapse side panel on startup
-            function initializeSidePanel() {
-                const sidePanel = document.getElementById("side-panel");
-                const isMobile =
-                    window.innerWidth <= 768 ||
-                    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                        navigator.userAgent,
-                    );
-
-                if (isMobile) {
-                    sidePanel.classList.add("collapsed");
-                }
-            }
-
-            // Initialize side panel state when DOM is loaded
-            document.addEventListener("DOMContentLoaded", initializeSidePanel);
 
             // Debounced auto-save functionality
             let saveTimeout;
@@ -617,8 +652,19 @@
                 }
             }
 
+            // Prevent keyboard events from reaching the canvas when on the Preview tab
+            function stopCanvasKeyEventsInPreview(event) {
+                if (activeTab !== "canvas") {
+                    event.stopImmediatePropagation();
+                }
+            }
+            window.addEventListener("keydown", stopCanvasKeyEventsInPreview, true);
+            window.addEventListener("keypress", stopCanvasKeyEventsInPreview, true);
+            window.addEventListener("keyup", stopCanvasKeyEventsInPreview, true);
+
             // Add keyboard event listener for paste
             document.addEventListener("keydown", function (event) {
+                if (activeTab !== "canvas") return;
                 if ((event.ctrlKey || event.metaKey) && event.key === "v") {
                     event.preventDefault();
                     navigator.clipboard
@@ -634,6 +680,7 @@
 
             // Add keyboard event listeners for auto-save on typing
             document.addEventListener("keydown", function (event) {
+                if (activeTab !== "canvas") return;
                 // Skip modifier-only keys and function keys
                 if (
                     event.ctrlKey ||
