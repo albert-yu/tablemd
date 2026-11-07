@@ -653,7 +653,7 @@ pub const Table = struct {
     }
 };
 
-fn addRoundedRectLines(
+pub fn addRoundedRectLines(
     scene: *Scene,
     allocator: Allocator,
     x: f32,
@@ -675,7 +675,7 @@ fn addRoundedRectLines(
     );
 }
 
-fn addRoundedRectCornersLines(
+pub fn addRoundedRectCornersLines(
     scene: *Scene,
     allocator: Allocator,
     x: f32,
@@ -768,9 +768,7 @@ fn addRoundedRectCornersLines(
 
 test "table serialization and deserialization" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = testing.allocator;
 
     // Create a test table
     var original_table = Table.init(allocator);

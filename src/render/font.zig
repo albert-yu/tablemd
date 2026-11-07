@@ -487,14 +487,18 @@ pub const Renderer = struct {
             };
         }
 
+        if (vertices.items.len == 0 or indices.items.len == 0) {
+            return;
+        }
         if (vertices.items.len > MAX_ELEMENTS or indices.items.len > MAX_INDICES) {
             std.log.err("[font] vertex or index data size exceeds max size", .{});
             return;
         }
-        sg.updateBuffer(self.bind.vertex_buffers[0], sg.asRange(vertices.items));
-        sg.updateBuffer(self.bind.index_buffer, sg.asRange(indices.items));
+        var bind = self.bind;
+        bind.vertex_buffer_offsets[0] = sg.appendBuffer(self.bind.vertex_buffers[0], sg.asRange(vertices.items));
+        bind.index_buffer_offset = sg.appendBuffer(self.bind.index_buffer, sg.asRange(indices.items));
 
-        sg.applyBindings(self.bind);
+        sg.applyBindings(bind);
         sg.applyUniforms(shd_font.UB_vs_params, vs_range);
         const fs_params = self.getColorFsParams();
         sg.applyUniforms(shd_font.UB_fs_params, sg.asRange(&fs_params));

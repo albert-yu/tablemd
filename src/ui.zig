@@ -78,6 +78,32 @@ const OffsetRange = struct {
     end: usize,
 };
 
+pub const ContextMenuAction = enum {
+    delete_row,
+    delete_column,
+    delete_table,
+
+    pub fn label(self: ContextMenuAction) []const u8 {
+        return switch (self) {
+            .delete_row => "Delete row",
+            .delete_column => "Delete column",
+            .delete_table => "Delete table",
+        };
+    }
+};
+
+pub const CONTEXT_MENU_ITEMS = [_]ContextMenuAction{
+    .delete_row,
+    .delete_column,
+    .delete_table,
+};
+
+pub const ContextMenu = struct {
+    pos: Vec2,
+    cell_index: CellIndex,
+    hovered_item: ?ContextMenuAction = null,
+};
+
 const CursorType = enum {
     empty,
     cell,
@@ -169,6 +195,7 @@ pub const UI = struct {
     tables: ArrayList(*Table),
     active_cursor: ?Cursor,
     hover_cursor: ?Cursor,
+    context_menu: ?ContextMenu,
     units: Units,
 
     pub fn init(allocator: Allocator, units: Units) UI {
@@ -176,6 +203,7 @@ pub const UI = struct {
             .tables = ArrayList(*Table).initCapacity(allocator, 0) catch unreachable,
             .active_cursor = null,
             .hover_cursor = null,
+            .context_menu = null,
             .units = units,
         };
     }
@@ -196,6 +224,14 @@ pub const UI = struct {
         self.tables.clearRetainingCapacity();
         self.active_cursor = null;
         self.hover_cursor = null;
+        self.context_menu = null;
+    }
+
+    pub fn removeTable(self: *UI, allocator: Allocator, table_index: usize) void {
+        if (table_index >= self.tables.items.len) return;
+        var table = self.tables.orderedRemove(table_index);
+        table.deinit(allocator);
+        allocator.destroy(table);
     }
 
     pub fn getCellFromIndex(self: *UI, cell_index: CellIndex) ?*Cell {
@@ -233,15 +269,178 @@ pub const UI = struct {
         return table;
     }
 
-    pub fn handleMouseClick(self: *UI, p: Vec2) void {
+    fn getCellCoordinates(self: *UI, cell_index: CellIndex) ?Vec2 {
+        if (cell_index.table_index >= self.tables.items.len) return null;
+        const table = self.tables.items[cell_index.table_index];
+        if (cell_index.column_index >= table.columns.items.len) return null;
+        const column = table.columns.items[cell_index.column_index];
+        if (cell_index.row_index >= column.data.items.len) return null;
+
+        var pos_x = @as(f32, @floatFromInt(table.position.left)) * self.units.cell.width;
+        for (0..cell_index.column_index) |col_i| {
+            pos_x += table.columns.items[col_i].size(self.units).width;
+        }
+        var pos_y = @as(f32, @floatFromInt(table.position.top)) * self.units.cell.height;
+        for (0..cell_index.row_index) |row_i| {
+            pos_y += column.data.items[row_i].size(self.units).height;
+        }
+        return Vec2{ pos_x, pos_y };
+    }
+
+    pub fn deleteRow(self: *UI, allocator: Allocator, table_index: usize, row_index: usize) void {
+        if (table_index >= self.tables.items.len) return;
+        const table = self.tables.items[table_index];
+        if (row_index >= table.rows()) return;
+
+        const prev_col_index: usize = if (self.context_menu) |menu|
+            if (menu.cell_index.table_index == table_index) menu.cell_index.column_index else 0
+        else
+            0;
+
+        table.removeRow(allocator, row_index);
+        self.hover_cursor = null;
+        self.context_menu = null;
+        if (table.rows() == 0 or table.cols() == 0) {
+            self.removeTable(allocator, table_index);
+            self.active_cursor = null;
+        } else {
+            const clamped_col = @min(prev_col_index, table.cols() - 1);
+            const clamped_row = @min(row_index, table.rows() - 1);
+            const target_idx = CellIndex{
+                .table_index = table_index,
+                .column_index = clamped_col,
+                .row_index = clamped_row,
+            };
+            if (self.getCellCoordinates(target_idx)) |pos| {
+                self.active_cursor = .{
+                    .cell = .{
+                        .cell_index = target_idx,
+                        .pos = pos,
+                    },
+                };
+            } else {
+                self.active_cursor = null;
+            }
+        }
+    }
+
+    pub fn deleteColumn(self: *UI, allocator: Allocator, table_index: usize, column_index: usize) void {
+        if (table_index >= self.tables.items.len) return;
+        const table = self.tables.items[table_index];
+        if (column_index >= table.cols()) return;
+
+        const prev_row_index: usize = if (self.context_menu) |menu|
+            if (menu.cell_index.table_index == table_index) menu.cell_index.row_index else 0
+        else
+            0;
+
+        table.removeColumn(allocator, column_index);
+        self.hover_cursor = null;
+        self.context_menu = null;
+        if (table.cols() == 0 or table.rows() == 0) {
+            self.removeTable(allocator, table_index);
+            self.active_cursor = null;
+        } else {
+            const clamped_col = @min(column_index, table.cols() - 1);
+            const clamped_row = @min(prev_row_index, table.rows() - 1);
+            const target_idx = CellIndex{
+                .table_index = table_index,
+                .column_index = clamped_col,
+                .row_index = clamped_row,
+            };
+            if (self.getCellCoordinates(target_idx)) |pos| {
+                self.active_cursor = .{
+                    .cell = .{
+                        .cell_index = target_idx,
+                        .pos = pos,
+                    },
+                };
+            } else {
+                self.active_cursor = null;
+            }
+        }
+    }
+
+    pub fn deleteTable(self: *UI, allocator: Allocator, table_index: usize) void {
+        if (table_index >= self.tables.items.len) return;
+        self.removeTable(allocator, table_index);
+        self.active_cursor = null;
+        self.hover_cursor = null;
+        self.context_menu = null;
+    }
+
+    fn contextMenuPadX(self: UI) f32 {
+        return self.units.paddingLeft() * 2.0;
+    }
+
+    fn contextMenuItemHeight(self: UI) f32 {
+        return self.units.cell.height * 1.2;
+    }
+
+    fn contextMenuSize(self: UI) Size2D {
+        var max_chars: usize = 0;
+        for (CONTEXT_MENU_ITEMS) |item| {
+            max_chars = @max(max_chars, item.label().len);
+        }
+        const width = @as(f32, @floatFromInt(max_chars)) * self.units.text.width + self.contextMenuPadX() * 2.0;
+        const height = @as(f32, @floatFromInt(CONTEXT_MENU_ITEMS.len)) * self.contextMenuItemHeight();
+        return .{ .width = width, .height = height };
+    }
+
+    pub fn getContextMenuActionAt(self: *const UI, p: Vec2) ?ContextMenuAction {
+        const menu = self.context_menu orelse return null;
+        const menu_size = self.contextMenuSize();
+        if (!clientRectContains(.{ .pos = menu.pos, .size = menu_size }, p)) {
+            return null;
+        }
+        const item_height = self.contextMenuItemHeight();
+        const rel_y = p[1] - menu.pos[1];
+        if (rel_y < 0) return null;
+        const idx: usize = @intFromFloat(@floor(rel_y / item_height));
+        if (idx >= CONTEXT_MENU_ITEMS.len) return null;
+        return CONTEXT_MENU_ITEMS[idx];
+    }
+
+    pub fn handleMouseRightClick(self: *UI, p: Vec2) void {
+        const cell_info = self.getCellAt(p) orelse {
+            self.context_menu = null;
+            return;
+        };
+        self.active_cursor = .{ .cell = cell_info };
+        self.hover_cursor = null;
+        self.context_menu = .{
+            .pos = p,
+            .cell_index = cell_info.cell_index,
+            .hovered_item = null,
+        };
+    }
+
+    pub fn handleMouseClick(self: *UI, allocator: Allocator, p: Vec2) void {
+        if (self.context_menu) |menu| {
+            if (self.getContextMenuActionAt(p)) |action| {
+                switch (action) {
+                    .delete_row => self.deleteRow(allocator, menu.cell_index.table_index, menu.cell_index.row_index),
+                    .delete_column => self.deleteColumn(allocator, menu.cell_index.table_index, menu.cell_index.column_index),
+                    .delete_table => self.deleteTable(allocator, menu.cell_index.table_index),
+                }
+                return;
+            }
+            self.context_menu = null;
+        }
         self.active_cursor = self.getCursor(p);
     }
 
     pub fn handleMouseHover(self: *UI, p: Vec2) void {
+        if (self.context_menu) |*menu| {
+            menu.hovered_item = self.getContextMenuActionAt(p);
+            self.hover_cursor = null;
+            return;
+        }
         self.hover_cursor = self.getCursor(p);
     }
 
     pub fn handleMouseDrag(self: *UI, start_p: Vec2, curr_p: Vec2) void {
+        if (self.context_menu != null) return;
         self.hover_cursor = null;
         const cell_info = self.getCellAt(start_p) orelse return;
         const cell = self.getCellFromIndex(cell_info.cell_index) orelse return;
@@ -274,6 +473,10 @@ pub const UI = struct {
     }
 
     pub fn handleMouseDoubleClick(self: *UI, p: Vec2) void {
+        if (self.context_menu != null) {
+            self.context_menu = null;
+            return;
+        }
         const cell_info = self.getCellAt(p) orelse return;
         const cell = self.getCellFromIndex(cell_info.cell_index) orelse return;
         const text = cell.value.items;
@@ -470,6 +673,7 @@ pub const UI = struct {
         if (!isPrintableChar(char_code)) {
             return;
         }
+        self.context_menu = null;
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
@@ -600,6 +804,9 @@ pub const UI = struct {
     }
 
     pub fn handleKeyDown(self: *UI, allocator: Allocator, key_code: Keycode, modifiers: u32) void {
+        if (key_code != .ESCAPE) {
+            self.context_menu = null;
+        }
         switch (key_code) {
             .BACKSPACE, .DELETE => self.handleBackspace(allocator),
             .ENTER => self.handleEnter(allocator, modifiers),
@@ -636,6 +843,7 @@ pub const UI = struct {
     }
 
     pub fn handlePaste(self: *UI, allocator: Allocator, clipboard_text: []const u8) !void {
+        self.context_menu = null;
         if (self.active_cursor) |cursor| {
             switch (cursor) {
                 .empty => {
@@ -1377,6 +1585,10 @@ pub const UI = struct {
     }
 
     fn handleEscape(self: *UI) void {
+        if (self.context_menu != null) {
+            self.context_menu = null;
+            return;
+        }
         self.active_cursor = null;
     }
 
@@ -1393,6 +1605,9 @@ pub const UI = struct {
                     const table = self.tables.items[table_idx];
                     if (table.rowIsEmpty(cell_pos.cell_index.row_index)) {
                         table.removeRow(allocator, cell_pos.cell_index.row_index);
+                        if (table.rows() == 0 or table.cols() == 0) {
+                            self.removeTable(allocator, table_idx);
+                        }
                         self.active_cursor = null;
                     }
                 },
@@ -1447,9 +1662,15 @@ pub const UI = struct {
                     if (column.gridSize(self.units).width == 0) {
                         // Delete the column and set cursor to null
                         table.removeColumn(allocator, column_idx);
+                        if (table.cols() == 0 or table.rows() == 0) {
+                            self.removeTable(allocator, table_idx);
+                        }
                         self.active_cursor = null;
                     } else if (table.rowIsEmpty(text_pos.cell_index.row_index)) {
                         table.removeRow(allocator, text_pos.cell_index.row_index);
+                        if (table.rows() == 0 or table.cols() == 0) {
+                            self.removeTable(allocator, table_idx);
+                        }
                         self.active_cursor = null;
                     } else {
                         self.active_cursor = .{
@@ -1478,9 +1699,15 @@ pub const UI = struct {
                     const column = table.columns.items[column_idx];
                     if (column.gridSize(self.units).width == 0) {
                         table.removeColumn(allocator, column_idx);
+                        if (table.cols() == 0 or table.rows() == 0) {
+                            self.removeTable(allocator, table_idx);
+                        }
                         self.active_cursor = null;
                     } else if (table.rowIsEmpty(sel.cell_index.row_index)) {
                         table.removeRow(allocator, sel.cell_index.row_index);
+                        if (table.rows() == 0 or table.cols() == 0) {
+                            self.removeTable(allocator, table_idx);
+                        }
                         self.active_cursor = null;
                     } else {
                         self.active_cursor = .{
@@ -1526,6 +1753,87 @@ pub const UI = struct {
         if (self.hover_cursor) |cursor| {
             try scene.rects.append(allocator, cursor.getRect(self, current_theme.hover_cursor_color));
         }
+    }
+
+    pub fn addContextMenuToScene(self: *UI, allocator: Allocator, scene: *Scene) !void {
+        const menu = self.context_menu orelse return;
+        const current_theme = theme.current();
+        const menu_size = self.contextMenuSize();
+        const item_height = self.contextMenuItemHeight();
+        const pad_x = self.contextMenuPadX();
+        const pad_y = (item_height - self.units.cell.height) * 0.5;
+        const corner: f32 = 1.0 / 512.0;
+        const corners = .{ corner, corner, corner, corner };
+
+        // Drop shadow
+        try scene.rects.append(allocator, .{
+            .color = current_theme.context_menu_shadow_color,
+            .x = menu.pos[0],
+            .y = menu.pos[1] + self.units.cell.height * 0.08,
+            .width = menu_size.width,
+            .height = menu_size.height,
+            .corners = corners,
+            .sigma = self.units.cell.height * 0.15,
+        });
+
+        // Menu background
+        try scene.rects.append(allocator, .{
+            .color = current_theme.context_menu_background_color,
+            .x = menu.pos[0],
+            .y = menu.pos[1],
+            .width = menu_size.width,
+            .height = menu_size.height,
+            .corners = corners,
+            .sigma = 1e-6,
+        });
+
+        for (CONTEXT_MENU_ITEMS, 0..) |item, i| {
+            const item_y = menu.pos[1] + @as(f32, @floatFromInt(i)) * item_height;
+            if (menu.hovered_item == item) {
+                const is_top = i == 0;
+                const is_bottom = i + 1 == CONTEXT_MENU_ITEMS.len;
+                const item_corners: [4]f32 = .{
+                    if (is_top) corner else 0.0,
+                    if (is_top) corner else 0.0,
+                    if (is_bottom) corner else 0.0,
+                    if (is_bottom) corner else 0.0,
+                };
+                try scene.rects.append(allocator, .{
+                    .color = current_theme.hover_cursor_color,
+                    .x = menu.pos[0],
+                    .y = item_y,
+                    .width = menu_size.width,
+                    .height = item_height,
+                    .corners = item_corners,
+                    .sigma = 1e-6,
+                });
+            }
+
+            if (i + 1 < CONTEXT_MENU_ITEMS.len) {
+                try scene.lines.append(allocator, .{
+                    .p0 = .{ menu.pos[0], item_y + item_height },
+                    .p1 = .{ menu.pos[0] + menu_size.width, item_y + item_height },
+                    .color = current_theme.context_menu_border_color,
+                });
+            }
+
+            try scene.texts.append(allocator, .{
+                .text = item.label(),
+                .x = menu.pos[0] + pad_x,
+                .y = item_y + pad_y + self.units.cell.height,
+            });
+        }
+
+        try table_mod.addRoundedRectLines(
+            scene,
+            allocator,
+            menu.pos[0],
+            menu.pos[1],
+            menu_size.width,
+            menu_size.height,
+            corner,
+            current_theme.context_menu_border_color,
+        );
     }
 
     fn getCellLeftPosition(self: *UI, cell_index: CellIndex) f32 {
@@ -1969,6 +2277,9 @@ pub const UI = struct {
             allocator.destroy(table);
         }
         self.tables.clearRetainingCapacity();
+        self.active_cursor = null;
+        self.hover_cursor = null;
+        self.context_menu = null;
 
         var reader = std.Io.Reader.fixed(data);
 
@@ -2245,12 +2556,78 @@ test "drag to select, double-click word to select, copy and delete" {
 
     // 6. Click on left half vs right half of a character snaps between characters
     // 'H' is at [padding + 0, padding + 5). Left half (< padding + 2.5) -> offset 0; right half (>= padding + 2.5) -> offset 1.
-    ui.handleMouseClick(Vec2{ padding + 1.0, 5.0 });
+    ui.handleMouseClick(allocator, Vec2{ padding + 1.0, 5.0 });
     try testing.expectEqual(@as(usize, 0), ui.active_cursor.?.text.char_offset);
-    ui.handleMouseClick(Vec2{ padding + 4.0, 5.0 });
+    ui.handleMouseClick(allocator, Vec2{ padding + 4.0, 5.0 });
     try testing.expectEqual(@as(usize, 1), ui.active_cursor.?.text.char_offset);
 
     const cursor_rect = ui.active_cursor.?.getRect(&ui, theme.current().active_cursor_color);
     try testing.expect(cursor_rect.width < units.text.width);
     try testing.expectApproxEqAbs(padding + 5.0, cursor_rect.x + cursor_rect.width * 0.5, 1e-4);
+}
+
+test "context menu delete row, column, and table" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    const units = Units{
+        .cell = .{ .width = 10.0, .height = 10.0 },
+        .text = .{ .width = 5.0, .height = 10.0 },
+    };
+    var ui = UI.init(allocator, units);
+    defer ui.deinit(allocator);
+
+    const table = try ui.addTable(allocator);
+    table.position = .{ .left = 0, .top = 0 };
+    const col0 = try table.addColumn(allocator);
+    const col1 = try table.addColumn(allocator);
+    try col0.addCell(allocator, "A1");
+    try col0.addCell(allocator, "A2");
+    try col1.addCell(allocator, "B1");
+    try col1.addCell(allocator, "B2");
+
+    // Right-click on row 0, col 0 (at (5.0, 5.0))
+    const click_pos = Vec2{ 5.0, 5.0 };
+    ui.handleMouseRightClick(click_pos);
+    try testing.expect(ui.context_menu != null);
+    try testing.expectEqual(@as(usize, 0), ui.context_menu.?.cell_index.row_index);
+    try testing.expectEqual(@as(usize, 0), ui.context_menu.?.cell_index.column_index);
+
+    const item_h = ui.contextMenuItemHeight();
+
+    // Hover and click item 0: "Delete row"
+    const delete_row_pos = Vec2{ click_pos[0] + 5.0, click_pos[1] + item_h * 0.5 };
+    ui.handleMouseHover(delete_row_pos);
+    try testing.expectEqual(ContextMenuAction.delete_row, ui.context_menu.?.hovered_item.?);
+    ui.handleMouseClick(allocator, delete_row_pos);
+    try testing.expect(ui.context_menu == null);
+    try testing.expectEqual(@as(usize, 1), table.rows());
+    try testing.expectEqualStrings("A2", table.columns.items[0].data.items[0].value.items);
+    try testing.expectEqualStrings("B2", table.columns.items[1].data.items[0].value.items);
+
+    // Right-click on col 1, row 0 and click item 1: "Delete column"
+    const col1_x = table.columns.items[0].size(units).width + 2.0;
+    const col1_click = Vec2{ col1_x, 5.0 };
+    ui.handleMouseRightClick(col1_click);
+    try testing.expect(ui.context_menu != null);
+    try testing.expectEqual(@as(usize, 1), ui.context_menu.?.cell_index.column_index);
+
+    const delete_col_pos = Vec2{ col1_click[0] + 5.0, col1_click[1] + item_h * 1.5 };
+    ui.handleMouseHover(delete_col_pos);
+    try testing.expectEqual(ContextMenuAction.delete_column, ui.context_menu.?.hovered_item.?);
+    ui.handleMouseClick(allocator, delete_col_pos);
+    try testing.expect(ui.context_menu == null);
+    try testing.expectEqual(@as(usize, 1), table.cols());
+    try testing.expectEqualStrings("A2", table.columns.items[0].data.items[0].value.items);
+
+    // Right-click on remaining cell and click item 2: "Delete table"
+    ui.handleMouseRightClick(click_pos);
+    try testing.expect(ui.context_menu != null);
+    const delete_table_pos = Vec2{ click_pos[0] + 5.0, click_pos[1] + item_h * 2.5 };
+    ui.handleMouseHover(delete_table_pos);
+    try testing.expectEqual(ContextMenuAction.delete_table, ui.context_menu.?.hovered_item.?);
+    ui.handleMouseClick(allocator, delete_table_pos);
+    try testing.expect(ui.context_menu == null);
+    try testing.expectEqual(@as(usize, 0), ui.tables.items.len);
+    try testing.expect(ui.active_cursor == null);
 }

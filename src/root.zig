@@ -122,6 +122,7 @@ const state = struct {
     var rect_dims = RectDims{ .width = 0, .height = 0 };
     var text_dims = RectDims{ .width = 0, .height = 0 };
     var scene: Scene = undefined;
+    var overlay_scene: Scene = undefined;
     var ui: UI = undefined;
     var is_ui_initialized: bool = false;
     var is_graphics_initialized: bool = false;
@@ -161,6 +162,7 @@ export fn init() void {
     ensureAllocator();
 
     state.scene = Scene.init(state.allocator);
+    state.overlay_scene = Scene.init(state.allocator);
 
     // quad (dot grid binding and pipeline)
     const rect_dims = state.dot_grid_renderer.setup();
@@ -226,18 +228,9 @@ export fn frame() void {
     state.ui.addSelfToScene(state.allocator, &state.scene) catch |err| {
         std.log.err("Failed to add UI to scene: {any}", .{err});
     };
-    for (state.scene.rects.items) |rect| {
-        state.rect_renderer.add(rect);
-    }
-    state.rect_renderer.updateBuffer();
-    for (state.scene.lines.items) |line_item| {
-        state.line_renderer.add(line_item);
-    }
-    state.line_renderer.updateBuffer();
-    for (state.scene.texts.items) |text| {
-        state.font_renderer.addLine(text);
-    }
-    state.font_renderer.updateBuffer();
+    state.ui.addContextMenuToScene(state.allocator, &state.overlay_scene) catch |err| {
+        std.log.err("Failed to add context menu to scene: {any}", .{err});
+    };
 
     const vs_params = state.t.computeVSParams();
     const vs_range = sg.asRange(&vs_params);
@@ -251,18 +244,41 @@ export fn frame() void {
         .swapchain = sglue.swapchain(),
     });
     state.dot_grid_renderer.renderInPass(vs_range);
-    state.rect_renderer.renderInPass(vs_range);
-    state.line_renderer.renderInPass(vs_range);
-    state.font_renderer.renderInPass(vs_range);
+    renderScene(&state.scene, vs_range);
+    renderScene(&state.overlay_scene, vs_range);
 
     sg.endPass();
     sg.commit();
+}
+
+fn renderScene(scene: *const Scene, vs_range: sg.Range) void {
+    state.rect_renderer.clear();
+    for (scene.rects.items) |rect| {
+        state.rect_renderer.add(rect);
+    }
+    state.rect_renderer.updateBuffer();
+    state.rect_renderer.renderInPass(vs_range);
+
+    state.line_renderer.clear();
+    for (scene.lines.items) |line_item| {
+        state.line_renderer.add(line_item);
+    }
+    state.line_renderer.updateBuffer();
+    state.line_renderer.renderInPass(vs_range);
+
+    state.font_renderer.clear();
+    for (scene.texts.items) |text| {
+        state.font_renderer.addLine(text);
+    }
+    state.font_renderer.updateBuffer();
+    state.font_renderer.renderInPass(vs_range);
 }
 
 export fn cleanup() void {
     state.is_graphics_initialized = false;
     state.font_renderer.cleanup();
     state.scene.deinit(state.allocator);
+    state.overlay_scene.deinit(state.allocator);
     state.ui.deinit(state.allocator);
     sg.shutdown();
 
@@ -335,6 +351,7 @@ export fn request_serialize() void {
         std.log.err("Failed to serialize tables: {any}", .{err});
         return;
     };
+    defer state.allocator.free(serialized_tables);
     sendSerializedTables(serialized_tables);
 }
 
@@ -431,6 +448,7 @@ export fn seed_example_table() void {
         std.log.err("Failed to serialize tables: {any}", .{err});
         return;
     };
+    defer state.allocator.free(serialized_tables);
     sendSerializedTables(serialized_tables);
     sendTableToDOM(table) catch |err| {
         std.log.err("Failed to send table to DOM: {any}", .{err});
@@ -481,7 +499,9 @@ export fn input(ev: ?*const sapp.Event) void {
         .MOUSE_MOVE => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
             const point = getPointForUI(state.mouse[0]);
-            if (state.mouse_press_pos) |press_pos| {
+            if (state.ui.context_menu != null) {
+                state.ui.handleMouseHover(point);
+            } else if (state.mouse_press_pos) |press_pos| {
                 if (!state.is_double_click) {
                     const delta_x = state.mouse[0][0] - press_pos[0];
                     const delta_y = state.mouse[0][1] - press_pos[1];
@@ -514,43 +534,72 @@ export fn input(ev: ?*const sapp.Event) void {
         },
         .MOUSE_DOWN => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
-            state.mouse_press_pos = state.mouse[0];
-            state.is_dragging = false;
             // Stop any existing momentum when user starts mouse interaction
             state.touch_state.velocity = Vec2{ 0, 0 };
 
-            const now = stm.now();
-            if (state.last_click_time != 0 and
-                stm.ms(stm.diff(now, state.last_click_time)) <= DOUBLE_CLICK_MS and
-                vec2Equal(state.mouse[0], state.last_click_pos, DOUBLE_CLICK_TOLERANCE_PX))
-            {
-                state.is_double_click = true;
+            const is_context_click = event.mouse_button == .RIGHT or
+                (event.mouse_button == .LEFT and (event.modifiers & sapp.modifier_ctrl) != 0);
+            if (is_context_click) {
+                state.mouse_press_pos = null;
+                state.is_dragging = false;
+                state.is_double_click = false;
                 state.last_click_time = 0;
                 const normalized_p = getPointForUI(state.mouse[0]);
-                state.ui.handleMouseDoubleClick(normalized_p);
+                state.ui.handleMouseRightClick(normalized_p);
                 table_dirty = true;
-            } else {
-                state.is_double_click = false;
+            } else if (event.mouse_button == .LEFT) {
+                state.mouse_press_pos = state.mouse[0];
+                state.is_dragging = false;
+
+                if (state.ui.context_menu != null) {
+                    state.is_double_click = false;
+                    state.last_click_time = 0;
+                } else {
+                    const now = stm.now();
+                    if (state.last_click_time != 0 and
+                        stm.ms(stm.diff(now, state.last_click_time)) <= DOUBLE_CLICK_MS and
+                        vec2Equal(state.mouse[0], state.last_click_pos, DOUBLE_CLICK_TOLERANCE_PX))
+                    {
+                        state.is_double_click = true;
+                        state.last_click_time = 0;
+                        const normalized_p = getPointForUI(state.mouse[0]);
+                        state.ui.handleMouseDoubleClick(normalized_p);
+                        table_dirty = true;
+                    } else {
+                        state.is_double_click = false;
+                    }
+                }
             }
             updateMouseCursor();
         },
         .MOUSE_UP => {
             state.mouse[0] = Vec2{ event.mouse_x, event.mouse_y };
-            if (state.mouse_press_pos) |_| {
-                const normalized_p = getPointForUI(state.mouse[0]);
-                if (!state.is_dragging and !state.is_double_click) {
-                    state.ui.handleMouseClick(normalized_p);
-                    state.last_click_time = stm.now();
-                    state.last_click_pos = state.mouse[0];
-                    table_dirty = true;
-                } else if (state.is_dragging) {
-                    state.last_click_time = 0;
+            if (event.mouse_button == .LEFT) {
+                if (state.mouse_press_pos) |_| {
+                    const normalized_p = getPointForUI(state.mouse[0]);
+                    const had_context_menu = state.ui.context_menu != null;
+                    if (!state.is_dragging and !state.is_double_click) {
+                        const clicked_action = state.ui.getContextMenuActionAt(normalized_p);
+                        state.ui.handleMouseClick(state.allocator, normalized_p);
+                        if (had_context_menu) {
+                            state.last_click_time = 0;
+                            if (clicked_action != null) {
+                                request_serialize();
+                            }
+                        } else {
+                            state.last_click_time = stm.now();
+                            state.last_click_pos = state.mouse[0];
+                        }
+                        table_dirty = true;
+                    } else if (state.is_dragging) {
+                        state.last_click_time = 0;
+                    }
+                    state.mouse_press_pos = null;
+                    state.is_dragging = false;
+                    state.is_double_click = false;
+                    state.ui.handleMouseHover(normalized_p);
+                    updateMouseCursor();
                 }
-                state.mouse_press_pos = null;
-                state.is_dragging = false;
-                state.is_double_click = false;
-                state.ui.handleMouseHover(normalized_p);
-                updateMouseCursor();
             }
         },
         .TOUCHES_BEGAN => {
@@ -607,6 +656,10 @@ export fn input(ev: ?*const sapp.Event) void {
 }
 
 fn updateMouseCursor() void {
+    if (state.ui.context_menu) |menu| {
+        sapp.setMouseCursor(if (menu.hovered_item != null) .POINTING_HAND else .DEFAULT);
+        return;
+    }
     const is_ibeam = if (state.is_dragging) blk: {
         break :blk if (state.ui.active_cursor) |cursor|
             switch (cursor) {
@@ -847,7 +900,7 @@ fn handleTouchEnded(event: *const sapp.Event) bool {
     if (!state.is_dragging and prev_num_touches == 1 and state.touch_state.num_touches == 1) {
         const final_pos = Vec2{ event.touches[0].pos_x, event.touches[0].pos_y };
         const normalized_p = getPointForUI(final_pos);
-        state.ui.handleMouseClick(normalized_p);
+        state.ui.handleMouseClick(state.allocator, normalized_p);
         table_dirty = true;
         activateMobileKeyboard();
     }
@@ -910,6 +963,7 @@ fn clear() void {
     state.line_renderer.clear();
     state.font_renderer.clear();
     state.scene.clear();
+    state.overlay_scene.clear();
 }
 
 fn normalizePt(p: Vec2) Vec2 {

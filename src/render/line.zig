@@ -111,7 +111,7 @@ pub const Renderer = struct {
         if (self.count == 0) {
             return;
         }
-        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.lines[0..self.count]));
+        self.bind.vertex_buffer_offsets[1] = sg.appendBuffer(self.bind.vertex_buffers[1], sg.asRange(self.lines[0..self.count]));
     }
 
     pub fn renderInPass(self: *const Renderer, vs_range: sg.Range) void {

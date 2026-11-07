@@ -116,10 +116,13 @@ pub const Renderer = struct {
         if (self.count == 0) {
             return;
         }
-        sg.updateBuffer(self.bind.vertex_buffers[1], sg.asRange(self.rects[0..self.count]));
+        self.bind.vertex_buffer_offsets[1] = sg.appendBuffer(self.bind.vertex_buffers[1], sg.asRange(self.rects[0..self.count]));
     }
 
     pub fn renderInPass(self: *const Renderer, vs_range: sg.Range) void {
+        if (self.count == 0) {
+            return;
+        }
         sg.applyPipeline(self.pip);
         sg.applyBindings(self.bind);
         sg.applyUniforms(shd_rect.UB_vs_params, vs_range);
