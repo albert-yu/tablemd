@@ -163,6 +163,44 @@
                 color: var(--text-primary);
             }
 
+            .table-picker {
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                height: 43px;
+                max-width: calc(50vw - 110px);
+                background-color: var(--panel-background);
+                color: var(--text-primary);
+                border: var(--border-color) solid 1px;
+                border-radius: 999px;
+                backdrop-filter: blur(10px);
+                padding: 0 16px;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                outline: none;
+                z-index: 1001;
+                text-overflow: ellipsis;
+                overflow: hidden;
+                white-space: nowrap;
+                transition:
+                    background-color 0.2s,
+                    border-color 0.2s,
+                    color 0.2s;
+            }
+
+            .table-picker:hover:not(:disabled) {
+                background-color: var(--surface-hover);
+            }
+
+            .table-picker:disabled {
+                color: var(--text-muted);
+                cursor: default;
+            }
+
             .floating-button {
                 position: fixed;
                 bottom: 20px;
@@ -280,6 +318,12 @@
                 .preview-view {
                     padding: 12px 12px 85px 12px;
                 }
+
+                .table-picker {
+                    left: 12px;
+                    padding: 0 10px;
+                    max-width: calc(50vw - 100px);
+                }
             }
         </style>
     </head>
@@ -330,6 +374,15 @@
                 </div>
             </div>
         </div>
+        <select
+            id="table-picker"
+            class="table-picker"
+            aria-label="Select table"
+            onchange="handleTableSelect(this.value)"
+            disabled
+        >
+            <option value="">No tables</option>
+        </select>
         <div class="bottom-tabs" role="tablist">
             <button
                 class="tab-button active"
@@ -578,6 +631,19 @@
                 tabCanvas.setAttribute("aria-selected", String(!isPreview));
                 tabPreview.classList.toggle("active", isPreview);
                 tabPreview.setAttribute("aria-selected", String(isPreview));
+            }
+
+            function handleTableSelect(value) {
+                const index = parseInt(value, 10);
+                if (isNaN(index)) return;
+                if (typeof Module !== "undefined" && Module._select_table) {
+                    const shouldPan = activeTab === "canvas" ? 1 : 0;
+                    Module._select_table(index, shouldPan);
+                }
+                const picker = document.getElementById("table-picker");
+                if (picker) {
+                    picker.blur();
+                }
             }
 
             function setPreviewMode(mode) {

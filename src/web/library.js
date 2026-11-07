@@ -18,6 +18,37 @@ mergeInto(LibraryManager.library, {
             markdownElement.innerHTML = markdown;
         }
     },
+    set_table_list: function(ptr, len, selectedIndex) {
+        const picker = document.getElementById("table-picker");
+        if (!picker) return;
+
+        const raw = len > 0 ? UTF8ToString(ptr, len) : "";
+        const labels = raw.length > 0 ? raw.split("\n") : [];
+
+        picker.innerHTML = "";
+        if (labels.length === 0) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No tables";
+            picker.appendChild(option);
+            picker.disabled = true;
+            return;
+        }
+
+        picker.disabled = false;
+        for (let i = 0; i < labels.length; i++) {
+            const option = document.createElement("option");
+            option.value = String(i);
+            option.textContent = labels[i];
+            picker.appendChild(option);
+        }
+
+        if (selectedIndex >= 0 && selectedIndex < labels.length) {
+            picker.value = String(selectedIndex);
+        } else {
+            picker.value = "0";
+        }
+    },
     activate_mobile_keyboard: function() {
         const input = document.querySelector('#mobile-keyboard-focus');
         // Focus the input to show the keyboard

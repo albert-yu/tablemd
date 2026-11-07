@@ -9,6 +9,7 @@ const theme = @import("theme.zig");
 extern fn set_html_render(ptr: [*]const u8, len: usize) void;
 extern fn set_markdown_source(ptr: [*]const u8, len: usize) void;
 extern fn set_serialized_tables(ptr: [*]const u8, len: usize) void;
+extern fn set_table_list(ptr: [*]const u8, len: usize, selected_index: i32) void;
 extern fn activate_mobile_keyboard() void;
 extern fn prefers_dark_mode() u32;
 
@@ -124,6 +125,7 @@ const state = struct {
     var scene: Scene = undefined;
     var overlay_scene: Scene = undefined;
     var ui: UI = undefined;
+    var selected_table_index: ?usize = null;
     var is_ui_initialized: bool = false;
     var is_graphics_initialized: bool = false;
 };
@@ -201,6 +203,9 @@ export fn init() void {
     state.t.updateWindowData(sapp.widthf(), sapp.heightf());
     moveToGridPos(GridPos{ .left = GRID_N / 2 - 1, .top = GRID_N / 2 - 1 });
     state.is_graphics_initialized = true;
+    if (state.ui.tables.items.len > 0) {
+        updateTableFromCursorState();
+    }
 }
 
 export fn frame() void {
@@ -358,7 +363,28 @@ export fn request_serialize() void {
 export fn clear_tables() void {
     ensureUIInitialized();
     state.ui.clearTables(state.allocator);
+    state.selected_table_index = null;
     updateTableFromCursorState();
+}
+
+export fn select_table(index: usize, pan_to_table: u32) void {
+    ensureUIInitialized();
+    if (index >= state.ui.tables.items.len) return;
+    state.selected_table_index = index;
+    const table = state.ui.tables.items[index];
+    if (pan_to_table != 0 and state.is_graphics_initialized) {
+        clearMomentum();
+        moveToGridPos(GridPos{
+            .left = table.position.left -| 1,
+            .top = table.position.top -| 1,
+        });
+    }
+    sendTableToDOM(table) catch |err| {
+        std.log.err("Failed to send table to DOM: {any}", .{err});
+    };
+    syncTableListToDOM() catch |err| {
+        std.log.err("Failed to sync table list to DOM: {any}", .{err});
+    };
 }
 
 export fn seed_example_table() void {
@@ -450,9 +476,8 @@ export fn seed_example_table() void {
     };
     defer state.allocator.free(serialized_tables);
     sendSerializedTables(serialized_tables);
-    sendTableToDOM(table) catch |err| {
-        std.log.err("Failed to send table to DOM: {any}", .{err});
-    };
+    state.selected_table_index = state.ui.tables.items.len - 1;
+    updateTableFromCursorState();
 }
 
 const PRINT_DOM_STUFF = false;
@@ -469,8 +494,8 @@ fn moveToGridPos(grid_pos: GridPos) void {
     const grid_x = @as(f32, @floatFromInt(grid_pos.left)) * state.rect_dims.width;
     const grid_y = @as(f32, @floatFromInt(grid_pos.top)) * state.rect_dims.height;
     const denormalized = denormalizePt(Vec2{ grid_x, grid_y });
-    const uninverted = uninvert(denormalized);
-    state.t.updateZoom(.{ .k = state.t.getZoom().k, .x = -uninverted[0], .y = -uninverted[1] });
+    const k = state.t.getZoom().k;
+    state.t.updateZoom(.{ .k = k, .x = -denormalized[0] * k, .y = -denormalized[1] * k });
 }
 
 fn setMarkdownSource(md_src: []const u8) void {
@@ -478,6 +503,14 @@ fn setMarkdownSource(md_src: []const u8) void {
         set_markdown_source(md_src.ptr, md_src.len);
     } else if (PRINT_DOM_STUFF) {
         std.log.info("markdown:\n{s}", .{md_src});
+    }
+}
+
+fn setTableList(list: []const u8, selected_index: i32) void {
+    if (builtin.target.cpu.arch.isWasm()) {
+        set_table_list(list.ptr, list.len, selected_index);
+    } else if (PRINT_DOM_STUFF) {
+        std.log.info("tables (selected={d}):\n{s}", .{ selected_index, list });
     }
 }
 
@@ -692,21 +725,60 @@ fn copySelectionToClipboard() void {
 }
 
 fn updateTableFromCursorState() void {
-    if (state.ui.active_cursor) |cursor| {
-        const table: ?*ui.Table = switch (cursor) {
-            .empty => null,
-            .cell => |cell_pos| state.ui.tables.items[cell_pos.cell_index.table_index],
-            .text => |text_pos| state.ui.tables.items[text_pos.cell_index.table_index],
-            .text_selection => |sel| state.ui.tables.items[sel.cell_index.table_index],
-        };
-        if (table) |tbl| {
-            sendTableToDOM(tbl) catch |err| {
-                std.log.err("Failed to send table to DOM: {any}", .{err});
-            };
-        }
-    } else {
+    if (state.ui.tables.items.len == 0) {
+        state.selected_table_index = null;
         clearTableInDOM();
+    } else {
+        if (state.ui.active_cursor) |cursor| {
+            const cursor_table_idx: ?usize = switch (cursor) {
+                .empty => null,
+                .cell => |cell_pos| cell_pos.cell_index.table_index,
+                .text => |text_pos| text_pos.cell_index.table_index,
+                .text_selection => |sel| sel.cell_index.table_index,
+            };
+            if (cursor_table_idx) |idx| {
+                if (idx < state.ui.tables.items.len) {
+                    state.selected_table_index = idx;
+                }
+            }
+        }
+        if (state.selected_table_index) |idx| {
+            if (idx >= state.ui.tables.items.len) {
+                state.selected_table_index = state.ui.tables.items.len - 1;
+            }
+        } else {
+            state.selected_table_index = 0;
+        }
+
+        const tbl = state.ui.tables.items[state.selected_table_index.?];
+        sendTableToDOM(tbl) catch |err| {
+            std.log.err("Failed to send table to DOM: {any}", .{err});
+        };
     }
+
+    syncTableListToDOM() catch |err| {
+        std.log.err("Failed to sync table list to DOM: {any}", .{err});
+    };
+}
+
+fn syncTableListToDOM() !void {
+    var list = std.ArrayList(u8).initCapacity(state.allocator, 0) catch unreachable;
+    defer list.deinit(state.allocator);
+
+    for (state.ui.tables.items, 0..) |table, idx| {
+        if (idx > 0) {
+            try list.append(state.allocator, '\n');
+        }
+        const lbl = try table.label(state.allocator);
+        defer state.allocator.free(lbl);
+        try list.appendSlice(state.allocator, lbl);
+    }
+
+    const selected_idx: i32 = if (state.selected_table_index) |idx|
+        @intCast(idx)
+    else
+        -1;
+    setTableList(list.items, selected_idx);
 }
 
 fn handlePan(delta_x: f32, delta_y: f32) void {
@@ -727,13 +799,6 @@ fn handleZoom(delta: f32, p: Vec2) void {
     const inv_p = invert(p);
     const translated = translate(new_k, p, inv_p);
     state.t.updateZoom(.{ .k = new_k, .x = translated[0], .y = translated[1] });
-}
-
-fn uninvert(p: Vec2) Vec2 {
-    const zoom = state.t.getZoom();
-    const x = p[0] * zoom.k + zoom.x;
-    const y = p[1] * zoom.k + zoom.y;
-    return Vec2{ x, y };
 }
 
 /// Unapplies the zoom transform
