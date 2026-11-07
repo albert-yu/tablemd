@@ -315,6 +315,43 @@ pub const Table = struct {
         };
     }
 
+    /// Generate a label for the table from up to the first three column names
+    pub fn label(self: Table, allocator: Allocator) ![]u8 {
+        var result = ArrayList(u8).initCapacity(allocator, 0) catch unreachable;
+        errdefer result.deinit(allocator);
+
+        const max_cols = @min(self.columns.items.len, 3);
+        var added_cols: usize = 0;
+        for (self.columns.items[0..max_cols]) |column| {
+            const raw_name = if (column.data.items.len > 0)
+                column.data.items[0].value.items
+            else
+                "";
+            const trimmed = std.mem.trim(u8, raw_name, " \t\r\n");
+            if (trimmed.len == 0) continue;
+
+            if (added_cols > 0) {
+                try result.appendSlice(allocator, ", ");
+            }
+            for (trimmed) |char| {
+                if (char == '\n' or char == '\r') {
+                    try result.append(allocator, ' ');
+                } else {
+                    try result.append(allocator, char);
+                }
+            }
+            added_cols += 1;
+        }
+
+        if (added_cols == 0) {
+            try result.appendSlice(allocator, "Untitled");
+        } else if (self.columns.items.len > 3) {
+            try result.appendSlice(allocator, ", ...");
+        }
+
+        return result.toOwnedSlice(allocator);
+    }
+
     /// Convert table data to Markdown table format
     pub fn md(self: Table, allocator: Allocator) ![]u8 {
         if (self.columns.items.len == 0) {
@@ -653,7 +690,7 @@ pub const Table = struct {
     }
 };
 
-fn addRoundedRectLines(
+pub fn addRoundedRectLines(
     scene: *Scene,
     allocator: Allocator,
     x: f32,
@@ -675,7 +712,7 @@ fn addRoundedRectLines(
     );
 }
 
-fn addRoundedRectCornersLines(
+pub fn addRoundedRectCornersLines(
     scene: *Scene,
     allocator: Allocator,
     x: f32,
@@ -768,9 +805,7 @@ fn addRoundedRectCornersLines(
 
 test "table serialization and deserialization" {
     const testing = std.testing;
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = testing.allocator;
 
     // Create a test table
     var original_table = Table.init(allocator);
@@ -837,4 +872,54 @@ test "empty table serialization" {
     // Verify empty table properties
     try testing.expectEqual(@as(usize, 0), deserialized_table.cols());
     try testing.expectEqual(@as(usize, 0), deserialized_table.rows());
+}
+
+test "table label from column names" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+
+    var table = Table.init(allocator);
+    defer table.deinit(allocator);
+
+    // Empty table -> "Untitled"
+    {
+        const lbl = try table.label(allocator);
+        defer allocator.free(lbl);
+        try testing.expectEqualStrings("Untitled", lbl);
+    }
+
+    const col1 = try table.addColumn(allocator);
+    try col1.addCell(allocator, "Name");
+    {
+        const lbl = try table.label(allocator);
+        defer allocator.free(lbl);
+        try testing.expectEqualStrings("Name", lbl);
+    }
+
+    const col2 = try table.addColumn(allocator);
+    col2.data.items[0].value.clearRetainingCapacity();
+    try col2.data.items[0].value.appendSlice(allocator, "Age");
+    {
+        const lbl = try table.label(allocator);
+        defer allocator.free(lbl);
+        try testing.expectEqualStrings("Name, Age", lbl);
+    }
+
+    const col3 = try table.addColumn(allocator);
+    col3.data.items[0].value.clearRetainingCapacity();
+    try col3.data.items[0].value.appendSlice(allocator, "City");
+    {
+        const lbl = try table.label(allocator);
+        defer allocator.free(lbl);
+        try testing.expectEqualStrings("Name, Age, City", lbl);
+    }
+
+    const col4 = try table.addColumn(allocator);
+    col4.data.items[0].value.clearRetainingCapacity();
+    try col4.data.items[0].value.appendSlice(allocator, "About");
+    {
+        const lbl = try table.label(allocator);
+        defer allocator.free(lbl);
+        try testing.expectEqualStrings("Name, Age, City, ...", lbl);
+    }
 }

@@ -9,6 +9,9 @@ pub const Theme = struct {
     table_background_color: sg.Color,
     dot_grid_color: sg.Color,
     edited_cell_border_color: sg.Color,
+    context_menu_background_color: sg.Color,
+    context_menu_border_color: sg.Color,
+    context_menu_shadow_color: sg.Color,
 };
 
 pub const DARK_THEME: Theme = .{
@@ -54,6 +57,24 @@ pub const DARK_THEME: Theme = .{
         .b = 250.0 / 255.0,
         .a = 1.0,
     },
+    .context_menu_background_color = .{
+        .r = 32.0 / 255.0,
+        .g = 32.0 / 255.0,
+        .b = 32.0 / 255.0,
+        .a = 0.98,
+    },
+    .context_menu_border_color = .{
+        .r = 120.0 / 255.0,
+        .g = 120.0 / 255.0,
+        .b = 120.0 / 255.0,
+        .a = 0.8,
+    },
+    .context_menu_shadow_color = .{
+        .r = 0.0,
+        .g = 0.0,
+        .b = 0.0,
+        .a = 0.45,
+    },
 };
 
 pub const LIGHT_THEME: Theme = .{
@@ -98,6 +119,24 @@ pub const LIGHT_THEME: Theme = .{
         .g = 99.0 / 255.0,
         .b = 235.0 / 255.0,
         .a = 1.0,
+    },
+    .context_menu_background_color = .{
+        .r = 1.0,
+        .g = 1.0,
+        .b = 1.0,
+        .a = 0.98,
+    },
+    .context_menu_border_color = .{
+        .r = 0.0,
+        .g = 0.0,
+        .b = 0.0,
+        .a = 0.25,
+    },
+    .context_menu_shadow_color = .{
+        .r = 0.0,
+        .g = 0.0,
+        .b = 0.0,
+        .a = 0.18,
     },
 };
 
